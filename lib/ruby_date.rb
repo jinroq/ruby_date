@@ -87,9 +87,6 @@ class RubyDate
   NS_JD_MAX = 538_000_000
   private_constant :NS_JD_MIN, :NS_JD_MAX
 
-  REFORM_BEGIN_YEAR = 1582
-  private_constant :REFORM_BEGIN_YEAR
-
   # Initialize method
   # call-seq:
   #   Date.new(year = -4712, month = 1, mday = 1, start = Date::ITALY) -> date
@@ -120,30 +117,28 @@ class RubyDate
     
     @sg = start
     
-    year, year_frac = extract_fraction(year)
-    month, month_frac = extract_fraction(month)
-    day, day_frac = extract_fraction(day)
+    year_int, year_frac = extract_fraction(year)
+    month_int, month_frac = extract_fraction(month)
+    day_int, day_frac = extract_fraction(day)
     
     total_frac = year_frac + month_frac + day_frac
     
-    style = guess_style(year, start)
+    style = guess_style(year_int, start)
     
     if style < 0
-      nth, ry, rm, rd = decode_year(year, -1)
+      nth, ry, _, _ = decode_year(year_int, -1)
       
-      unless valid_gregorian?(ry, month, day)
-      raise ArgumentError, "invalid date"
-      end
+      raise ArgumentError, "invalid date" unless valid_gregorian?(ry, month_int, day_int)
       
       @nth = nth
       @year = ry
-      @month = rm
-      @day = rd
-      @jd = nil
-      @has_jd = false
+      @month = month_int
+      @day = day_int
+      @jd = self.class.send(:gregorian_civil_to_jd, @year, @month, @day)
+      @has_jd = true
       @has_civil = true
     else
-      nth, ry, rm, rd, rjd, ns = validate_civil(year, month, day, start)
+      nth, ry, rm, rd, rjd, ns = validate_civil(year_int, month_int, day_int, start)
       
       raise ArgumentError, "invalid date" unless rjd
       
@@ -157,15 +152,15 @@ class RubyDate
     end
     
     if total_frac.nonzero?
-      result = self + total_frac
+      self_plus = self + total_frac
 
-      @nth = result.instance_variable_get(:@nth)
-      @jd = result.instance_variable_get(:@jd)
-      @year = result.instance_variable_get(:@year)
-      @month = result.instance_variable_get(:@month)
-      @day = result.instance_variable_get(:@day)
-      @has_jd = result.instance_variable_get(:@has_jd)
-      @has_civil = result.instance_variable_get(:@has_civil)
+      @nth = self_plus.instance_variable_get(:@nth)
+      @jd = self_plus.instance_variable_get(:@jd)
+      @year = self_plus.instance_variable_get(:@year)
+      @month = self_plus.instance_variable_get(:@month)
+      @day = self_plus.instance_variable_get(:@day)
+      @has_jd = self_plus.instance_variable_get(:@has_jd)
+      @has_civil = self_plus.instance_variable_get(:@has_civil)
     end
   end
 
@@ -535,6 +530,7 @@ class RubyDate
 
   def valid_civil?(y, m, d)
     return false if m < 1 || m > 12
+
     last = last_day_of_month(y, m)
     d >= 1 && d <= last
   end
@@ -624,6 +620,7 @@ class RubyDate
   def valid_gregorian?(y, m, d)
     return false if m < 1 || m > 12
     
+    # Handling negative months and days
     m = m + 13 if m < 0
     return false if m < 1 || m > 12
     
@@ -680,13 +677,6 @@ class RubyDate
     else
       self
     end
-  end
-
-  def last_day_of_month(y, m)
-    return nil if m < 1 || m > 12
-    
-    leap = self.class.gregorian_leap?(y) ? 1 : 0
-    MONTH_DAYS[leap][m]
   end
 
   def last_day_of_month_gregorian(y, m)
