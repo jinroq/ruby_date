@@ -226,6 +226,16 @@ class RubyDate
       !!(((year % 4).zero? && (year % 100).nonzero?) || (year % 400).zero?)
     end
 
+    # call-seq:
+    #   Date.julian_leap?(year) -> true or false
+    #
+    # Returns +true+ if the given year is a leap year
+    # in the {proleptic Julian calendar}[https://en.wikipedia.org/wiki/Proleptic_Julian_calendar], +false+ otherwise:
+    #
+    #   Date.julian_leap?(1900) # => true
+    #   Date.julian_leap?(1901) # => false
+    #
+    # Related: Date.gregorian_leap?.
     def julian_leap?(year)
       (year % 4).zero?
     end
