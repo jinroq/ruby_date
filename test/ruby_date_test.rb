@@ -280,4 +280,595 @@ class RubyDateTest < Test::Unit::TestCase
       assert_equal(1, date.day)
     end
   end
+
+  # RubyDate.new tests
+  sub_test_case "RubyDate.new" do
+    test "creates date with year, month, day" do
+      date = RubyDate.new(2001, 2, 3)
+      assert_equal(2001, date.year)
+      assert_equal(2, date.month)
+      assert_equal(3, date.day)
+    end
+
+    test "creates date with year only" do
+      date = RubyDate.new(2022)
+      assert_equal(2022, date.year)
+      assert_equal(1, date.month)
+      assert_equal(1, date.day)
+    end
+
+    test "creates date with year and month" do
+      date = RubyDate.new(2022, 2)
+      assert_equal(2022, date.year)
+      assert_equal(2, date.month)
+      assert_equal(1, date.day)
+    end
+
+    test "raises ArgumentError for invalid date" do
+      assert_raise(ArgumentError) do
+        RubyDate.new(2001, 2, 29) # 2001 is not a leap year
+      end
+    end
+
+    test "raises TypeError for non-numeric year" do
+      assert_raise(TypeError) do
+        RubyDate.new("2001", 2, 3)
+      end
+    end
+
+    test "raises TypeError for non-numeric month" do
+      assert_raise(TypeError) do
+        RubyDate.new(2001, "2", 3)
+      end
+    end
+
+    test "raises TypeError for non-numeric day" do
+      assert_raise(TypeError) do
+        RubyDate.new(2001, 2, "3")
+      end
+    end
+
+    test "creates leap year date" do
+      date = RubyDate.new(2000, 2, 29)
+      assert_equal(2000, date.year)
+      assert_equal(2, date.month)
+      assert_equal(29, date.day)
+    end
+
+    test "creates date in different years" do
+      date = RubyDate.new(1999, 12, 31)
+      assert_equal(1999, date.year)
+      assert_equal(12, date.month)
+      assert_equal(31, date.day)
+    end
+
+    test "handles negative day counting from end of month" do
+      # Last day of February in non-leap year
+      date = RubyDate.new(2001, 2, -1)
+      assert_equal(2001, date.year)
+      assert_equal(2, date.month)
+      assert_equal(28, date.day)
+    end
+
+    test "handles negative day in leap year" do
+      # Last day of February in leap year
+      date = RubyDate.new(2000, 2, -1)
+      assert_equal(2000, date.year)
+      assert_equal(2, date.month)
+      assert_equal(29, date.day)
+    end
+
+    test "creates dates across different centuries" do
+      # 19th century
+      d1 = RubyDate.new(1800, 1, 1)
+      assert_equal(1800, d1.year)
+
+      # 20th century
+      d2 = RubyDate.new(1900, 1, 1)
+      assert_equal(1900, d2.year)
+
+      # 21st century
+      d3 = RubyDate.new(2000, 1, 1)
+      assert_equal(2000, d3.year)
+
+      # 22nd century
+      d4 = RubyDate.new(2100, 1, 1)
+      assert_equal(2100, d4.year)
+    end
+
+    test "new with different start dates" do
+      d1 = RubyDate.new(2001, 2, 3, RubyDate::ITALY)
+      d2 = RubyDate.new(2001, 2, 3, RubyDate::ENGLAND)
+      d3 = RubyDate.new(2001, 2, 3, RubyDate::GREGORIAN)
+
+      # All should have same civil date
+      assert_equal(d1.year, d2.year)
+      assert_equal(d1.month, d2.month)
+      assert_equal(d1.day, d2.day)
+
+      # But different start values
+      assert_equal(RubyDate::ITALY, d1.start)
+      assert_equal(RubyDate::ENGLAND, d2.start)
+      assert_equal(RubyDate::GREGORIAN, d3.start)
+    end
+
+    test "creates dates at month boundaries" do
+      # January 31
+      d1 = RubyDate.new(2001, 1, 31)
+      assert_equal(1, d1.month)
+      assert_equal(31, d1.day)
+
+      # March 31
+      d2 = RubyDate.new(2001, 3, 31)
+      assert_equal(3, d2.month)
+      assert_equal(31, d2.day)
+
+      # April 30 (no 31st day)
+      d3 = RubyDate.new(2001, 4, 30)
+      assert_equal(4, d3.month)
+      assert_equal(30, d3.day)
+    end
+
+    test "raises ArgumentError for invalid month/day combinations" do
+      # February 30 doesn't exist
+      assert_raise(ArgumentError) do
+        RubyDate.new(2001, 2, 30)
+      end
+
+      # April 31 doesn't exist
+      assert_raise(ArgumentError) do
+        RubyDate.new(2001, 4, 31)
+      end
+
+      # Month 13 doesn't exist
+      assert_raise(ArgumentError) do
+        RubyDate.new(2001, 13, 1)
+      end
+
+      # Month 0 doesn't exist
+      assert_raise(ArgumentError) do
+        RubyDate.new(2001, 0, 1)
+      end
+    end
+  end
+
+  # RubyDate.julian_leap? tests
+  sub_test_case "RubyDate.julian_leap?" do
+    test "returns true for year divisible by 4" do
+      assert_true(RubyDate.julian_leap?(1900))
+      assert_true(RubyDate.julian_leap?(2000))
+      assert_true(RubyDate.julian_leap?(2004))
+    end
+
+    test "returns false for non-leap year" do
+      assert_false(RubyDate.julian_leap?(2001))
+      assert_false(RubyDate.julian_leap?(2019))
+      assert_false(RubyDate.julian_leap?(1901))
+    end
+  end
+
+  # RubyDate.ordinal tests
+  sub_test_case "RubyDate.ordinal" do
+    test "creates date from year and day of year" do
+      date = RubyDate.ordinal(2001, 34)
+      assert_equal(2001, date.year)
+      assert_equal(2, date.month)
+      assert_equal(3, date.day)
+    end
+
+    test "creates date with year only" do
+      date = RubyDate.ordinal(2001)
+      assert_equal(2001, date.year)
+      assert_equal(1, date.month)
+      assert_equal(1, date.day)
+    end
+
+    test "creates date for first day of year" do
+      date = RubyDate.ordinal(2001, 1)
+      assert_equal(2001, date.year)
+      assert_equal(1, date.month)
+      assert_equal(1, date.day)
+    end
+
+    test "creates date for last day of year (non-leap)" do
+      date = RubyDate.ordinal(2001, 365)
+      assert_equal(2001, date.year)
+      assert_equal(12, date.month)
+      assert_equal(31, date.day)
+    end
+
+    test "creates date for last day of year (leap)" do
+      date = RubyDate.ordinal(2000, 366)
+      assert_equal(2000, date.year)
+      assert_equal(12, date.month)
+      assert_equal(31, date.day)
+    end
+
+    test "handles negative day of year" do
+      date = RubyDate.ordinal(2001, -14)
+      assert_equal(2001, date.year)
+      assert_equal(12, date.month)
+      assert_equal(18, date.day)
+    end
+
+    test "handles negative day of year for first day" do
+      date = RubyDate.ordinal(2001, -365)
+      assert_equal(2001, date.year)
+      assert_equal(1, date.month)
+      assert_equal(1, date.day)
+    end
+
+    test "creates date for day 60 in leap year (Feb 29)" do
+      date = RubyDate.ordinal(2000, 60)
+      assert_equal(2000, date.year)
+      assert_equal(2, date.month)
+      assert_equal(29, date.day)
+    end
+
+    test "creates date for day 60 in non-leap year (Mar 1)" do
+      date = RubyDate.ordinal(2001, 60)
+      assert_equal(2001, date.year)
+      assert_equal(3, date.month)
+      assert_equal(1, date.day)
+    end
+
+    test "creates date for middle of year" do
+      date = RubyDate.ordinal(2001, 182)
+      assert_equal(2001, date.year)
+      assert_equal(7, date.month)
+      assert_equal(1, date.day)
+    end
+
+    test "ordinal raises TypeError for non-numeric year" do
+      assert_raise(TypeError) do
+        RubyDate.ordinal("2001", 34)
+      end
+    end
+
+    test "ordinal raises TypeError for non-numeric yday" do
+      assert_raise(TypeError) do
+        RubyDate.ordinal(2001, "34")
+      end
+    end
+
+    test "raises ArgumentError for invalid day of year" do
+      assert_raise(ArgumentError) do
+        RubyDate.ordinal(2001, 366) # 2001 is not a leap year
+      end
+    end
+
+    test "raises ArgumentError for zero day of year" do
+      assert_raise(ArgumentError) do
+        RubyDate.ordinal(2001, 0)
+      end
+    end
+
+    test "raises ArgumentError for day of year too large" do
+      assert_raise(ArgumentError) do
+        RubyDate.ordinal(2000, 367) # even leap year only has 366 days
+      end
+    end
+
+    test "ordinal with fractional yday" do
+      date = RubyDate.ordinal(2001, 34.5)
+      assert_equal(2001, date.year)
+      assert_equal(2, date.month)
+      assert_equal(4, date.day)
+    end
+
+    test "ordinal with Rational yday" do
+      date = RubyDate.ordinal(2001, Rational(69, 2))
+      assert_equal(2001, date.year)
+      assert_equal(2, date.month)
+      assert_equal(4, date.day)
+    end
+
+    test "ordinal dates match regular dates" do
+      d1 = RubyDate.ordinal(2001, 34)
+      d2 = RubyDate.new(2001, 2, 3)
+      assert_equal(d1, d2)
+      assert_equal(d1.jd, d2.jd)
+    end
+
+    test "ordinal consecutive days" do
+      d1 = RubyDate.ordinal(2001, 100)
+      d2 = RubyDate.ordinal(2001, 101)
+      assert_equal(1, d2.jd - d1.jd)
+    end
+
+    test "ordinal across different years" do
+      dates = [
+        [1999, 365, 1999, 12, 31],
+        [2000, 1, 2000, 1, 1],
+        [2000, 366, 2000, 12, 31],
+        [2024, 366, 2024, 12, 31],
+      ]
+
+      dates.each do |year, yday, exp_year, exp_month, exp_day|
+        date = RubyDate.ordinal(year, yday)
+        assert_equal(exp_year, date.year, "Year mismatch for #{year}-#{yday}")
+        assert_equal(exp_month, date.month, "Month mismatch for #{year}-#{yday}")
+        assert_equal(exp_day, date.day, "Day mismatch for #{year}-#{yday}")
+      end
+    end
+
+    test "ordinal with various negative values" do
+      # Last day of year
+      d1 = RubyDate.ordinal(2001, -1)
+      assert_equal(2001, d1.year)
+      assert_equal(12, d1.month)
+      assert_equal(31, d1.day)
+
+      # Second to last day
+      d2 = RubyDate.ordinal(2001, -2)
+      assert_equal(2001, d2.year)
+      assert_equal(12, d2.month)
+      assert_equal(30, d2.day)
+    end
+
+    test "ordinal leap year edge cases" do
+      # Feb 28 in leap year (day 59)
+      d1 = RubyDate.ordinal(2000, 59)
+      assert_equal(2000, d1.year)
+      assert_equal(2, d1.month)
+      assert_equal(28, d1.day)
+
+      # Feb 29 in leap year (day 60)
+      d2 = RubyDate.ordinal(2000, 60)
+      assert_equal(2000, d2.year)
+      assert_equal(2, d2.month)
+      assert_equal(29, d2.day)
+
+      # Mar 1 in leap year (day 61)
+      d3 = RubyDate.ordinal(2000, 61)
+      assert_equal(2000, d3.year)
+      assert_equal(3, d3.month)
+      assert_equal(1, d3.day)
+    end
+
+    test "ordinal with different start dates" do
+      # Should work with different calendar reform dates
+      d1 = RubyDate.ordinal(2001, 100, RubyDate::ITALY)
+      d2 = RubyDate.ordinal(2001, 100, RubyDate::ENGLAND)
+
+      # Same year and yday should give same result regardless of start
+      assert_equal(d1.year, d2.year)
+      assert_equal(d1.month, d2.month)
+      assert_equal(d1.day, d2.day)
+    end
+  end
+
+  # Comparison and equality tests
+  sub_test_case "comparison and equality" do
+    test "spaceship operator compares dates" do
+      d1 = RubyDate.new(2001, 2, 3)
+      d2 = RubyDate.new(2001, 2, 4)
+      d3 = RubyDate.new(2001, 2, 3)
+
+      assert_equal(-1, d1 <=> d2)
+      assert_equal(1, d2 <=> d1)
+      assert_equal(0, d1 <=> d3)
+    end
+
+    test "spaceship operator returns nil for non-date" do
+      d1 = RubyDate.new(2001, 2, 3)
+      assert_nil(d1 <=> "not a date")
+    end
+
+    test "== compares dates for equality" do
+      d1 = RubyDate.new(2001, 2, 3)
+      d2 = RubyDate.new(2001, 2, 3)
+      d3 = RubyDate.new(2001, 2, 4)
+
+      assert_true(d1 == d2)
+      assert_false(d1 == d3)
+      assert_false(d1 == "not a date")
+    end
+
+    test "eql? compares dates including start value" do
+      d1 = RubyDate.new(2001, 2, 3, RubyDate::ITALY)
+      d2 = RubyDate.new(2001, 2, 3, RubyDate::ITALY)
+      d3 = RubyDate.new(2001, 2, 3, RubyDate::ENGLAND)
+
+      assert_true(d1.eql?(d2))
+      assert_false(d1.eql?(d3))
+      assert_false(d1.eql?("not a date"))
+    end
+
+    test "hash returns consistent hash value" do
+      d1 = RubyDate.new(2001, 2, 3)
+      d2 = RubyDate.new(2001, 2, 3)
+
+      assert_equal(d1.hash, d2.hash)
+    end
+
+    test "less than comparison" do
+      d1 = RubyDate.new(2001, 2, 3)
+      d2 = RubyDate.new(2001, 2, 4)
+
+      assert_true(d1 < d2)
+      assert_false(d2 < d1)
+    end
+
+    test "greater than comparison" do
+      d1 = RubyDate.new(2001, 2, 3)
+      d2 = RubyDate.new(2001, 2, 4)
+
+      assert_true(d2 > d1)
+      assert_false(d1 > d2)
+    end
+  end
+
+  # Date arithmetic tests
+  sub_test_case "date arithmetic" do
+    test "adds integer days to date" do
+      d = RubyDate.new(2001, 2, 3)
+      d2 = d + 1
+
+      assert_equal(2001, d2.year)
+      assert_equal(2, d2.month)
+      assert_equal(4, d2.day)
+    end
+
+    test "adds multiple days to date" do
+      d = RubyDate.new(2001, 2, 3)
+      d2 = d + 10
+
+      assert_equal(2001, d2.year)
+      assert_equal(2, d2.month)
+      assert_equal(13, d2.day)
+    end
+
+    test "adding zero returns same date" do
+      d = RubyDate.new(2001, 2, 3)
+      d2 = d + 0
+
+      assert_equal(d.year, d2.year)
+      assert_equal(d.month, d2.month)
+      assert_equal(d.day, d2.day)
+    end
+
+    test "adds days across month boundary" do
+      d = RubyDate.new(2001, 2, 28)
+      d2 = d + 1
+
+      assert_equal(2001, d2.year)
+      assert_equal(3, d2.month)
+      assert_equal(1, d2.day)
+    end
+
+    test "adds days across year boundary" do
+      d = RubyDate.new(2001, 12, 31)
+      d2 = d + 1
+
+      assert_equal(2002, d2.year)
+      assert_equal(1, d2.month)
+      assert_equal(1, d2.day)
+    end
+
+    test "adds fractional days" do
+      d = RubyDate.new(2001, 2, 3)
+      d2 = d + 0.5
+
+      assert_equal(2001, d2.year)
+      assert_equal(2, d2.month)
+      assert_equal(4, d2.day)
+    end
+
+    test "adds Rational days" do
+      d = RubyDate.new(2001, 2, 3)
+      d2 = d + Rational(1, 2)
+
+      assert_equal(2001, d2.year)
+      assert_equal(2, d2.month)
+      assert_equal(4, d2.day)
+    end
+
+    test "adds large number of days" do
+      d = RubyDate.new(2001, 1, 1)
+      d2 = d + 365
+
+      assert_equal(2002, d2.year)
+      assert_equal(1, d2.month)
+      assert_equal(1, d2.day)
+    end
+
+    test "adds days to leap year" do
+      d = RubyDate.new(2000, 2, 28)
+      d2 = d + 1
+
+      assert_equal(2000, d2.year)
+      assert_equal(2, d2.month)
+      assert_equal(29, d2.day)
+    end
+
+    test "adds days across leap day" do
+      d = RubyDate.new(2000, 2, 29)
+      d2 = d + 1
+
+      assert_equal(2000, d2.year)
+      assert_equal(3, d2.month)
+      assert_equal(1, d2.day)
+    end
+
+    test "adds negative fraction rounds to same day" do
+      d = RubyDate.new(2001, 2, 3)
+      d2 = d + (-0.5)
+
+      assert_equal(2001, d2.year)
+      assert_equal(2, d2.month)
+      assert_equal(3, d2.day)
+    end
+  end
+
+  # Additional jd tests with different start dates
+  sub_test_case "dates with different calendar systems" do
+    test "creates date with ITALY start (default)" do
+      d = RubyDate.jd(2451944, RubyDate::ITALY)
+      assert_equal(RubyDate::ITALY, d.start)
+    end
+
+    test "creates date with ENGLAND start" do
+      d = RubyDate.jd(2451944, RubyDate::ENGLAND)
+      assert_equal(RubyDate::ENGLAND, d.start)
+    end
+
+    test "creates date with JULIAN start" do
+      d = RubyDate.jd(2451944, RubyDate::JULIAN)
+      assert_equal(RubyDate::JULIAN, d.start)
+    end
+
+    test "creates date with GREGORIAN start" do
+      d = RubyDate.jd(2451944, RubyDate::GREGORIAN)
+      assert_equal(RubyDate::GREGORIAN, d.start)
+    end
+  end
+
+  # Test for new with fractional values
+  sub_test_case "RubyDate.new with fractional values" do
+    test "creates date with fractional day" do
+      date = RubyDate.new(2001, 2, 3.5)
+      assert_equal(2001, date.year)
+      assert_equal(2, date.month)
+      assert_equal(4, date.day)
+    end
+
+    test "creates date with fractional month" do
+      # Fractional month adds to the day
+      date = RubyDate.new(2001, 2.5, 3)
+      assert_equal(2001, date.year)
+      assert_equal(2, date.month)
+      assert_equal(4, date.day)
+    end
+  end
+
+  # Edge cases and boundary tests
+  sub_test_case "edge cases" do
+    test "handles very large JD numbers" do
+      large_jd = 10000000
+      date = RubyDate.jd(large_jd)
+      assert_equal(large_jd, date.jd)
+    end
+
+    test "handles negative JD numbers" do
+      negative_jd = -1000
+      date = RubyDate.jd(negative_jd)
+      assert_equal(negative_jd, date.jd)
+    end
+
+    test "consecutive dates have consecutive JDs" do
+      d1 = RubyDate.new(2001, 2, 3)
+      d2 = RubyDate.new(2001, 2, 4)
+      assert_equal(1, d2.jd - d1.jd)
+    end
+
+    test "dates around reform date" do
+      # Date just before ITALY reform
+      d1 = RubyDate.jd(RubyDate::ITALY - 1)
+      # Date at ITALY reform
+      d2 = RubyDate.jd(RubyDate::ITALY)
+
+      assert_equal(1, d2.jd - d1.jd)
+    end
+  end
 end

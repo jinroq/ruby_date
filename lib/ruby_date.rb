@@ -41,7 +41,7 @@ class RubyDate
     [0, 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]   # leap
   ].freeze
   private_constant :MONTH_DAYS
-  
+
   # Neri-Schneider algorithm constants
   # JDN of March 1, Year 0 in proleptic Gregorian calendar
   NS_EPOCH = 1721120
@@ -114,22 +114,22 @@ class RubyDate
     raise TypeError, "invalid year (not numeric)" unless year.is_a?(Numeric)
     raise TypeError, "invalid month (not numeric)" unless month.is_a?(Numeric)
     raise TypeError, "invalid day (not numeric)" unless day.is_a?(Numeric)
-    
+
     @sg = start
-    
+
     year_int, year_frac = extract_fraction(year)
     month_int, month_frac = extract_fraction(month)
     day_int, day_frac = extract_fraction(day)
-    
+
     total_frac = year_frac + month_frac + day_frac
-    
+
     style = guess_style(year_int, start)
-    
+
     if style < 0
       nth, ry, _, _ = decode_year(year_int, -1)
-      
+
       raise ArgumentError, "invalid date" unless valid_gregorian?(ry, month_int, day_int)
-      
+
       @nth = nth
       @year = ry
       @month = month_int
@@ -139,9 +139,9 @@ class RubyDate
       @has_civil = true
     else
       nth, ry, rm, rd, rjd, ns = validate_civil(year_int, month_int, day_int, start)
-      
+
       raise ArgumentError, "invalid date" unless rjd
-      
+
       @nth = nth
       @year = ry
       @month = rm
@@ -150,7 +150,7 @@ class RubyDate
       @has_jd = true
       @has_civil = true
     end
-    
+
     if total_frac.nonzero?
       self_plus = self + total_frac
 
@@ -168,36 +168,36 @@ class RubyDate
   class << self
     # call-seq:
     #   Date.jd(jd = 0, start = Date::ITALY) -> date
-    # 
+    #
     # Returns a new \Date object formed from the arguments:
-    # 
+    #
     #   Date.jd(2451944).to_s # => "2001-02-03"
     #   Date.jd(2451945).to_s # => "2001-02-04"
     #   Date.jd(0).to_s       # => "-4712-01-01"
-    # 
+    #
     # The returned date is:
-    # 
+    #
     # - Gregorian, if the argument is greater than or equal to +start+:
-    # 
+    #
     #     Date::ITALY                         # => 2299161
     #     Date.jd(Date::ITALY).gregorian?     # => true
     #     Date.jd(Date::ITALY + 1).gregorian? # => true
-    # 
+    #
     # - Julian, otherwise
-    # 
+    #
     #     Date.jd(Date::ITALY - 1).julian?    # => true
-    # 
+    #
     # See argument {start}[rdoc-ref:language/calendars.rdoc@Argument+start].
-    # 
+    #
     # Related: Date.new.
     def jd(jd = 0, start = DEFAULT_SG)
       raise TypeError, "invalid jd (not numeric)" unless jd.is_a?(Numeric)
-      
+
       jd_int, fraction = extract_fraction(jd)
-      
+
       nth = jd_int / CM_PERIOD
       rjd = jd_int % CM_PERIOD
-      
+
       obj = allocate
       obj.instance_variable_set(:@nth, nth)
       obj.instance_variable_set(:@jd, rjd)
@@ -206,9 +206,9 @@ class RubyDate
       obj.instance_variable_set(:@year, nil)
       obj.instance_variable_set(:@month, nil)
       obj.instance_variable_set(:@day, nil)
-      
+
       obj = obj.send(:add_fraction, fraction) if fraction.nonzero?
-      
+
       obj
     end
 
@@ -271,17 +271,17 @@ class RubyDate
     def ordinal(year = -4712, yday = 1, start = DEFAULT_SG)
       raise TypeError, "invalid year (not numeric)" unless year.is_a?(Numeric)
       raise TypeError, "invalid yday (not numeric)" unless yday.is_a?(Numeric)
-        
+
       year, year_frac = extract_fraction(year)
       yday, yday_frac = extract_fraction(yday)
       total_frac = year_frac + yday_frac
-      
+
       result = validate_ordinal(year, yday, start)
-      
+
       raise ArgumentError, "invalid date" unless result
-        
+
       nth, ry, rd, rjd, ns = result
-        
+
       obj = allocate
       obj.instance_variable_set(:@nth, nth)
       obj.instance_variable_set(:@jd, rjd)
@@ -290,9 +290,83 @@ class RubyDate
       obj.instance_variable_set(:@year, nil)
       obj.instance_variable_set(:@month, nil)
       obj.instance_variable_set(:@day, nil)
-      
+
       obj = obj + total_frac if total_frac.nonzero?
-      
+
+      obj
+    end
+
+    # call-seq:
+    #   Date.commercial(cwyear = -4712, cweek = 1, cwday = 1, start = Date::ITALY) -> date
+    #
+    # Returns a new \Date object constructed from the arguments.
+    #
+    # Argument +cwyear+ gives the year, and should be an integer.
+    #
+    # Argument +cweek+ gives the index of the week within the year,
+    # and should be in range (1..53) or (-53..-1);
+    # in some years, 53 or -53 will be out-of-range;
+    # if negative, counts backward from the end of the year:
+    #
+    #   Date.commercial(2022, 1, 1).to_s  # => "2022-01-03"
+    #   Date.commercial(2022, 52, 1).to_s # => "2022-12-26"
+    #
+    # Argument +cwday+ gives the indes of the weekday within the week,
+    # and should be in range (1..7) or (-7..-1);
+    # 1 or -7 is Monday;
+    # if negative, counts backward from the end of the week:
+    #
+    #   Date.commercial(2022, 1, 1).to_s  # => "2022-01-03"
+    #   Date.commercial(2022, 1, -7).to_s # => "2022-01-03"
+    #
+    # When +cweek+ is 1:
+    #
+    # - If January 1 is a Friday, Saturday, or Sunday,
+    #   the first week begins in the week after:
+    #
+    #     Date::ABBR_DAYNAMES[Date.new(2023, 1, 1).wday] # => "Sun"
+    #     Date.commercial(2023, 1, 1).to_s # => "2023-01-02"
+    #     Date.commercial(2023, 1, 7).to_s # => "2023-01-08"
+    #
+    # - Otherwise, the first week is the week of January 1,
+    #   which may mean some of the days fall on the year before:
+    #
+    #     Date::ABBR_DAYNAMES[Date.new(2020, 1, 1).wday] # => "Wed"
+    #     Date.commercial(2020, 1, 1).to_s # => "2019-12-30"
+    #     Date.commercial(2020, 1, 7).to_s # => "2020-01-05"
+    #
+    # See argument {start}[rdoc-ref:language/calendars.rdoc@Argument+start].
+    #
+    # Related: Date.jd, Date.new, Date.ordinal.
+    def commercial(year = -4712, yday = 1, start = DEFAULT_SG)
+      raise TypeError, "invalid year (not numeric)" unless cwyear.is_a?(Numeric)
+      raise TypeError, "invalid cweek (not numeric)" unless cweek.is_a?(Numeric)
+      raise TypeError, "invalid cwday (not numeric)" unless cwday.is_a?(Numeric)
+
+      cwyear_int, year_frac = extract_fraction(cwyear)
+      cweek_int, week_frac = extract_fraction(cweek)
+      cwday_int, day_frac = extract_fraction(cwday)
+      total_frac = year_frac + week_frac + day_frac
+
+      # Validate ISO week date
+      result = validate_commercial(cwyear_int, cweek_int, cwday_int, start)
+
+      raise ArgumentError, "invalid date" unless result
+
+      nth, ry, rw, rd, rjd, ns = result
+
+      obj = allocate
+      obj.instance_variable_set(:@nth, nth)
+      obj.instance_variable_set(:@jd, rjd)
+      obj.instance_variable_set(:@sg, start)
+      obj.instance_variable_set(:@has_jd, true)
+      obj.instance_variable_set(:@has_civil, false)
+      obj.instance_variable_set(:@year, nil)
+      obj.instance_variable_set(:@month, nil)
+      obj.instance_variable_set(:@day, nil)
+
+      obj = obj + total_frac if total_frac.nonzero?
+
       obj
     end
 
@@ -317,35 +391,48 @@ class RubyDate
       yc + mc + d0 + NS_EPOCH
     end
 
+    def julian_civil_to_jd(y, m, d)
+      # Traditional Julian calendar algorithm
+      y2 = y
+      m2 = m
+
+      if m2 <= 2
+        y2 -= 1
+        m2 += 12
+      end
+
+      (365.25 * (y2 + 4716)).floor + (30.6001 * (m2 + 1)).floor + d - 1524
+    end
+
     def validate_ordinal(year, yday, sg)
       # Handling negative day of year
       if yday < 0
         # Counting backwards from the end of the year
         last_jd = find_last_day_of_year(year, sg)
         return nil unless last_jd
-       
+
         # Recalculate the total number of days in the year from the calculated JD
         adjusted_jd = last_jd + yday + 1
         y, d = jd_to_ordinal(adjusted_jd, sg)
-       
+
         # Invalid if the year does not match
         return nil if y != year
-       
+
         yday = d
       end
-     
+
       # Calculate jd from the day of the year
-      nth, ry = decode_year(year, sg)
+      nth, ry, _, _ = decode_year(year, sg)
       first_jd, ns = find_first_day_of_year(ry, sg)
-     
+
       return nil unless first_jd
-     
+
       jd = first_jd + yday - 1
-     
+
       # Verify that the calculated jd actually belongs to the specified year
       verify_y, verify_d = jd_to_ordinal(jd, sg)
       return nil if verify_y != ry || verify_d != yday
-     
+
       [nth, ry, yday, jd, ns]
     end
 
@@ -354,7 +441,21 @@ class RubyDate
       (1..31).each do |day|
         if valid_civil_date?(year, 1, day, sg)
           jd, ns = civil_to_jd_with_check(year, 1, day, sg)
+
           return [jd, ns]
+        end
+      end
+      nil
+    end
+
+    def find_last_day_of_year(year, sg)
+      # Equivalent to `c_find_ldoy` in the C implementation
+      (0..29).each do |i|
+        day = 31 - i
+        if valid_civil_date?(year, 12, day, sg)
+          jd, ns = civil_to_jd_with_check(year, 12, day, sg)
+
+          return jd
         end
       end
       nil
@@ -368,6 +469,249 @@ class RubyDate
       else
         [value.to_i, 0]
       end
+    end
+
+    def jd_to_ordinal(jd, sg)
+      year, month, day = jd_to_civil_internal(jd, sg)
+      first_jd, ns = find_first_day_of_year(year, sg)
+      yday = jd - first_jd + 1
+      [year, yday]
+    end
+
+    def validate_commercial(year, week, day, sg)
+      if day < 0
+        day += 8  # -1 -> 7 (Sun), -7 -> 1 (Mon)
+      end
+
+      return nil if day < 1 || day > 7
+
+      if week < 0
+        next_year_jd, ns = commercial_to_jd_internal(year + 1, 1, 1, sg)
+        return nil unless next_year_jd
+
+        adjusted_jd = next_year_jd + week * 7
+        y2, w2, _ = jd_to_commercial_internal(adjusted_jd, sg)
+
+        return nil if y2 != year
+
+        week = w2
+      end
+
+      # Calculate jd from ISO week date
+      nth, ry, _, _ = decode_year(year, sg)
+      jd, ns = commercial_to_jd_internal(ry, week, day, sg)
+
+      return nil unless jd
+
+      verify_y, verify_w, verify_d = jd_to_commercial_internal(jd, sg)
+      return nil if verify_y != ry || verify_w != week || verify_d != day
+
+      [nth, ry, week, day, jd, ns]
+    end
+
+    def commercial_to_jd_internal(cwyear, cweek, cwday, sg)
+      # Calculating ISO week date(The week containing January 4 is week 1)
+      jan4_jd = gregorian_civil_to_jd(cwyear, 1, 4)
+
+      # Day of the week on which January 4th falls
+      # (0 = Sun, 1 = Mon, ..., 6 = Sat)
+      jan4_wday = (jan4_jd + 1) % 7
+
+      # Monday of week 1
+      week1_mon = jan4_jd - jan4_wday + 1
+
+      # jd for a specified weekday
+      jd = week1_mon + (cweek - 1) * 7 + (cwday - 1)
+
+      # If before sg, it is the Julian calendar
+      ns = jd >= sg ? 1 : 0
+
+      [jd, ns]
+    end
+
+    def jd_to_commercial_internal(jd, sg)
+      # get date from jd
+      year, month, day = jd_to_civil_internal(jd, sg)
+
+      # calculate jd for January 4 of that year
+      jan4_jd = gregorian_civil_to_jd(year, 1, 4)
+      jan4_wday = (jan4_jd + 1) % 7
+      week1_mon = jan4_jd - jan4_wday + 1
+
+      # If jd is before the first week, it belongs to the previous year
+      if jd < week1_mon
+        year -= 1
+        jan4_jd = gregorian_civil_to_jd(year, 1, 4)
+        jan4_wday = (jan4_jd + 1) % 7
+        week1_mon = jan4_jd - jan4_wday + 1
+      end
+
+      # check the first week of the next year
+      next_jan4 = gregorian_civil_to_jd(year + 1, 1, 4)
+      next_jan4_wday = (next_jan4 + 1) % 7
+      next_week1_mon = next_jan4 - next_jan4_wday + 1
+
+      if jd >= next_week1_mon
+        year += 1
+        week1_mon = next_week1_mon
+      end
+
+      # Calculate the week number
+      week = (jd - week1_mon) / 7 + 1
+
+      # week(1 = mon, ..., 7 = sun）
+      cwday = (jd + 1) % 7
+      cwday = 7 if cwday == 0
+
+      [year, week, cwday]
+    end
+
+    def jd_to_civil_internal(jd, sg)
+      # Does it overlap with jd_to_civil?
+      # Calculate the date from jd (using existing methods)
+      # simple version
+      r0 = jd - NS_EPOCH
+
+      n1 = 4 * r0 + 3
+      q1 = n1 / NS_DAYS_IN_400_YEARS
+      r1 = (n1 % NS_DAYS_IN_400_YEARS) / 4
+
+      n2 = 4 * r1 + 3
+      u2 = NS_YEAR_MULTIPLIER * n2
+      q2 = u2 >> 32
+      r2 = (u2 & 0xFFFFFFFF) / NS_YEAR_MULTIPLIER / 4
+
+      n3 = NS_MONTH_COEFF * r2 + NS_MONTH_OFFSET
+      q3 = n3 >> 16
+      r3 = (n3 & 0xFFFF) / NS_MONTH_COEFF
+
+      y0 = NS_YEARS_PER_CENTURY * q1 + q2
+      j = (r2 >= NS_DAYS_BEFORE_NEW_YEAR) ? 1 : 0
+
+      year = y0 + j
+      month = j == 1 ? q3 - 12 : q3
+      day = r3 + 1
+
+      [year, month, day]
+    end
+
+    def decode_year(year, style)
+      period = (style < 0) ? 146097 * 400 : 1461 * 4
+
+      if year.is_a?(Integer) && year.abs < 1000000
+        [0, year, nil, nil]
+      else
+        adjusted = year + 4712
+        nth = adjusted / period
+        ry = (adjusted % period) - 4712
+
+        [nth, ry, nil, nil]
+      end
+    end
+
+    def valid_civil_date?(year, month, day, sg)
+      return false if month < 1 || month > 12
+
+      if sg == GREGORIAN || sg < 0
+        last_day = last_day_of_month_gregorian(year, month)
+      elsif sg == JULIAN || sg > 0
+        last_day = last_day_of_month_julian(year, month)
+      else
+        # Calculate (calendar reform period - jd) and determine
+        jd = gregorian_civil_to_jd(year, month, day)
+
+        if jd < sg
+          last_day = last_day_of_month_julian(year, month)
+        else
+          last_day = last_day_of_month_gregorian(year, month)
+        end
+      end
+
+      return false if day < 1 || day > last_day
+
+      true
+    end
+
+    def last_day_of_month_gregorian(y, m)
+      return nil if m < 1 || m > 12
+
+      leap_index = gregorian_leap?(y) ? 1 : 0
+      MONTH_DAYS[leap_index][m]
+    end
+
+    def last_day_of_month_julian(y, m)
+      return nil if m < 1 || m > 12
+
+      leap_index = julian_leap?(y) ? 1 : 0
+      MONTH_DAYS[leap_index][m]
+    end
+
+    def civil_to_jd_with_check(year, month, day, sg)
+      return nil unless valid_civil_date?(year, month, day, sg)
+
+      jd = civil_to_jd(year, month, day, sg)
+
+      ns = jd >= sg ? 1 : 0
+
+      [jd, ns]
+    end
+
+    def civil_to_jd(year, month, day, sg)
+      jd = gregorian_civil_to_jd(year, month, day)
+
+
+      jd = julian_civil_to_jd(year, month, day) if jd < sg
+
+      jd
+    end
+
+    def last_day_of_month_for_sg(year, month, sg)
+      last_day_of_month_gregorian(year, month)
+    end
+
+    def validate_civil(year, month, day, sg)
+      original_month = month
+      if month < 0
+        month += 13
+      end
+
+      return nil if month < 1 || month > 12
+
+      original_day = day
+      if day < 0
+        last_jd = find_last_day_of_month(year, month, sg)
+        return nil unless last_jd
+
+        y2, m2, d2 = jd_to_civil_internal(last_jd + day + 1, sg)
+
+        return nil if y2 != year || m2 != month
+
+        day = d2
+      end
+
+      nth, ry = decode_year(year, sg)
+
+      jd = civil_to_jd(ry, month, day, sg)
+
+      ns = jd >= sg ? 1 : 0
+
+      verify_y, verify_m, verify_d = jd_to_civil_internal(jd, sg)
+      return nil if verify_y != ry || verify_m != month || verify_d != day
+
+      [nth, ry, month, day, jd, ns]
+    end
+
+    def find_last_day_of_month(year, month, sg)
+      (0..29).each do |i|
+        day = 31 - i
+        if valid_civil_date?(year, month, day, sg)
+          jd = civil_to_jd(year, month, day, sg)
+
+          return jd
+        end
+      end
+
+      nil
     end
   end
 
@@ -383,7 +727,7 @@ class RubyDate
   def year
     @year ||= jd_to_civil[0]
   end
-  
+
   # call-seq:
   #   mon -> integer
   #
@@ -394,7 +738,7 @@ class RubyDate
     @month ||= jd_to_civil[1]
   end
   alias mon month
-  
+
   def day
     @day ||= jd_to_civil[2]
   end
@@ -414,35 +758,35 @@ class RubyDate
 
   def <=>(other)
     return nil unless other.is_a?(RubyDate)
-    
+
     nth_cmp = @nth <=> other.instance_variable_get(:@nth)
     return nth_cmp unless nth_cmp.zero?
-    
+
     @jd <=> other.instance_variable_get(:@jd)
   end
-  
+
   def ==(other)
     return false unless other.is_a?(RubyDate)
-    
+
     @nth == other.instance_variable_get(:@nth) &&
     @jd == other.instance_variable_get(:@jd)
   end
-  
+
   def eql?(other)
     return false unless other.is_a?(RubyDate)
-    
+
     @nth == other.instance_variable_get(:@nth) &&
     @jd == other.instance_variable_get(:@jd) &&
     @sg == other.instance_variable_get(:@sg)
   end
-  
+
   def hash
     [@nth, @jd, @sg].hash
   end
-  
+
   def +(n)
     return self if n.zero?
-    
+
     if n.is_a?(Rational) || n.is_a?(Float)
       add_with_fraction(n)
     else
@@ -555,10 +899,10 @@ class RubyDate
 
   def jd_to_civil
     return [@year, @month, @day] if @year && @month && @day
-    
+
     jd = @jd
     sg = @sg
-    
+
     # Original algorithm from date_core.c
     if jd < sg
       # Julian calendar
@@ -568,14 +912,14 @@ class RubyDate
       x = ((jd - 1867216.25) / 36524.25).floor
       a = jd + 1 + x - (x / 4.0).floor
     end
-    
+
     b = a + 1524
     c = ((b - 122.1) / 365.25).floor
     d = (365.25 * c).floor
     e = ((b - d) / 30.6001).floor
-    
+
     dom = b - d - (30.6001 * e).floor
-    
+
     if e <= 13
       month = e - 1
       year = c - 4716
@@ -583,28 +927,22 @@ class RubyDate
       month = e - 13
       year = c - 4715
     end
-    
+
     @year = year.to_i
     @month = month.to_i
     @day = dom.to_i
-    
+
     [@year, @month, @day]
   end
 
   def extract_fraction(value)
-    if value.is_a?(Rational) || value.is_a?(Float)
-      int_part = value.floor
-      frac_part = value - int_part
-      [int_part, frac_part]
-    else
-      [value.to_i, 0]
-    end
+    self.class.send(:extract_fraction, value)
   end
 
   def guess_style(year, sg)
     return sg if sg.infinite?
     return year > 0 ? GREGORIAN : JULIAN unless year.is_a?(Integer)
-    
+
     if year < REFORM_BEGIN_YEAR
       JULIAN
     elsif year > REFORM_END_YEAR
@@ -615,58 +953,49 @@ class RubyDate
   end
 
   def decode_year(year, style)
-    period = (style < 0) ? 146097 * 400 : 1461 * 4
-    
-    if year.is_a?(Integer) && year.abs < 1_000_000
-      [0, year, nil, nil]
-    else
-      adjusted = year + 4712
-      nth = adjusted / period
-      ry = (adjusted % period) - 4712
-      [nth, ry, nil, nil]
-    end
+    self.class.send(:decode_year, year, style)
   end
 
   def valid_gregorian?(y, m, d)
     return false if m < 1 || m > 12
-    
+
     # Handling negative months and days
     m = m + 13 if m < 0
     return false if m < 1 || m > 12
-    
+
     last_day = last_day_of_month_gregorian(y, m)
     d = last_day + d + 1 if d < 0
-    
+
     d >= 1 && d <= last_day
   end
 
   def add_with_fraction(n)
     int_part = n.floor
     frac_part = n - int_part
-    
+
     result = add_days(int_part)
-    
+
     if frac_part != 0
       result = result.send(:add_fraction, frac_part)
     end
-    
+
     result
   end
 
   def add_days(days)
     new_jd = @jd + days
     new_nth = @nth
-    
+
     while new_jd < 0
       new_nth -= 1
       new_jd += CM_PERIOD
     end
-    
+
     while new_jd >= CM_PERIOD
       new_nth += 1
       new_jd -= CM_PERIOD
     end
-    
+
     obj = self.class.allocate
     obj.instance_variable_set(:@nth, new_nth)
     obj.instance_variable_set(:@jd, new_jd)
@@ -675,7 +1004,7 @@ class RubyDate
     obj.instance_variable_set(:@year, nil)
     obj.instance_variable_set(:@month, nil)
     obj.instance_variable_set(:@day, nil)
-    
+
     obj
   end
 
@@ -690,16 +1019,14 @@ class RubyDate
   end
 
   def last_day_of_month_gregorian(y, m)
-    return nil if m < 1 || m > 12
-    
-    leap_index = self.class.gregorian_leap?(y) ? 1 : 0
-    MONTH_DAYS[leap_index][m]
+    self.class.send(:last_day_of_month_gregorian, y, m)
   end
 
   def last_day_of_month_julian(y, m)
-    return nil if m < 1 || m > 12
-    
-    leap_index = self.class.julian_leap?(y) ? 1 : 0
-    MONTH_DAYS[leap_index][m]
+    self.class.send(:last_day_of_month_julian, y, m)
+  end
+
+  def valid_civil_date?(year, month, day, sg)
+    self.class.send(:valid_civil_date?, year, month, day, sg)
   end
 end
