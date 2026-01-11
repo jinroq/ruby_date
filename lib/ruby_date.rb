@@ -898,6 +898,14 @@ class RubyDate
     end
   end
 
+  def to_s
+    sprintf("%04d-%02d-%02d", year, month, day)
+  end
+
+  def inspect
+    "#<#{self.class}: #{to_s} ((#{jd}j,0s,0n),+0s,#{@sg.to_i}j)>"
+  end
+
   private
 
   def valid_civil?(y, m, d)
