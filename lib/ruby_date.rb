@@ -123,33 +123,17 @@ class RubyDate
 
     total_frac = year_frac + month_frac + day_frac
 
-    style = guess_style(year_int, start)
+    result = self.class.send(:validate_civil, year_int, month_int, day_int, start)
+    raise ArgumentError, "invalid date" unless result
+    nth, ry, rm, rd, rjd, ns = result
 
-    if style < 0
-      nth, ry, _, _ = decode_year(year_int, -1)
-
-      raise ArgumentError, "invalid date" unless valid_gregorian?(ry, month_int, day_int)
-
-      @nth = nth
-      @year = ry
-      @month = month_int
-      @day = day_int
-      @jd = self.class.send(:gregorian_civil_to_jd, @year, @month, @day)
-      @has_jd = true
-      @has_civil = true
-    else
-      nth, ry, rm, rd, rjd, ns = validate_civil(year_int, month_int, day_int, start)
-
-      raise ArgumentError, "invalid date" unless rjd
-
-      @nth = nth
-      @year = ry
-      @month = rm
-      @day = rd
-      @jd = rjd
-      @has_jd = true
-      @has_civil = true
-    end
+    @nth = nth
+    @year = ry
+    @month = rm
+    @day = rd
+    @jd = rjd
+    @has_jd = true
+    @has_civil = true
 
     if total_frac.nonzero?
       self_plus = self + total_frac
@@ -670,33 +654,21 @@ class RubyDate
     end
 
     def validate_civil(year, month, day, sg)
-      original_month = month
-      if month < 0
-        month += 13
-      end
-
+      month += 13 if month < 0
       return nil if month < 1 || month > 12
 
-      original_day = day
       if day < 0
-        last_jd = find_last_day_of_month(year, month, sg)
-        return nil unless last_jd
-
-        y2, m2, d2 = jd_to_civil_internal(last_jd + day + 1, sg)
-
-        return nil if y2 != year || m2 != month
-
-        day = d2
+        last_day = last_day_of_month_gregorian(year, month)
+        return nil unless last_day
+        day = last_day + day + 1
       end
 
-      nth, ry = decode_year(year, sg)
+      last_day = last_day_of_month_gregorian(year, month)
+      return nil if day < 1 || day > last_day
 
-      jd = civil_to_jd(ry, month, day, sg)
-
-      ns = jd >= sg ? 1 : 0
-
-      verify_y, verify_m, verify_d = jd_to_civil_internal(jd, sg)
-      return nil if verify_y != ry || verify_m != month || verify_d != day
+      nth, ry = decode_year(year, -1)
+      jd = gregorian_civil_to_jd(ry, month, day)
+      ns = 1
 
       [nth, ry, month, day, jd, ns]
     end
