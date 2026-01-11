@@ -322,7 +322,7 @@ class RubyDate
     # See argument {start}[rdoc-ref:language/calendars.rdoc@Argument+start].
     #
     # Related: Date.jd, Date.new, Date.ordinal.
-    def commercial(year = -4712, yday = 1, start = DEFAULT_SG)
+    def commercial(cwyear = -4712, cweek = 1, cwday = 1, start = DEFAULT_SG)
       raise TypeError, "invalid year (not numeric)" unless cwyear.is_a?(Numeric)
       raise TypeError, "invalid cweek (not numeric)" unless cweek.is_a?(Numeric)
       raise TypeError, "invalid cwday (not numeric)" unless cwday.is_a?(Numeric)
