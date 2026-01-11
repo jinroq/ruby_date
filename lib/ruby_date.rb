@@ -762,6 +762,14 @@ class RubyDate
   end
   alias mday day
 
+  # call-seq:
+  #    d.jd  ->  integer
+  #
+  # Returns the Julian day number.  This is a whole number, which is
+  # adjusted by the offset as the local time.
+  #
+  #    DateTime.new(2001,2,3,4,5,6,'+7').jd    #=> 2451944
+  #    DateTime.new(2001,2,3,4,5,6,'-7').jd    #=> 2451944
   def jd
     if @nth.zero?
       @jd
@@ -770,10 +778,66 @@ class RubyDate
     end
   end
 
+  # call-seq:
+  #   start -> float
+  #
+  # Returns the Julian start date for calendar reform;
+  # if not an infinity, the returned value is suitable
+  # for passing to Date#jd:
+  #
+  #   d = Date.new(2001, 2, 3, Date::ITALY)
+  #   s = d.start     # => 2299161.0
+  #   Date.jd(s).to_s # => "1582-10-15"
+  #
+  #   d = Date.new(2001, 2, 3, Date::ENGLAND)
+  #   s = d.start     # => 2361222.0
+  #   Date.jd(s).to_s # => "1752-09-14"
+  #
+  #   Date.new(2001, 2, 3, Date::GREGORIAN).start # => -Infinity
+  #   Date.new(2001, 2, 3, Date::JULIAN).start    # => Infinity
+  #
+  # See argument {start}[rdoc-ref:language/calendars.rdoc@Argument+start].
   def start
     @sg
   end
 
+  # call-seq:
+  #   self <=> other  -> -1, 0, 1 or nil
+  #
+  # Compares +self+ and +other+, returning:
+  #
+  # - <tt>-1</tt> if +other+ is larger.
+  # - <tt>0</tt> if the two are equal.
+  # - <tt>1</tt> if +other+ is smaller.
+  # - +nil+ if the two are incomparable.
+  #
+  # Argument +other+ may be:
+  #
+  # - Another \Date object:
+  #
+  #     d = Date.new(2022, 7, 27) # => #<Date: 2022-07-27 ((2459788j,0s,0n),+0s,2299161j)>
+  #     prev_date = d.prev_day    # => #<Date: 2022-07-26 ((2459787j,0s,0n),+0s,2299161j)>
+  #     next_date = d.next_day    # => #<Date: 2022-07-28 ((2459789j,0s,0n),+0s,2299161j)>
+  #     d <=> next_date           # => -1
+  #     d <=> d                   # => 0
+  #     d <=> prev_date           # => 1
+  #
+  # - A DateTime object:
+  #
+  #     d <=> DateTime.new(2022, 7, 26) # => 1
+  #     d <=> DateTime.new(2022, 7, 27) # => 0
+  #     d <=> DateTime.new(2022, 7, 28) # => -1
+  #
+  # - A numeric (compares <tt>self.ajd</tt> to +other+):
+  #
+  #     d <=> 2459788 # => -1
+  #     d <=> 2459787 # => 1
+  #     d <=> 2459786 # => 1
+  #     d <=> d.ajd   # => 0
+  #
+  # - Any other object:
+  #
+  #     d <=> Object.new # => nil
   def <=>(other)
     return nil unless other.is_a?(RubyDate)
 
@@ -783,14 +847,14 @@ class RubyDate
     @jd <=> other.instance_variable_get(:@jd)
   end
 
-  def ==(other)
+  def ==(other) # :nodoc:
     return false unless other.is_a?(RubyDate)
 
     @nth == other.instance_variable_get(:@nth) &&
     @jd == other.instance_variable_get(:@jd)
   end
 
-  def eql?(other)
+  def eql?(other) # :nodoc:
     return false unless other.is_a?(RubyDate)
 
     @nth == other.instance_variable_get(:@nth) &&
@@ -798,10 +862,24 @@ class RubyDate
     @sg == other.instance_variable_get(:@sg)
   end
 
-  def hash
+  def hash # :nodoc:
     [@nth, @jd, @sg].hash
   end
 
+  # call-seq:
+  #    d + other  ->  date
+  #
+  # Returns a date object pointing +other+ days after self.  The other
+  # should be a numeric value.  If the other is a fractional number,
+  # assumes its precision is at most nanosecond.
+  #
+  #    Date.new(2001,2,3) + 1    #=> #<Date: 2001-02-04 ...>
+  #    DateTime.new(2001,2,3) + Rational(1,2)
+  #                              #=> #<DateTime: 2001-02-03T12:00:00+00:00 ...>
+  #    DateTime.new(2001,2,3) + Rational(-1,2)
+  #                              #=> #<DateTime: 2001-02-02T12:00:00+00:00 ...>
+  #    DateTime.jd(0,12) + DateTime.new(2001,2,3).ajd
+  #                              #=> #<DateTime: 2001-02-03T00:00:00+00:00 ...>
   def +(n)
     return self if n.zero?
 
