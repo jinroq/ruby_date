@@ -354,6 +354,52 @@ class RubyDate
       obj
     end
 
+    # call-seq:
+    #   Date.today(start = Date::ITALY) -> date
+    #
+    # Returns a new \Date object constructed from the present date:
+    #
+    #   Date.today.to_s # => "2022-07-06"
+    #
+    # See argument {start}[rdoc-ref:language/calendars.rdoc@Argument+start].
+    def today(start = DEFAULT_SG)
+      begin
+        time = Time.now
+      rescue => e
+        raise SystemCallError, "time"
+      end
+
+      begin
+        y = time.year
+        m = time.month
+        d = time.day
+      rescue => e
+        raise SystemCallError, "localtime"
+      end
+
+      nth, ry, _, _ = decode_year(y, -1)
+
+      obj = allocate
+      obj.instance_variable_set(:@nth, nth)
+      obj.instance_variable_set(:@year, ry)
+      obj.instance_variable_set(:@month, m)
+      obj.instance_variable_set(:@day, d)
+      obj.instance_variable_set(:@jd, nil)
+      obj.instance_variable_set(:@sg, GREGORIAN)
+      obj.instance_variable_set(:@has_jd, false)
+      obj.instance_variable_set(:@has_civil, true)
+
+      if start != GREGORIAN
+        obj.instance_variable_set(:@sg, start)
+        if obj.instance_variable_get(:@has_jd)
+          obj.instance_variable_set(:@jd, nil)
+          obj.instance_variable_set(:@has_jd, false)
+        end
+      end
+
+      obj
+    end
+
     private
 
     # Optimized: Gregorian date -> Julian Day Number
