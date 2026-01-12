@@ -150,6 +150,9 @@ class RubyDate
 
   # Class methods
   class << self
+    # Same as `Date.new`.
+    alias_method :civil, :new
+
     # call-seq:
     #   Date.jd(jd = 0, start = Date::ITALY) -> date
     #

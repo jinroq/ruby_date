@@ -1259,4 +1259,23 @@ class RubyDateTest < Test::Unit::TestCase
       assert_true(RubyDate.julian_leap?(-8))
     end
   end
+
+  # RubyDate.civil tests
+  sub_test_case "RubyDate.civil" do
+    test "civil is an alias for new" do
+      d1 = RubyDate.civil(2001, 2, 3)
+      d2 = RubyDate.new(2001, 2, 3)
+
+      assert_equal(d1.year, d2.year)
+      assert_equal(d1.month, d2.month)
+      assert_equal(d1.day, d2.day)
+      assert_equal(d1.jd, d2.jd)
+    end
+
+    test "civil accepts same arguments as new" do
+      assert_nothing_raised do
+        RubyDate.civil(2001, 2, 3, RubyDate::ITALY)
+      end
+    end
+  end
 end
