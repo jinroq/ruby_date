@@ -679,20 +679,28 @@ class RubyDate
     def civil_to_jd_with_check(year, month, day, sg)
       return nil unless valid_civil_date?(year, month, day, sg)
 
-      jd = civil_to_jd(year, month, day, sg)
-
-      ns = jd >= sg ? 1 : 0
+      jd, ns = civil_to_jd(year, month, day, sg)
 
       [jd, ns]
     end
 
     def civil_to_jd(year, month, day, sg)
+      if sg == GREGORIAN
+        jd = gregorian_civil_to_jd(year, month, day)
+
+        return [jd, 1]
+      end
+
       jd = gregorian_civil_to_jd(year, month, day)
 
+      if jd < sg
+        jd = julian_civil_to_jd(year, month, day)
+        ns = 0
+      else
+        ns = 1
+      end
 
-      jd = julian_civil_to_jd(year, month, day) if jd < sg
-
-      jd
+      [jd, ns]
     end
 
     def last_day_of_month_for_sg(year, month, sg)
@@ -713,10 +721,23 @@ class RubyDate
       return nil if day < 1 || day > last_day
 
       nth, ry = decode_year(year, -1)
-      jd = gregorian_civil_to_jd(ry, month, day)
-      ns = 1
+
+      jd, ns = civil_to_jd_with_style(ry, month, day, sg)
 
       [nth, ry, month, day, jd, ns]
+    end
+
+    def civil_to_jd_with_style(year, month, day, sg)
+      jd = gregorian_civil_to_jd(year, month, day)
+
+      if jd < sg
+        jd = julian_civil_to_jd(year, month, day)
+        ns = 0
+      else
+        ns = 1
+      end
+
+      [jd, ns]
     end
 
     def find_last_day_of_month(year, month, sg)

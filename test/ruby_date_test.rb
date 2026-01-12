@@ -871,4 +871,279 @@ class RubyDateTest < Test::Unit::TestCase
       assert_equal(1, d2.jd - d1.jd)
     end
   end
+
+  # RubyDate.commercial tests (ISO week date)
+  sub_test_case "RubyDate.commercial" do
+    test "creates date from ISO week date" do
+      # 2001-W05-6 = 2001-02-03 (Saturday)
+      date = RubyDate.commercial(2001, 5, 6)
+      assert_equal(2001, date.year)
+      assert_equal(2, date.month)
+      assert_equal(3, date.day)
+    end
+
+    test "creates date for first week Monday" do
+      # 2022-W01-1 = 2022-01-03 (Monday)
+      date = RubyDate.commercial(2022, 1, 1)
+      assert_equal(2022, date.year)
+      assert_equal(1, date.month)
+      assert_equal(3, date.day)
+    end
+
+    test "creates date for last week of year" do
+      # 2022-W52-1 = 2022-12-26 (Monday)
+      date = RubyDate.commercial(2022, 52, 1)
+      assert_equal(2022, date.year)
+      assert_equal(12, date.month)
+      assert_equal(26, date.day)
+    end
+
+    test "handles negative week" do
+      # Last week of the year
+      date = RubyDate.commercial(2022, -1, 1)
+      assert_equal(2022, date.year)
+      assert_equal(12, date.month)
+      assert_equal(26, date.day)
+    end
+
+    test "handles negative weekday" do
+      # -7 is Monday (same as 1)
+      date = RubyDate.commercial(2022, 1, -7)
+      assert_equal(2022, date.year)
+      assert_equal(1, date.month)
+      assert_equal(3, date.day)
+    end
+
+    test "week 1 contains January 4" do
+      # By ISO 8601 definition, week 1 contains January 4
+      # 2023: Jan 4 is Wednesday, so W01 starts on Monday Jan 2
+      date = RubyDate.commercial(2023, 1, 1)
+      assert_equal(2023, date.year)
+      assert_equal(1, date.month)
+      assert_equal(2, date.day)
+    end
+
+    test "raises TypeError for non-numeric cwyear" do
+      assert_raise(TypeError) do
+        RubyDate.commercial("2001", 5, 6)
+      end
+    end
+
+    test "raises TypeError for non-numeric cweek" do
+      assert_raise(TypeError) do
+        RubyDate.commercial(2001, "5", 6)
+      end
+    end
+
+    test "raises TypeError for non-numeric cwday" do
+      assert_raise(TypeError) do
+        RubyDate.commercial(2001, 5, "6")
+      end
+    end
+
+    test "raises ArgumentError for invalid weekday" do
+      assert_raise(ArgumentError) do
+        RubyDate.commercial(2001, 1, 0)
+      end
+    end
+
+    test "raises ArgumentError for weekday > 7" do
+      assert_raise(ArgumentError) do
+        RubyDate.commercial(2001, 1, 8)
+      end
+    end
+
+    test "commercial with fractional values" do
+      date = RubyDate.commercial(2001, 5, 6.5)
+      assert_equal(2001, date.year)
+      assert_equal(2, date.month)
+      assert_equal(4, date.day)
+    end
+
+    test "commercial dates across year boundary" do
+      # Some dates in week 1 can be in previous year
+      # 2020: Jan 1 is Wednesday, so W01 starts on Mon Dec 30, 2019
+      date = RubyDate.commercial(2020, 1, 1)
+      assert_equal(2019, date.year)
+      assert_equal(12, date.month)
+      assert_equal(30, date.day)
+    end
+  end
+
+  # RubyDate.today tests
+  sub_test_case "RubyDate.today" do
+    test "returns today's date" do
+      date = RubyDate.today
+
+      # Just check it returns a RubyDate object with reasonable values
+      assert_kind_of(RubyDate, date)
+      assert_kind_of(Integer, date.year)
+      assert(date.year >= 2020 && date.year <= 2100)
+      assert(date.month >= 1 && date.month <= 12)
+      assert(date.day >= 1 && date.day <= 31)
+    end
+
+    test "today with different start dates" do
+      d1 = RubyDate.today(RubyDate::ITALY)
+      d2 = RubyDate.today(RubyDate::GREGORIAN)
+
+      # Should have same civil date
+      assert_equal(d1.year, d2.year)
+      assert_equal(d1.month, d2.month)
+      assert_equal(d1.day, d2.day)
+
+      # But different start values
+      assert_equal(RubyDate::ITALY, d1.start)
+      assert_equal(RubyDate::GREGORIAN, d2.start)
+    end
+  end
+
+  # Negative month and day tests
+  sub_test_case "negative month and day" do
+    test "handles negative month" do
+      # -11 means 11 months before end of year (February)
+      date = RubyDate.new(2022, -11, 4)
+      assert_equal(2022, date.year)
+      assert_equal(2, date.month)
+      assert_equal(4, date.day)
+    end
+
+    test "handles negative day" do
+      # -1 means last day of month
+      date = RubyDate.new(2001, 2, -1)
+      assert_equal(2001, date.year)
+      assert_equal(2, date.month)
+      assert_equal(28, date.day)
+    end
+
+    test "handles negative day in leap year" do
+      date = RubyDate.new(2000, 2, -1)
+      assert_equal(2000, date.year)
+      assert_equal(2, date.month)
+      assert_equal(29, date.day)
+    end
+
+    test "handles negative day in month with 31 days" do
+      date = RubyDate.new(2001, 1, -1)
+      assert_equal(2001, date.year)
+      assert_equal(1, date.month)
+      assert_equal(31, date.day)
+    end
+
+    test "handles negative day -2" do
+      date = RubyDate.new(2001, 3, -2)
+      assert_equal(2001, date.year)
+      assert_equal(3, date.month)
+      assert_equal(30, date.day)
+    end
+  end
+
+  # String representation tests
+  sub_test_case "string representations" do
+    test "to_s returns ISO 8601 format" do
+      date = RubyDate.new(2001, 2, 3)
+      assert_equal("2001-02-03", date.to_s)
+    end
+
+    test "to_s with single digit month and day" do
+      date = RubyDate.new(2001, 1, 5)
+      assert_equal("2001-01-05", date.to_s)
+    end
+
+    test "to_s with year 0" do
+      date = RubyDate.jd(1721058) # Year 0
+      assert_match(/^0000-/, date.to_s)
+    end
+
+    test "inspect includes JD and start value" do
+      date = RubyDate.new(2001, 2, 3)
+      result = date.inspect
+
+      assert_kind_of(String, result)
+      assert_match(/RubyDate/, result)
+      assert_match(/2001-02-03/, result)
+      assert_match(/\d+j/, result) # JD value
+    end
+
+    test "inspect with different start dates" do
+      d1 = RubyDate.new(2001, 2, 3, RubyDate::ITALY)
+      d2 = RubyDate.new(2001, 2, 3, RubyDate::ENGLAND)
+
+      # Should show different start values in inspect
+      assert_not_equal(d1.inspect, d2.inspect)
+    end
+  end
+
+  # Additional jd tests
+  sub_test_case "jd edge cases" do
+    test "jd method is consistent" do
+      # Creating from JD and reading JD should be consistent
+      original_jd = 2451944
+      date = RubyDate.jd(original_jd)
+      assert_equal(original_jd, date.jd)
+    end
+
+    test "date created from new has correct jd" do
+      date = RubyDate.new(2001, 2, 3)
+      # JD for 2001-02-03 is 2451944
+      assert_equal(2451944, date.jd)
+    end
+
+    test "ordinal and new create same jd" do
+      d1 = RubyDate.ordinal(2001, 34)
+      d2 = RubyDate.new(2001, 2, 3)
+      assert_equal(d1.jd, d2.jd)
+    end
+  end
+
+  # Start date (calendar reform) tests
+  sub_test_case "calendar reform handling" do
+    test "dates with GREGORIAN start" do
+      date = RubyDate.new(2001, 2, 3, RubyDate::GREGORIAN)
+      assert_equal(RubyDate::GREGORIAN, date.start)
+    end
+
+    test "dates with JULIAN start" do
+      date = RubyDate.new(2001, 2, 3, RubyDate::JULIAN)
+      assert_equal(RubyDate::JULIAN, date.start)
+    end
+
+    test "dates with ITALY reform" do
+      date = RubyDate.new(2001, 2, 3, RubyDate::ITALY)
+      assert_equal(RubyDate::ITALY, date.start)
+    end
+
+    test "dates with ENGLAND reform" do
+      date = RubyDate.new(2001, 2, 3, RubyDate::ENGLAND)
+      assert_equal(RubyDate::ENGLAND, date.start)
+    end
+  end
+
+  # Year 0 and BCE dates tests
+  sub_test_case "year 0 and BCE dates" do
+    test "handles year 0" do
+      date = RubyDate.new(0, 1, 1)
+      assert_equal(0, date.year)
+      assert_equal(1, date.month)
+      assert_equal(1, date.day)
+    end
+
+    test "handles negative years (BCE)" do
+      date = RubyDate.new(-100, 1, 1)
+      assert_equal(-100, date.year)
+      assert_equal(1, date.month)
+      assert_equal(1, date.day)
+    end
+
+    test "negative years leap year check" do
+      # Year -4 (5 BCE) should be a leap year (divisible by 4)
+      assert_true(RubyDate.julian_leap?(-4))
+
+      # Year -1 (2 BCE) is not divisible by 4 in Ruby's modulo
+      assert_false(RubyDate.julian_leap?(-1))
+
+      # Year -8 (9 BCE) should be a leap year
+      assert_true(RubyDate.julian_leap?(-8))
+    end
+  end
 end
