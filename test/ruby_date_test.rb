@@ -447,6 +447,103 @@ class RubyDateTest < Test::Unit::TestCase
     end
   end
 
+  # RubyDate.valid_ordinal? tests
+  sub_test_case "RubyDate.valid_ordinal?" do
+    test "returns true for valid day in non-leap year" do
+      assert_true(RubyDate.valid_ordinal?(2001, 1))
+      assert_true(RubyDate.valid_ordinal?(2001, 100))
+      assert_true(RubyDate.valid_ordinal?(2001, 365))
+    end
+
+    test "returns false for day 366 in non-leap year" do
+      assert_false(RubyDate.valid_ordinal?(2001, 366))
+    end
+
+    test "returns true for valid day in leap year" do
+      assert_true(RubyDate.valid_ordinal?(2000, 1))
+      assert_true(RubyDate.valid_ordinal?(2000, 100))
+      assert_true(RubyDate.valid_ordinal?(2000, 365))
+      assert_true(RubyDate.valid_ordinal?(2000, 366))
+    end
+
+    test "returns false for day 367 in leap year" do
+      assert_false(RubyDate.valid_ordinal?(2000, 367))
+    end
+
+    test "returns false for day 0" do
+      assert_false(RubyDate.valid_ordinal?(2001, 0))
+    end
+
+    test "returns false for negative day" do
+      assert_false(RubyDate.valid_ordinal?(2001, -1))
+    end
+
+    test "returns false for year 0" do
+      assert_false(RubyDate.valid_ordinal?(0, 1))
+    end
+
+    test "handles negative years" do
+      # Year -4 (5 BCE) is a leap year
+      assert_true(RubyDate.valid_ordinal?(-4, 366))
+      assert_false(RubyDate.valid_ordinal?(-4, 367))
+
+      # Year -3 (4 BCE) is not a leap year
+      assert_true(RubyDate.valid_ordinal?(-3, 365))
+      assert_false(RubyDate.valid_ordinal?(-3, 366))
+    end
+
+    test "returns false for non-numeric year" do
+      assert_false(RubyDate.valid_ordinal?("2001", 1))
+      assert_false(RubyDate.valid_ordinal?(nil, 1))
+    end
+
+    test "returns false for non-numeric day" do
+      assert_false(RubyDate.valid_ordinal?(2001, "1"))
+      assert_false(RubyDate.valid_ordinal?(2001, nil))
+    end
+
+    test "accepts objects with to_int" do
+      year_obj = Object.new
+      def year_obj.to_int; 2001; end
+
+      day_obj = Object.new
+      def day_obj.to_int; 100; end
+
+      assert_true(RubyDate.valid_ordinal?(year_obj, day_obj))
+    end
+
+    test "works with different start dates" do
+      # Should work with ITALY, ENGLAND, GREGORIAN, JULIAN
+      assert_true(RubyDate.valid_ordinal?(2000, 366, RubyDate::ITALY))
+      assert_true(RubyDate.valid_ordinal?(2000, 366, RubyDate::ENGLAND))
+      assert_true(RubyDate.valid_ordinal?(2000, 366, RubyDate::GREGORIAN))
+      assert_true(RubyDate.valid_ordinal?(2000, 366, RubyDate::JULIAN))
+    end
+
+    test "century years leap year handling" do
+      # 1900 is not a leap year in Gregorian
+      assert_false(RubyDate.valid_ordinal?(1900, 366, RubyDate::GREGORIAN))
+      assert_true(RubyDate.valid_ordinal?(1900, 365, RubyDate::GREGORIAN))
+
+      # 2000 is a leap year in Gregorian
+      assert_true(RubyDate.valid_ordinal?(2000, 366, RubyDate::GREGORIAN))
+
+      # 1900 is a leap year in Julian calendar
+      assert_true(RubyDate.valid_ordinal?(1900, 366, RubyDate::JULIAN))
+    end
+
+    test "boundary values" do
+      # Day 1 (minimum)
+      assert_true(RubyDate.valid_ordinal?(2001, 1))
+
+      # Day 365 (maximum for non-leap year)
+      assert_true(RubyDate.valid_ordinal?(2001, 365))
+
+      # Day 366 (maximum for leap year)
+      assert_true(RubyDate.valid_ordinal?(2000, 366))
+    end
+  end
+
   # RubyDate.ordinal tests
   sub_test_case "RubyDate.ordinal" do
     test "creates date from year and day of year" do
@@ -635,6 +732,22 @@ class RubyDateTest < Test::Unit::TestCase
       assert_equal(d1.year, d2.year)
       assert_equal(d1.month, d2.month)
       assert_equal(d1.day, d2.day)
+    end
+
+    test "ordinal uses valid_ordinal? for validation" do
+      # Valid ordinal dates should be creatable
+      assert_nothing_raised do
+        RubyDate.ordinal(2000, 366)
+      end
+
+      # Invalid ordinal dates should raise ArgumentError
+      assert_raise(ArgumentError) do
+        RubyDate.ordinal(2001, 366)
+      end
+
+      assert_raise(ArgumentError) do
+        RubyDate.ordinal(2001, 0)
+      end
     end
   end
 

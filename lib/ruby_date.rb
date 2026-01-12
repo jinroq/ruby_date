@@ -281,6 +281,33 @@ class RubyDate
     end
 
     # call-seq:
+    #   Date.valid_ordinal?(year, yday, start = Date::ITALY) -> true or false
+    #
+    # Returns +true+ if the arguments define a valid ordinal date,
+    # +false+ otherwise:
+    #
+    #   Date.valid_ordinal?(2001, 34)  # => true
+    #   Date.valid_ordinal?(2001, 366) # => false
+    #
+    # See argument {start}[rdoc-ref:language/calendars.rdoc@Argument+start].
+    #
+    # Related: Date.jd, Date.ordinal.
+    def valid_ordinal?(year, day, start = DEFAULT_SG)
+      return false unless year.is_a?(Numeric) || year.respond_to?(:to_int)
+      return false unless day.is_a?(Numeric) || day.respond_to?(:to_int)
+
+      year = convert_to_integer(year)
+      day = convert_to_integer(day)
+
+      return false if year.zero?
+
+      leap_year = start == JULIAN ? julian_leap?(year) : gregorian_leap?(year)
+      max_day = leap_year ? 366 : 365
+
+      day >= 1 && day <= max_day
+    end
+
+    # call-seq:
     #   Date.commercial(cwyear = -4712, cweek = 1, cwday = 1, start = Date::ITALY) -> date
     #
     # Returns a new \Date object constructed from the arguments.
@@ -751,6 +778,16 @@ class RubyDate
       end
 
       nil
+    end
+
+    def convert_to_integer(value)
+      if value.respond_to?(:to_int)
+        value.to_int
+      elsif value.is_a?(Numeric)
+        value.to_i
+      else
+        value
+      end
     end
   end
 
