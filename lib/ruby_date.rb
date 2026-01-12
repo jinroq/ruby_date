@@ -33,7 +33,9 @@ class RubyDate
 
   REFORM_BEGIN_YEAR = 1582
   REFORM_END_YEAR   = 1930
-  private_constant :REFORM_BEGIN_YEAR, :REFORM_END_YEAR
+  REFORM_BEGIN_JD = 2298874  # ns 1582-01-01
+  REFORM_END_JD = 2426355    # os 1930-12-31
+  private_constant :REFORM_BEGIN_YEAR, :REFORM_END_YEAR, :REFORM_BEGIN_JD, :REFORM_END_JD
 
   # Days in each month (non-leap and leap year)
   MONTH_DAYS = [
@@ -152,6 +154,29 @@ class RubyDate
   class << self
     # Same as `Date.new`.
     alias_method :civil, :new
+
+    # call-seq:
+    #   Date.valid_civil?(year, month, mday, start = Date::ITALY) -> true or false
+    #
+    # Returns +true+ if the arguments define a valid ordinal date,
+    # +false+ otherwise:
+    #
+    #   Date.valid_date?(2001, 2, 3)  # => true
+    #   Date.valid_date?(2001, 2, 29) # => false
+    #   Date.valid_date?(2001, 2, -1) # => true
+    #
+    # See argument {start}[rdoc-ref:language/calendars.rdoc@Argument+start].
+    #
+    # Related: Date.jd, Date.new.
+    def valid_civil?(year, month, day, start = DEFAULT_SG)
+      return false unless numeric?(year)
+      return false unless numeric?(month)
+      return false unless numeric?(day)
+
+      result = valid_civil_sub(year, month, day, start, 0)
+
+      !result.nil?
+    end
 
     # call-seq:
     #   Date.jd(jd = 0, start = Date::ITALY) -> date
@@ -296,8 +321,8 @@ class RubyDate
     #
     # Related: Date.jd, Date.ordinal.
     def valid_ordinal?(year, day, start = DEFAULT_SG)
-      return false unless year.is_a?(Numeric) || year.respond_to?(:to_int)
-      return false unless day.is_a?(Numeric) || day.respond_to?(:to_int)
+      return false unless numeric?(year)
+      return false unless numeric?(day)
 
       year = convert_to_integer(year)
       day = convert_to_integer(day)
@@ -621,7 +646,7 @@ class RubyDate
 
       # week(1 = mon, ..., 7 = sun）
       cwday = (jd + 1) % 7
-      cwday = 7 if cwday == 0
+      cwday = 7 if cwday.zero?
 
       [year, week, cwday]
     end
@@ -791,6 +816,50 @@ class RubyDate
       else
         value
       end
+    end
+
+    def numeric?(value)
+      value.is_a?(Numeric) || value.respond_to?(:to_int)
+    end
+
+    def valid_civil_sub(year, month, day, start, need_jd)
+      year = convert_to_integer(year)
+      month = convert_to_integer(month)
+      day = convert_to_integer(day)
+
+      start = valid_sg(start)
+
+      return nil if month < 1 || month > 12
+
+      leap_year = start == JULIAN ? julian_leap?(year) : gregorian_leap?(year)
+
+      days_in_month = [nil, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+      max_day = (month == 2 && leap_year) ? 29 : days_in_month[month]
+
+      return nil if day < 1 || day > max_day
+
+      need_jd ? civil_to_jd(year, month, day, start) : 0
+    end
+
+    def valid_sg(start)
+      unless c_valid_start_p(start)
+        warn "invalid start is ignored"
+        return 0
+      end
+
+      start
+    end
+
+    def c_valid_start_p(start)
+      return false unless start.is_a?(Numeric)
+
+      return false if start.respond_to?(:nan?) && start.nan?
+
+      return true if start.respond_to?(:infinite?) && start.infinite?
+
+      return false if start < REFORM_BEGIN_JD || start > REFORM_END_JD
+
+      true
     end
   end
 
@@ -1140,9 +1209,7 @@ class RubyDate
 
     result = add_days(int_part)
 
-    if frac_part != 0
-      result = result.send(:add_fraction, frac_part)
-    end
+    result = result.send(:add_fraction, frac_part) if frac_part.nonzero?
 
     result
   end

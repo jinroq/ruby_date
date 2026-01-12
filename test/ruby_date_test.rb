@@ -447,6 +447,107 @@ class RubyDateTest < Test::Unit::TestCase
     end
   end
 
+  # RubyDate.valid_civil? tests
+  sub_test_case "RubyDate.valid_civil?" do
+    test "returns true for valid dates" do
+      assert_true(RubyDate.valid_civil?(2001, 2, 3))
+      assert_true(RubyDate.valid_civil?(2000, 1, 1))
+      assert_true(RubyDate.valid_civil?(2000, 12, 31))
+    end
+
+    test "returns false for invalid month" do
+      assert_false(RubyDate.valid_civil?(2001, 0, 1))
+      assert_false(RubyDate.valid_civil?(2001, 13, 1))
+      assert_false(RubyDate.valid_civil?(2001, -1, 1))
+    end
+
+    test "returns false for invalid day" do
+      assert_false(RubyDate.valid_civil?(2001, 2, 0))
+      assert_false(RubyDate.valid_civil?(2001, 2, 29)) # not a leap year
+      assert_false(RubyDate.valid_civil?(2001, 4, 31)) # April has 30 days
+    end
+
+    test "returns true for leap year Feb 29" do
+      assert_true(RubyDate.valid_civil?(2000, 2, 29))
+      assert_true(RubyDate.valid_civil?(2004, 2, 29))
+    end
+
+    test "returns false for non-leap year Feb 29" do
+      assert_false(RubyDate.valid_civil?(2001, 2, 29))
+      assert_false(RubyDate.valid_civil?(1900, 2, 29)) # not a leap year
+    end
+
+    test "returns true for leap year century" do
+      # 2000 is divisible by 400
+      assert_true(RubyDate.valid_civil?(2000, 2, 29))
+    end
+
+    test "returns false for non-leap year century" do
+      # 1900 is divisible by 100 but not 400
+      assert_false(RubyDate.valid_civil?(1900, 2, 29))
+    end
+
+    test "handles all months correctly" do
+      # 31-day months
+      assert_true(RubyDate.valid_civil?(2001, 1, 31))
+      assert_true(RubyDate.valid_civil?(2001, 3, 31))
+      assert_true(RubyDate.valid_civil?(2001, 5, 31))
+      assert_true(RubyDate.valid_civil?(2001, 7, 31))
+      assert_true(RubyDate.valid_civil?(2001, 8, 31))
+      assert_true(RubyDate.valid_civil?(2001, 10, 31))
+      assert_true(RubyDate.valid_civil?(2001, 12, 31))
+
+      # 30-day months
+      assert_true(RubyDate.valid_civil?(2001, 4, 30))
+      assert_true(RubyDate.valid_civil?(2001, 6, 30))
+      assert_true(RubyDate.valid_civil?(2001, 9, 30))
+      assert_true(RubyDate.valid_civil?(2001, 11, 30))
+
+      assert_false(RubyDate.valid_civil?(2001, 4, 31))
+      assert_false(RubyDate.valid_civil?(2001, 6, 31))
+      assert_false(RubyDate.valid_civil?(2001, 9, 31))
+      assert_false(RubyDate.valid_civil?(2001, 11, 31))
+    end
+
+    test "returns false for non-numeric arguments" do
+      assert_false(RubyDate.valid_civil?("2001", 2, 3))
+      assert_false(RubyDate.valid_civil?(2001, "2", 3))
+      assert_false(RubyDate.valid_civil?(2001, 2, "3"))
+      assert_false(RubyDate.valid_civil?(nil, 2, 3))
+    end
+
+    test "accepts objects with to_int" do
+      year_obj = Object.new
+      def year_obj.to_int; 2001; end
+
+      month_obj = Object.new
+      def month_obj.to_int; 2; end
+
+      day_obj = Object.new
+      def day_obj.to_int; 3; end
+
+      assert_true(RubyDate.valid_civil?(year_obj, month_obj, day_obj))
+    end
+
+    test "handles negative years" do
+      assert_true(RubyDate.valid_civil?(-100, 1, 1))
+      assert_true(RubyDate.valid_civil?(-4, 2, 29)) # leap year
+      assert_false(RubyDate.valid_civil?(-3, 2, 29)) # not a leap year
+    end
+
+    test "works with different start dates" do
+      assert_true(RubyDate.valid_civil?(2001, 2, 3, RubyDate::ITALY))
+      assert_true(RubyDate.valid_civil?(2001, 2, 3, RubyDate::ENGLAND))
+      assert_true(RubyDate.valid_civil?(2001, 2, 3, RubyDate::GREGORIAN))
+      assert_true(RubyDate.valid_civil?(2001, 2, 3, RubyDate::JULIAN))
+    end
+
+    test "edge case: year 0" do
+      # Year 0 exists in astronomical year numbering
+      assert_true(RubyDate.valid_civil?(0, 1, 1))
+    end
+  end
+
   # RubyDate.valid_ordinal? tests
   sub_test_case "RubyDate.valid_ordinal?" do
     test "returns true for valid day in non-leap year" do
