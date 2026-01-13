@@ -9,6 +9,61 @@ class RubyDateTest < Test::Unit::TestCase
     end
   end
 
+  # RubyDate.valid_jd? tests
+  sub_test_case "RubyDate.valid_jd?" do
+    test "returns true for integer JD values" do
+      assert_true(RubyDate.valid_jd?(0))
+      assert_true(RubyDate.valid_jd?(2451944))
+      assert_true(RubyDate.valid_jd?(-1000))
+      assert_true(RubyDate.valid_jd?(10000000))
+    end
+
+    test "returns true for float JD values" do
+      assert_true(RubyDate.valid_jd?(2451944.5))
+      assert_true(RubyDate.valid_jd?(0.0))
+      assert_true(RubyDate.valid_jd?(-1000.25))
+    end
+
+    test "returns true for Rational JD values" do
+      assert_true(RubyDate.valid_jd?(Rational(2451944, 1)))
+      assert_true(RubyDate.valid_jd?(Rational(4903889, 2)))
+    end
+
+    test "returns false for non-numeric values" do
+      assert_false(RubyDate.valid_jd?("2451944"))
+      assert_false(RubyDate.valid_jd?(nil))
+      assert_false(RubyDate.valid_jd?([2451944]))
+    end
+
+    test "accepts objects with to_int" do
+      jd_obj = Object.new
+      def jd_obj.to_int; 2451944; end
+
+      assert_true(RubyDate.valid_jd?(jd_obj))
+    end
+
+    test "works with different start dates" do
+      assert_true(RubyDate.valid_jd?(2451944, RubyDate::ITALY))
+      assert_true(RubyDate.valid_jd?(2451944, RubyDate::ENGLAND))
+      assert_true(RubyDate.valid_jd?(2451944, RubyDate::GREGORIAN))
+      assert_true(RubyDate.valid_jd?(2451944, RubyDate::JULIAN))
+    end
+
+    test "returns true for very large JD numbers" do
+      assert_true(RubyDate.valid_jd?(100000000))
+      assert_true(RubyDate.valid_jd?(1000000000))
+    end
+
+    test "returns true for very small JD numbers" do
+      assert_true(RubyDate.valid_jd?(-100000000))
+      assert_true(RubyDate.valid_jd?(-1000000000))
+    end
+
+    test "returns true for zero" do
+      assert_true(RubyDate.valid_jd?(0))
+    end
+  end
+
   # RubyDate.jd tests
   sub_test_case "RubyDate.jd" do
     test "test_eql_p" do
@@ -42,6 +97,18 @@ class RubyDateTest < Test::Unit::TestCase
     test "jd raises TypeError for non-numeric input" do
       assert_raise(TypeError) do
         RubyDate.jd("invalid")
+      end
+    end
+
+    test "jd accepts values that valid_jd? validates" do
+      # All values that valid_jd? returns true for should be creatable
+      valid_jds = [0, 2451944, -1000, 2451944.5, Rational(2451944, 1)]
+
+      valid_jds.each do |jd_value|
+        assert_true(RubyDate.valid_jd?(jd_value), "valid_jd? should return true for #{jd_value}")
+        assert_nothing_raised do
+          RubyDate.jd(jd_value)
+        end
       end
     end
   end

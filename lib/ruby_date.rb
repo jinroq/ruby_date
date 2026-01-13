@@ -225,6 +225,25 @@ class RubyDate
     end
 
     # call-seq:
+    #   Date.valid_jd?(jd, start = Date::ITALY) -> true
+    #
+    # Implemented for compatibility;
+    # returns +true+ unless +jd+ is invalid (i.e., not a Numeric).
+    #
+    #   Date.valid_jd?(2451944) # => true
+    #
+    # See argument {start}[rdoc-ref:language/calendars.rdoc@Argument+start].
+    #
+    # Related: Date.jd.
+    def valid_jd?(jd, start = DEFAULT_SG)
+      return false unless numeric?(jd)
+
+      result = valid_jd_sub(jd, start, 0)
+
+      !result.nil?
+    end
+
+    # call-seq:
     #   Date.gregorian_leap?(year) -> true or false
     #
     # Returns +true+ if the given year is a leap year
@@ -860,6 +879,12 @@ class RubyDate
       return false if start < REFORM_BEGIN_JD || start > REFORM_END_JD
 
       true
+    end
+
+    def valid_jd_sub(jd, start, need_jd)
+      valid_sg(start)
+
+      jd
     end
   end
 
