@@ -434,6 +434,30 @@ class RubyDate
     end
 
     # call-seq:
+    #   Date.valid_commercial?(cwyear, cweek, cwday, start = Date::ITALY) -> true or false
+    #
+    # Returns +true+ if the arguments define a valid commercial date,
+    # +false+ otherwise:
+    #
+    #   Date.valid_commercial?(2001, 5, 6) # => true
+    #   Date.valid_commercial?(2001, 5, 8) # => false
+    #
+    # See Date.commercial.
+    #
+    # See argument {start}[rdoc-ref:language/calendars.rdoc@Argument+start].
+    #
+    # Related: Date.jd, Date.commercial.
+    def valid_commercial?(year, week, day, start = DEFAULT_SG)
+      return false unless numeric?(year)
+      return false unless numeric?(week)
+      return false unless numeric?(day)
+
+      result = valid_commercial_sub(year, week, day, start, false)
+
+      !result.nil?
+    end
+
+    # call-seq:
     #   Date.today(start = Date::ITALY) -> date
     #
     # Returns a new \Date object constructed from the present date:
@@ -891,6 +915,298 @@ class RubyDate
 
       jd
     end
+
+    def valid_commercial_sub(year, week, day, start, need_jd)
+      week = convert_to_integer(week)
+      day = convert_to_integer(day)
+
+      valid_sg(start)
+
+      result = valid_commercial_p(year, week, day, start)
+
+      return nil unless result
+
+      return 0 unless need_jd
+
+      encode_jd(result[:nth], result[:rjd])
+    end
+
+    def valid_commercial_p(year, week, day, start)
+      style = guess_style(year, start)
+
+      if style.zero?
+        int_year = year.to_i
+        result = c_valid_commercial_p(int_year, week, day, start)
+        return nil unless result
+
+        nth, rjd = decode_jd(result[:jd])
+
+        if nth.zero?
+          ry = int_year
+        else
+          ns = result[:ns]
+          nth2, ry = decode_year(year, ns != 0 ? -1 : 1)
+        end
+
+       return { nth: nth, ry: ry, rw: result[:rw], rd: result[:rd], rjd: rjd, ns: result[:ns] }
+      else
+        nth, ry = decode_year(year, style)
+        result = c_valid_commercial_p(ry, week, day, style)
+        return nil unless result
+
+        return { nth: nth, ry: ry, rw: result[:rw], rd: result[:rd], rjd: result[:rjd], ns: result[:ns] }
+      end
+    end
+
+    def guess_style(year, sg)
+      return sg if sg.infinite?
+      return year > 0 ? GREGORIAN : JULIAN unless year.is_a?(Integer)
+
+      if year < REFORM_BEGIN_YEAR
+        JULIAN
+      elsif year > REFORM_END_YEAR
+        GREGORIAN
+      else
+        0
+      end
+    end
+
+    def c_valid_commercial_p(year, week, day, sg)
+      day += 8 if day < 0
+
+      if week < 0
+        rjd2, ns2 = c_commercial_to_jd(year + 1, 1, 1, sg)
+        ry2, rw2, rd2 = c_jd_to_commercial(rjd2 + week * 7, sg)
+        return nil if ry2 != year
+        week = rw2
+      end
+
+      rjd, ns = c_commercial_to_jd(year, week, day, sg)
+
+      ry2, rw, rd = c_jd_to_commercial(rjd, sg)
+
+      return nil if year != ry2 || week != rw || day != rd
+
+      { jd: rjd, ns: ns, rw: rw, rd: rd }
+    end
+
+    def c_commercial_to_jd(year, week, day, sg)
+      rjd2, ns2 = c_find_fdoy(year, sg)
+      rjd2 += 3
+
+      # Calcurate ISO week number.
+      rjd = (rjd2 - ((rjd2 - 1 + 1) % 7)) + 7 * (week - 1) + (day - 1)
+      ns = (rjd < sg) ? 0 : 1
+
+      [rjd, ns]
+    end
+
+    def c_jd_to_commercial(jd, sg)
+      ry2, rm2, rd2 = c_jd_to_civil(jd - 3, sg)
+      a = ry2
+
+      rjd2, ns2 = c_commercial_to_jd(a + 1, 1, 1, sg)
+      if jd >= rjd2
+        ry = a + 1
+      else
+        rjd2, ns2 = c_commercial_to_jd(a, 1, 1, sg)
+        ry = a
+      end
+
+      rw = 1 + (jd - rjd2) / 7
+      rd = (jd + 1) % 7
+      rd = 7 if rd.zero?
+
+      [ry, rw, rd]
+    end
+
+    def c_find_fdoy(year, sg)
+      if c_gregorian_only_p(sg)
+        jd = c_gregorian_fdoy(year)
+
+        return [jd, 1]
+      end
+
+      (1..30).each do |d|
+        result = c_valid_civil_p(year, 1, d, sg)
+
+        return [result[:jd], result[:ns]] if result
+      end
+
+      [nil, nil]
+    end
+
+    def c_find_ldom(year, month, sg)
+      if c_gregorian_only_p(sg)
+        jd = c_gregorian_ldom_jd(year, month)
+        return [jd, 1]
+      end
+
+      (0..29).each do |i|
+        result = c_valid_civil_p(year, month, 31 - i, sg)
+        return [result[:jd], result[:ns]] if result
+      end
+
+      nil
+    end
+
+    def c_gregorian_fdoy(year)
+      c_gregorian_civil_to_jd(year, 1, 1)
+    end
+
+    def c_jd_to_civil(jd, sg)
+      return c_gregorian_jd_to_civil(jd) if c_gregorian_only_p(sg) || jd >= sg
+
+      if jd < sg
+        a = jd
+      else
+        x = ((jd - 1867216.25) / 36524.25).floor
+        a = jd + 1 + x - (x / 4.0).floor
+      end
+
+      b = a + 1524
+      c = ((b - 122.1) / 365.25).floor
+      d = (365.25 * c).floor
+      e = ((b - d) / 30.6001).floor
+      dom = b - d - (30.6001 * e).floor
+
+      if e <= 13
+        m = e - 1
+        y = c - 4716
+      else
+        m = e - 13
+        y = c - 4715
+      end
+
+      [y.to_i, m.to_i, dom.to_i]
+    end
+
+    def c_gregorian_jd_to_civil(jd)
+      a = jd + 32044
+      b = (4 * a + 3) / GC_PERIOD0
+      c = a - (GC_PERIOD0 * b) / 4
+      d = (4 * c + 3) / JC_PERIOD0
+      e = c - (JC_PERIOD0 * d) / 4
+      m = (5 * e + 2) / 153
+
+      day = e - (153 * m + 2) / 5 + 1
+      month = m + 3 - 12 * (m / 10)
+      year = 100 * b + d - 4800 + m / 10
+
+      [year, month, day]
+    end
+
+    def c_gregorian_civil_to_jd(year, month, day)
+      j = (month < 3) ? 1 : 0
+      y0 = year - j
+      m0 = j != 0 ? month + 12 : month
+      d0 = day - 1
+
+      q1 = y0 / 100
+      yc = (NS_DAYS_IN_4_YEARS * y0) / 4 - q1 + q1 / 4
+
+      mc = (NS_DAYS_BEFORE_NEW_YEAR * m0 - 914) / 10
+
+      yc + mc + d0 + NS_EPOCH
+    end
+
+    def c_valid_civil_p(year, month, day, sg)
+      month += 13 if month < 0
+      return nil if month < 1 || month > 12
+
+      if day < 0
+        result = c_find_ldom(year, month, sg)
+        return nil unless result
+        rjd, ns = result
+        ry, rm, rd = c_jd_to_civil(rjd + day + 1, sg)
+        return nil if ry != year || rm != month
+        day = rd
+      end
+
+      rjd, ns = c_civil_to_jd(year, month, day, sg)
+
+      ry, rm, rd = c_jd_to_civil(rjd, sg)
+
+      return nil if ry != year || rm != month || rd != day
+
+      { jd: rjd, ns: ns, rm: rm, rd: rd }
+    end
+
+    def c_gregorian_ldom_jd(year, month)
+      last_day = c_gregorian_last_day_of_month(year, month)
+      c_gregorian_civil_to_jd(year, month, last_day)
+    end
+
+    def c_gregorian_last_day_of_month(year, month)
+      days_in_month = [nil, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+
+      if month == 2 && gregorian_leap?(year)
+        29
+      else
+        days_in_month[month]
+      end
+    end
+
+    def c_civil_to_jd(year, month, day, sg)
+      if c_gregorian_only_p(sg)
+        jd = c_gregorian_civil_to_jd(year, month, day)
+        return [jd, 1]
+      end
+
+      jd = c_gregorian_civil_to_jd(year, month, day)
+
+      if jd < sg
+        y2 = year
+        m2 = month
+        if m2 <= 2
+          y2 -= 1
+          m2 += 12
+        end
+        jd = (365.25 * (y2 + 4716)).floor + (30.6001 * (m2 + 1)).floor + day - 1524
+        ns = 0
+      else
+        ns = 1
+      end
+
+      [jd, ns]
+    end
+
+    def decode_jd(jd)
+      nth = jd / CM_PERIOD
+      rjd = nth.zero? ? jd : jd % CM_PERIOD
+
+      [nth, rjd]
+    end
+
+    def encode_jd(nth, rjd)
+      nth * CM_PERIOD + rjd
+    end
+
+    def decode_year(year, style)
+      period = (style < 0) ? CM_PERIOD_GCY : CM_PERIOD_JCY
+
+      if year.is_a?(Integer) && year.abs < (1 << 30)
+        shifted = year + 4712
+        nth = shifted / period
+
+        shifted = shifted % period if nth.nonzero?
+
+        ry = shifted - 4712
+      else
+        shifted = year + 4712
+        nth = shifted / period
+
+        shifted = shifted % period if nth.nonzero?
+
+        ry = shifted.to_i - 4712
+      end
+
+      [nth, ry]
+    end
+
+    def c_gregorian_only_p(sg)
+      sg == GREGORIAN
+    end
   end
 
   # Instance methods
@@ -1050,6 +1366,38 @@ class RubyDate
     end
   end
 
+  def <(other)
+    if @jd.is_a?(Integer) && other.respond_to?(:jd) && other.jd.is_a?(Integer)
+      @jd < other.jd
+    else
+      @jd < (other.respond_to?(:jd) ? other.jd : other)
+    end
+  end
+
+  def >(other)
+    if @jd.is_a?(Integer) && other.respond_to?(:jd) && other.jd.is_a?(Integer)
+      @jd > other.jd
+    else
+      @jd > (other.respond_to?(:jd) ? other.jd : other)
+    end
+  end
+
+  def <=(other)
+    if @jd.is_a?(Integer) && other.respond_to?(:jd) && other.jd.is_a?(Integer)
+      @jd <= other.jd
+    else
+      @jd <= (other.respond_to?(:jd) ? other.jd : other)
+    end
+  end
+
+  def >=(other)
+    if @jd.is_a?(Integer) && other.respond_to?(:jd) && other.jd.is_a?(Integer)
+      @jd >= other.jd
+    else
+      @jd >= (other.respond_to?(:jd) ? other.jd : other)
+    end
+  end
+
   # call-seq:
   #   infinite? -> false
   #
@@ -1201,19 +1549,6 @@ class RubyDate
 
   def extract_fraction(value)
     self.class.send(:extract_fraction, value)
-  end
-
-  def guess_style(year, sg)
-    return sg if sg.infinite?
-    return year > 0 ? GREGORIAN : JULIAN unless year.is_a?(Integer)
-
-    if year < REFORM_BEGIN_YEAR
-      JULIAN
-    elsif year > REFORM_END_YEAR
-      GREGORIAN
-    else
-      0
-    end
   end
 
   def decode_year(year, style)

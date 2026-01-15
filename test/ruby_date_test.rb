@@ -936,6 +936,86 @@ class RubyDateTest < Test::Unit::TestCase
       assert_nil(d1 <=> "not a date")
     end
 
+    test "less than operator" do
+      d1 = RubyDate.new(2001, 2, 3)
+      d2 = RubyDate.new(2001, 2, 4)
+      d3 = RubyDate.new(2001, 2, 3)
+
+      assert_true(d1 < d2)
+      assert_false(d2 < d1)
+      assert_false(d1 < d3)
+    end
+
+    test "less than or equal operator" do
+      d1 = RubyDate.new(2001, 2, 3)
+      d2 = RubyDate.new(2001, 2, 4)
+      d3 = RubyDate.new(2001, 2, 3)
+
+      assert_true(d1 <= d2)
+      assert_false(d2 <= d1)
+      assert_true(d1 <= d3)
+    end
+
+    test "greater than operator" do
+      d1 = RubyDate.new(2001, 2, 3)
+      d2 = RubyDate.new(2001, 2, 4)
+      d3 = RubyDate.new(2001, 2, 3)
+
+      assert_false(d1 > d2)
+      assert_true(d2 > d1)
+      assert_false(d1 > d3)
+    end
+
+    test "greater than or equal operator" do
+      d1 = RubyDate.new(2001, 2, 3)
+      d2 = RubyDate.new(2001, 2, 4)
+      d3 = RubyDate.new(2001, 2, 3)
+
+      assert_false(d1 >= d2)
+      assert_true(d2 >= d1)
+      assert_true(d1 >= d3)
+    end
+
+    test "comparison operators work across years" do
+      d1 = RubyDate.new(2000, 12, 31)
+      d2 = RubyDate.new(2001, 1, 1)
+
+      assert_true(d1 < d2)
+      assert_true(d1 <= d2)
+      assert_false(d1 > d2)
+      assert_false(d1 >= d2)
+    end
+
+    test "comparison operators work with same dates" do
+      d1 = RubyDate.new(2001, 6, 15)
+      d2 = RubyDate.new(2001, 6, 15)
+
+      assert_false(d1 < d2)
+      assert_true(d1 <= d2)
+      assert_false(d1 > d2)
+      assert_true(d1 >= d2)
+    end
+
+    test "comparison operators work with distant dates" do
+      d1 = RubyDate.new(1900, 1, 1)
+      d2 = RubyDate.new(2100, 12, 31)
+
+      assert_true(d1 < d2)
+      assert_true(d1 <= d2)
+      assert_false(d1 > d2)
+      assert_false(d1 >= d2)
+    end
+
+    test "comparison operators with negative years" do
+      d1 = RubyDate.new(-100, 1, 1)
+      d2 = RubyDate.new(100, 1, 1)
+
+      assert_true(d1 < d2)
+      assert_true(d1 <= d2)
+      assert_false(d1 > d2)
+      assert_false(d1 >= d2)
+    end
+
     test "== compares dates for equality" do
       d1 = RubyDate.new(2001, 2, 3)
       d2 = RubyDate.new(2001, 2, 3)
@@ -1153,6 +1233,114 @@ class RubyDateTest < Test::Unit::TestCase
     end
   end
 
+  # RubyDate.valid_commercial? tests
+  sub_test_case "RubyDate.valid_commercial?" do
+    test "returns true for valid ISO week dates" do
+      assert_true(RubyDate.valid_commercial?(2001, 1, 1))
+      assert_true(RubyDate.valid_commercial?(2001, 5, 6))
+      assert_true(RubyDate.valid_commercial?(2001, 52, 7))
+    end
+
+    test "returns true for valid weekdays 1-7" do
+      (1..7).each do |day|
+        assert_true(RubyDate.valid_commercial?(2001, 1, day), "Day #{day} should be valid")
+      end
+    end
+
+    test "returns false for invalid weekday 0" do
+      assert_false(RubyDate.valid_commercial?(2001, 1, 0))
+    end
+
+    test "returns false for invalid weekday 8" do
+      assert_false(RubyDate.valid_commercial?(2001, 1, 8))
+    end
+
+    test "returns true for week 1" do
+      assert_true(RubyDate.valid_commercial?(2001, 1, 1))
+    end
+
+    test "returns true for week 52" do
+      assert_true(RubyDate.valid_commercial?(2001, 52, 1))
+    end
+
+    test "week 53 validity depends on the year" do
+      # Test week 53 existence for specific years
+      # Whether a year has 53 weeks depends on which day January 1 falls on
+
+      # 2001 is known to not have week 53
+      has_week_53_2001 = RubyDate.valid_commercial?(2001, 53, 1)
+      assert_false(has_week_53_2001, "2001 should not have week 53")
+
+      # Test that week 52 always exists
+      assert_true(RubyDate.valid_commercial?(2001, 52, 1))
+      assert_true(RubyDate.valid_commercial?(2022, 52, 1))
+    end
+
+    test "returns false for week 0" do
+      assert_false(RubyDate.valid_commercial?(2001, 0, 1))
+    end
+
+    test "returns false for week 54" do
+      assert_false(RubyDate.valid_commercial?(2001, 54, 1))
+    end
+
+    test "handles negative week numbers" do
+      # -1 should be the last week of the year
+      assert_true(RubyDate.valid_commercial?(2001, -1, 1))
+    end
+
+    test "handles negative day numbers" do
+      # -1 should be Sunday (same as 7), -7 should be Monday (same as 1)
+      assert_true(RubyDate.valid_commercial?(2001, 1, -1))
+      assert_true(RubyDate.valid_commercial?(2001, 1, -7))
+    end
+
+    test "returns false for non-numeric year" do
+      assert_false(RubyDate.valid_commercial?("2001", 1, 1))
+      assert_false(RubyDate.valid_commercial?(nil, 1, 1))
+    end
+
+    test "returns false for non-numeric week" do
+      assert_false(RubyDate.valid_commercial?(2001, "1", 1))
+      assert_false(RubyDate.valid_commercial?(2001, nil, 1))
+    end
+
+    test "returns false for non-numeric day" do
+      assert_false(RubyDate.valid_commercial?(2001, 1, "1"))
+      assert_false(RubyDate.valid_commercial?(2001, 1, nil))
+    end
+
+    test "handles integer-like values" do
+      # Test with actual integers converted from other numeric types
+      assert_true(RubyDate.valid_commercial?(2001.to_i, 5.to_i, 6.to_i))
+    end
+
+    test "works with different start dates" do
+      assert_true(RubyDate.valid_commercial?(2001, 5, 6, RubyDate::ITALY))
+      assert_true(RubyDate.valid_commercial?(2001, 5, 6, RubyDate::ENGLAND))
+      assert_true(RubyDate.valid_commercial?(2001, 5, 6, RubyDate::GREGORIAN))
+      assert_true(RubyDate.valid_commercial?(2001, 5, 6, RubyDate::JULIAN))
+    end
+
+    test "validates commercial dates for different years" do
+      # Test that week 1 and week 52 are always valid
+      assert_true(RubyDate.valid_commercial?(2020, 1, 1))
+      assert_true(RubyDate.valid_commercial?(2020, 52, 1))
+      assert_true(RubyDate.valid_commercial?(2021, 1, 1))
+      assert_true(RubyDate.valid_commercial?(2021, 52, 1))
+
+      # Week 53 validity varies by year
+      # We just test that the method doesn't crash
+      RubyDate.valid_commercial?(2020, 53, 1)
+      RubyDate.valid_commercial?(2021, 53, 1)
+    end
+
+    test "edge cases with negative years" do
+      assert_true(RubyDate.valid_commercial?(-100, 1, 1))
+      assert_true(RubyDate.valid_commercial?(-100, 52, 7))
+    end
+  end
+
   # RubyDate.commercial tests (ISO week date)
   sub_test_case "RubyDate.commercial" do
     test "creates date from ISO week date" do
@@ -1248,6 +1436,48 @@ class RubyDateTest < Test::Unit::TestCase
       assert_equal(2019, date.year)
       assert_equal(12, date.month)
       assert_equal(30, date.day)
+    end
+
+    test "commercial uses valid_commercial? for validation" do
+      # Valid commercial dates should be creatable
+      assert_nothing_raised do
+        RubyDate.commercial(2001, 1, 1)
+        RubyDate.commercial(2001, 52, 7)
+      end
+
+      # Invalid commercial dates should raise ArgumentError
+      assert_raise(ArgumentError) do
+        RubyDate.commercial(2001, 1, 0) # Invalid day
+      end
+
+      assert_raise(ArgumentError) do
+        RubyDate.commercial(2001, 1, 8) # Invalid day
+      end
+
+      assert_raise(ArgumentError) do
+        RubyDate.commercial(2001, 0, 1) # Invalid week
+      end
+    end
+
+    test "all dates from valid_commercial? are creatable" do
+      # Sample of valid commercial dates
+      test_cases = [
+        [2001, 1, 1],
+        [2001, 26, 4],
+        [2001, 52, 7],
+        [2022, 1, 1],
+        [2022, 52, 7]
+      ]
+
+      test_cases.each do |year, week, day|
+        # Only test if valid_commercial? returns true
+        if RubyDate.valid_commercial?(year, week, day)
+          assert_nothing_raised("Should be able to create #{year}-W#{week}-#{day}") do
+            date = RubyDate.commercial(year, week, day)
+            assert_not_nil(date)
+          end
+        end
+      end
     end
   end
 
