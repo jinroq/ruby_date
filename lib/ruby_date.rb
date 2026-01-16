@@ -1366,38 +1366,6 @@ class RubyDate
     end
   end
 
-  def <(other)
-    if @jd.is_a?(Integer) && other.respond_to?(:jd) && other.jd.is_a?(Integer)
-      @jd < other.jd
-    else
-      @jd < (other.respond_to?(:jd) ? other.jd : other)
-    end
-  end
-
-  def >(other)
-    if @jd.is_a?(Integer) && other.respond_to?(:jd) && other.jd.is_a?(Integer)
-      @jd > other.jd
-    else
-      @jd > (other.respond_to?(:jd) ? other.jd : other)
-    end
-  end
-
-  def <=(other)
-    if @jd.is_a?(Integer) && other.respond_to?(:jd) && other.jd.is_a?(Integer)
-      @jd <= other.jd
-    else
-      @jd <= (other.respond_to?(:jd) ? other.jd : other)
-    end
-  end
-
-  def >=(other)
-    if @jd.is_a?(Integer) && other.respond_to?(:jd) && other.jd.is_a?(Integer)
-      @jd >= other.jd
-    else
-      @jd >= (other.respond_to?(:jd) ? other.jd : other)
-    end
-  end
-
   # call-seq:
   #   infinite? -> false
   #
