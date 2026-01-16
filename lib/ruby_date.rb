@@ -259,7 +259,11 @@ class RubyDate
     #
     # Related: Date.julian_leap?.
     def gregorian_leap?(year)
-      !!(((year % 4).zero? && (year % 100).nonzero?) || (year % 400).zero?)
+      return false unless numeric?(year)
+
+      _, ry = decode_year(year, -1)
+
+      c_gregorian_leap_p?(ry)
     end
 
     # call-seq:
@@ -348,15 +352,9 @@ class RubyDate
       return false unless numeric?(year)
       return false unless numeric?(day)
 
-      year = convert_to_integer(year)
-      day = convert_to_integer(day)
+      result = valid_ordinal_sub(year, day, start, false)
 
-      return false if year.zero?
-
-      leap_year = start == JULIAN ? julian_leap?(year) : gregorian_leap?(year)
-      max_day = leap_year ? 366 : 365
-
-      day >= 1 && day <= max_day
+      !result.nil?
     end
 
     # call-seq:
@@ -541,7 +539,7 @@ class RubyDate
       # Handling negative day of year
       if yday < 0
         # Counting backwards from the end of the year
-        last_jd = find_last_day_of_year(year, sg)
+        last_jd = c_find_ldoy(year, sg)
         return nil unless last_jd
 
         # Recalculate the total number of days in the year from the calculated JD
@@ -556,7 +554,7 @@ class RubyDate
 
       # Calculate jd from the day of the year
       nth, ry, _, _ = decode_year(year, sg)
-      first_jd, ns = find_first_day_of_year(ry, sg)
+      first_jd, ns = c_find_fdoy(ry, sg)
 
       return nil unless first_jd
 
@@ -567,31 +565,6 @@ class RubyDate
       return nil if verify_y != ry || verify_d != yday
 
       [nth, ry, yday, jd, ns]
-    end
-
-    def find_first_day_of_year(year, sg)
-      # Equivalent to `c_find_fdoy` in the C implementation
-      (1..31).each do |day|
-        if valid_civil_date?(year, 1, day, sg)
-          jd, ns = civil_to_jd_with_check(year, 1, day, sg)
-
-          return [jd, ns]
-        end
-      end
-      nil
-    end
-
-    def find_last_day_of_year(year, sg)
-      # Equivalent to `c_find_ldoy` in the C implementation
-      (0..29).each do |i|
-        day = 31 - i
-        if valid_civil_date?(year, 12, day, sg)
-          jd, ns = civil_to_jd_with_check(year, 12, day, sg)
-
-          return jd
-        end
-      end
-      nil
     end
 
     def extract_fraction(value)
@@ -605,9 +578,10 @@ class RubyDate
     end
 
     def jd_to_ordinal(jd, sg)
-      year, month, day = jd_to_civil_internal(jd, sg)
-      first_jd, ns = find_first_day_of_year(year, sg)
+      year, _, _ = jd_to_civil_internal(jd, sg)
+      first_jd, _ = c_find_fdoy(year, sg)
       yday = jd - first_jd + 1
+
       [year, yday]
     end
 
@@ -843,19 +817,6 @@ class RubyDate
       [jd, ns]
     end
 
-    def find_last_day_of_month(year, month, sg)
-      (0..29).each do |i|
-        day = 31 - i
-        if valid_civil_date?(year, month, day, sg)
-          jd = civil_to_jd(year, month, day, sg)
-
-          return jd
-        end
-      end
-
-      nil
-    end
-
     def convert_to_integer(value)
       if value.respond_to?(:to_int)
         value.to_int
@@ -945,26 +906,27 @@ class RubyDate
           ry = int_year
         else
           ns = result[:ns]
-          nth2, ry = decode_year(year, ns != 0 ? -1 : 1)
+          _, ry = decode_year(year, ns.nonzero? ? -1 : 1)
         end
 
-       return { nth: nth, ry: ry, rw: result[:rw], rd: result[:rd], rjd: rjd, ns: result[:ns] }
+       { nth:, ry:, rw: result[:rw], rd: result[:rd], rjd:, ns: result[:ns] }
       else
         nth, ry = decode_year(year, style)
         result = c_valid_commercial_p(ry, week, day, style)
         return nil unless result
 
-        return { nth: nth, ry: ry, rw: result[:rw], rd: result[:rd], rjd: result[:rjd], ns: result[:ns] }
+        { nth:, ry:, rw: result[:rw], rd: result[:rd], rjd: result[:rjd], ns: result[:ns] }
       end
     end
 
     def guess_style(year, sg)
       return sg if sg.infinite?
-      return year > 0 ? GREGORIAN : JULIAN unless year.is_a?(Integer)
+      return year >= 0 ? GREGORIAN : JULIAN unless year.is_a?(Integer) && year.abs < (1 << 62)
 
-      if year < REFORM_BEGIN_YEAR
+      int_year = year.to_i
+      if int_year < REFORM_BEGIN_YEAR
         JULIAN
-      elsif year > REFORM_END_YEAR
+      elsif int_year > REFORM_END_YEAR
         GREGORIAN
       else
         0
@@ -975,23 +937,23 @@ class RubyDate
       day += 8 if day < 0
 
       if week < 0
-        rjd2, ns2 = c_commercial_to_jd(year + 1, 1, 1, sg)
-        ry2, rw2, rd2 = c_jd_to_commercial(rjd2 + week * 7, sg)
+        rjd2, _ = c_commercial_to_jd(year + 1, 1, 1, sg)
+        ry2, rw2, _ = c_jd_to_commercial(rjd2 + week * 7, sg)
         return nil if ry2 != year
+
         week = rw2
       end
 
       rjd, ns = c_commercial_to_jd(year, week, day, sg)
-
       ry2, rw, rd = c_jd_to_commercial(rjd, sg)
 
       return nil if year != ry2 || week != rw || day != rd
 
-      { jd: rjd, ns: ns, rw: rw, rd: rd }
+      { jd: rjd, ns:, rw:, rd: }
     end
 
     def c_commercial_to_jd(year, week, day, sg)
-      rjd2, ns2 = c_find_fdoy(year, sg)
+      rjd2, _ = c_find_fdoy(year, sg)
       rjd2 += 3
 
       # Calcurate ISO week number.
@@ -1002,14 +964,14 @@ class RubyDate
     end
 
     def c_jd_to_commercial(jd, sg)
-      ry2, rm2, rd2 = c_jd_to_civil(jd - 3, sg)
+      ry2, _, _ = c_jd_to_civil(jd - 3, sg)
       a = ry2
 
-      rjd2, ns2 = c_commercial_to_jd(a + 1, 1, 1, sg)
+      rjd2, _ = c_commercial_to_jd(a + 1, 1, 1, sg)
       if jd >= rjd2
         ry = a + 1
       else
-        rjd2, ns2 = c_commercial_to_jd(a, 1, 1, sg)
+        rjd2, _ = c_commercial_to_jd(a, 1, 1, sg)
         ry = a
       end
 
@@ -1021,12 +983,13 @@ class RubyDate
     end
 
     def c_find_fdoy(year, sg)
-      if c_gregorian_only_p(sg)
+      if c_gregorian_only_p?(sg)
         jd = c_gregorian_fdoy(year)
 
         return [jd, 1]
       end
 
+      # Keep existing loop for Julian/reform period
       (1..30).each do |d|
         result = c_valid_civil_p(year, 1, d, sg)
 
@@ -1037,11 +1000,13 @@ class RubyDate
     end
 
     def c_find_ldom(year, month, sg)
-      if c_gregorian_only_p(sg)
+      if c_gregorian_only_p?(sg)
         jd = c_gregorian_ldom_jd(year, month)
+
         return [jd, 1]
       end
 
+      # Keep existing loop for Julian/reform period
       (0..29).each do |i|
         result = c_valid_civil_p(year, month, 31 - i, sg)
         return [result[:jd], result[:ns]] if result
@@ -1055,7 +1020,7 @@ class RubyDate
     end
 
     def c_jd_to_civil(jd, sg)
-      return c_gregorian_jd_to_civil(jd) if c_gregorian_only_p(sg) || jd >= sg
+      return c_gregorian_jd_to_civil(jd) if c_gregorian_only_p?(sg) || jd >= sg
 
       if jd < sg
         a = jd
@@ -1117,14 +1082,15 @@ class RubyDate
       if day < 0
         result = c_find_ldom(year, month, sg)
         return nil unless result
+
         rjd, ns = result
         ry, rm, rd = c_jd_to_civil(rjd + day + 1, sg)
         return nil if ry != year || rm != month
+
         day = rd
       end
 
       rjd, ns = c_civil_to_jd(year, month, day, sg)
-
       ry, rm, rd = c_jd_to_civil(rjd, sg)
 
       return nil if ry != year || rm != month || rd != day
@@ -1148,11 +1114,13 @@ class RubyDate
     end
 
     def c_civil_to_jd(year, month, day, sg)
-      if c_gregorian_only_p(sg)
+      if c_gregorian_only_p?(sg)
         jd = c_gregorian_civil_to_jd(year, month, day)
+
         return [jd, 1]
       end
 
+      # Calculate Gregorian JD using optimized algorithm
       jd = c_gregorian_civil_to_jd(year, month, day)
 
       if jd < sg
@@ -1173,13 +1141,13 @@ class RubyDate
 
     def decode_jd(jd)
       nth = jd / CM_PERIOD
-      rjd = nth.zero? ? jd : jd % CM_PERIOD
+      rjd = f_zero_p?(nth) ? jd : jd % CM_PERIOD
 
       [nth, rjd]
     end
 
     def encode_jd(nth, rjd)
-      nth * CM_PERIOD + rjd
+      f_zero_p?(nth) ? rjd : nth * CM_PERIOD + rjd
     end
 
     def decode_year(year, style)
@@ -1189,14 +1157,14 @@ class RubyDate
         shifted = year + 4712
         nth = shifted / period
 
-        shifted = shifted % period if nth.nonzero?
+        shifted = shifted % period if f_nonzero_p?(nth)
 
         ry = shifted - 4712
       else
         shifted = year + 4712
         nth = shifted / period
 
-        shifted = shifted % period if nth.nonzero?
+        shifted = shifted % period if f_nonzero_p?(nth)
 
         ry = shifted.to_i - 4712
       end
@@ -1204,8 +1172,128 @@ class RubyDate
       [nth, ry]
     end
 
-    def c_gregorian_only_p(sg)
-      sg == GREGORIAN
+    # Check if using pure Gregorian calendar (sg == -Infinity)
+    def c_gregorian_only_p?(sg)
+      sg.infinite? && sg < 0
+    end
+
+    def valid_ordinal_sub(year, day, start, need_jd)
+      day = convert_to_integer(day)
+
+      valid_sg(start)
+
+      result = valid_ordinal_p(year, day, start)
+
+      return nil unless result
+
+      return 0 unless need_jd
+
+      encode_jd(result[:nth], result[:rjd])
+    end
+
+    def valid_ordinal_p(year, day, start)
+      style = guess_style(year, start)
+
+      if style.zero?
+        int_year = year.to_i
+        result = c_valid_ordinal_p(int_year, day, start)
+        return nil unless result
+
+        nth, rjd = decode_jd(result[:jd])
+
+        if nth.zero?
+          ry = int_year
+        else
+          ns = result[:ns]
+          _, ry = decode_year(year, ns.nonzero? ? -1 : 1)
+        end
+
+        return { nth: nth, ry: ry, rd: result[:rd], rjd: rjd, ns: result[:ns] }
+      else
+        nth, ry = decode_year(year, style)
+        result = c_valid_ordinal_p(ry, day, style)
+        return nil unless result
+
+        return { nth: nth, ry: ry, rd: result[:rd], rjd: result[:rjd], ns: result[:ns] }
+      end
+    end
+
+    def c_valid_ordinal_p(year, day, sg)
+      if day < 0
+        result = c_find_ldoy(year, sg)
+        return nil unless result
+
+        rjd2, _ = result
+        ry2, rd2 = c_jd_to_ordinal(rjd2 + day + 1, sg)
+        return nil if ry2 != year
+
+         day = rd2
+      end
+
+      rjd, ns = c_ordinal_to_jd(year, day, sg)
+      ry2, rd2 = c_jd_to_ordinal(rjd, sg)
+
+      return nil if ry2 != year || rd2 != day
+
+      { jd: rjd, ns: ns, rd: day }
+    end
+
+    def c_find_ldoy(year, sg)
+      if c_gregorian_only_p?(sg)
+        jd = c_gregorian_ldoy(year)
+
+        return [jd, 1]
+      end
+
+      # Keep existing loop for Julian/reform period
+      (0..29).each do |i|
+        result = c_valid_civil_p(year, 12, 31 - i, sg)
+
+        return [result[:jd], result[:ns]] if result
+      end
+
+      nil
+    end
+
+    # O(1) last day of year for Gregorian calendar
+    def c_gregorian_ldoy(year)
+      c_gregorian_civil_to_jd(year, 12, 31)
+    end
+
+    def c_jd_to_ordinal(jd, sg)
+      ry, _, _ = c_jd_to_civil(jd, sg)
+      rjd_fdoy, _ = c_find_fdoy(ry, sg)
+
+      day_of_year = (jd - rjd_fdoy) + 1
+
+      [ry, day_of_year]
+    end
+
+    def c_ordinal_to_jd(year, day, sg)
+      rjd, _ = c_find_fdoy(year, sg)
+      rjd += day - 1
+      ns = (rjd < sg) ? 0 : 1
+
+      [rjd, ns]
+    end
+
+    def f_zero_p?(x)
+      case x
+      when Integer
+        x.zero?
+      when Rational
+        x.numerator.zero?
+      else
+        x.zero?
+      end
+    end
+
+    def f_nonzero_p?(x)
+      !f_zero_p?(x)
+    end
+
+    def c_gregorian_leap_p?(year)
+      !!(((year % 4).zero? && (year % 100).nonzero?) || (year % 400).zero?)
     end
   end
 
