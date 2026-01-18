@@ -132,7 +132,7 @@ class RubyDate
 
     result = self.class.send(:validate_civil, year_int, month_int, day_int, start)
     raise ArgumentError, "invalid date" unless result
-    nth, ry, rm, rd, rjd, ns = result
+    nth, ry, rm, rd, rjd, _ = result
 
     @nth = nth
     @year = ry
@@ -320,7 +320,7 @@ class RubyDate
 
       raise ArgumentError, "invalid date" unless result
 
-      nth, ry, rd, rjd, ns = result
+      nth, _, _, rjd, _ = result
 
       obj = allocate
       obj.instance_variable_set(:@nth, nth)
@@ -414,7 +414,7 @@ class RubyDate
 
       raise ArgumentError, "invalid date" unless result
 
-      nth, ry, rw, rd, rjd, ns = result
+      nth, _, _, _, rjd, _ = result
 
       obj = allocate
       obj.instance_variable_set(:@nth, nth)
@@ -638,7 +638,7 @@ class RubyDate
 
     def jd_to_commercial_internal(jd, sg)
       # get date from jd
-      year, month, day = jd_to_civil_internal(jd, sg)
+      year, _, _ = jd_to_civil_internal(jd, sg)
 
       # calculate jd for January 4 of that year
       jan4_jd = gregorian_civil_to_jd(year, 1, 4)
@@ -700,20 +700,6 @@ class RubyDate
       day = r3 + 1
 
       [year, month, day]
-    end
-
-    def decode_year(year, style)
-      period = (style < 0) ? 146097 * 400 : 1461 * 4
-
-      if year.is_a?(Integer) && year.abs < 1000000
-        [0, year, nil, nil]
-      else
-        adjusted = year + 4712
-        nth = adjusted / period
-        ry = (adjusted % period) - 4712
-
-        [nth, ry, nil, nil]
-      end
     end
 
     def valid_civil_date?(year, month, day, sg)
