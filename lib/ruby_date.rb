@@ -539,7 +539,7 @@ class RubyDate
       # Handling negative day of year
       if yday < 0
         # Counting backwards from the end of the year
-        last_jd = c_find_ldoy(year, sg)
+        last_jd, _ = c_find_ldoy(year, sg)
         return nil unless last_jd
 
         # Recalculate the total number of days in the year from the calculated JD
