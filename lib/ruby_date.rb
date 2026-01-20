@@ -28,6 +28,13 @@ class RubyDate
   DEFAULT_SG = ITALY
   private_constant :DEFAULT_SG
 
+  MINUTE_IN_SECONDS      = 60
+  HOUR_IN_SECONDS        = 3600
+  DAY_IN_SECONDS         = 86400
+  SECOND_IN_MILLISECONDS = 1000
+  SECOND_IN_NANOSECONDS  = 1_000_000_000
+  private_constant :MINUTE_IN_SECONDS, :HOUR_IN_SECONDS, :DAY_IN_SECONDS, :SECOND_IN_MILLISECONDS, :SECOND_IN_NANOSECONDS
+
   JC_PERIOD0 = 1461     # 365.25 * 4
   GC_PERIOD0 = 146097   # 365.2425 * 400
   CM_PERIOD0 = 71149239 # (lcm 7 1461 146097)
@@ -1281,6 +1288,27 @@ class RubyDate
     def c_gregorian_leap_p?(year)
       !!(((year % 4).zero? && (year % 100).nonzero?) || (year % 400).zero?)
     end
+
+    def new_with_jd(nth, jd, start)
+      new_with_jd_and_time(nth, jd, nil, nil, nil, start)
+    end
+
+    def new_with_jd_and_time(nth, jd, df, sf, of, start)
+      obj = allocate
+      obj.instance_variable_set(:@nth, nth)
+      obj.instance_variable_set(:@jd, jd)
+      obj.instance_variable_set(:@sg, start)
+      obj.instance_variable_set(:@df, df)
+      obj.instance_variable_set(:@sf, sf)
+      obj.instance_variable_set(:@of, of)
+      obj.instance_variable_set(:@year, nil)
+      obj.instance_variable_set(:@month, nil)
+      obj.instance_variable_set(:@day, nil)
+      obj.instance_variable_set(:@has_jd, true)
+      obj.instance_variable_set(:@has_civil, false)
+
+      obj
+    end
   end
 
   # Instance methods
@@ -1430,13 +1458,154 @@ class RubyDate
   #                              #=> #<DateTime: 2001-02-02T12:00:00+00:00 ...>
   #    DateTime.jd(0,12) + DateTime.new(2001,2,3).ajd
   #                              #=> #<DateTime: 2001-02-03T00:00:00+00:00 ...>
-  def +(n)
-    return self if n.zero?
+  def +(other)
+    case other
+    when Integer
+      nth = @nth
+      jd = @jd
 
-    if n.is_a?(Rational) || n.is_a?(Float)
-      add_with_fraction(n)
+      if (other / CM_PERIOD).nonzero?
+        nth = nth + (other / CM_PERIOD)
+        other = other % CM_PERIOD
+      end
+
+      if other.nonzero?
+        jd = jd + other
+        nth, jd = canonicalize_jd(nth, jd)
+      end
+
+      self.class.send(:new_with_jd, nth, jd, @sg)
+    when Float
+      s = other >= 0 ? 1 : -1
+      o = other.abs
+
+      tmp, o = o.divmod(1.0)
+
+      if (tmp / CM_PERIOD).floor.zero?
+        nth = 0
+        jd = tmp.to_i
+      else
+        i, f = (tmp / CM_PERIOD).divmod(1.0)
+        nth = i.floor
+        jd = (f * CM_PERIOD).to_i
+      end
+
+      o *= DAY_IN_SECONDS
+      df, o = o.divmod(1.0)
+      df = df.to_i
+      o *= SECOND_IN_NANOSECONDS
+      sf = o.round
+
+      if s < 0
+        jd = -jd
+        df = -df
+        sf = -sf
+      end
+
+      if sf.nonzero?
+        sf = 0 + sf
+        if sf < 0
+          df -= 1
+          sf += SECOND_IN_NANOSECONDS
+        elsif sf >= SECOND_IN_NANOSECONDS
+          df += 1
+          sf -= SECOND_IN_NANOSECONDS
+        end
+      end
+
+      if df.nonzero?
+        df = 0 + df
+        if df < 0
+          jd -= 1
+          df += DAY_IN_SECONDS
+        elsif df >= DAY_IN_SECONDS
+          jd += 1
+          df -= DAY_IN_SECONDS
+        end
+      end
+
+      if jd.nonzero?
+        jd = @jd + jd
+        nth, jd = canonicalize_jd(nth, jd)
+      else
+        jd = @jd
+      end
+
+      nth = nth.nonzero? ? @nth + nth : @nth
+
+      if df.zero? && sf.zero? && (@of.nil? || @of.zero?)
+        self.class.send(:new_with_jd, nth, jd, @sg)
+      else
+        self.class.send(:new_with_jd_and_time, nth, jd, df, sf, @of || 0, @sg)
+      end
+    when Rational
+      return self + other.numerator if other.denominator == 1
+
+      s = other >= 0 ? 1 : -1
+      other = other.abs
+
+      nth = other.div(CM_PERIOD)
+      t = other % CM_PERIOD
+
+      jd = t.div(1).to_i
+      t = t % 1
+
+      t = t * DAY_IN_SECONDS
+      df = t.div(1).to_i
+      t = t % 1
+
+      sf = t * SECOND_IN_NANOSECONDS
+
+      if s < 0
+        nth = -nth
+        jd = -jd
+        df = -df
+        sf = -sf
+      end
+
+      if sf.nonzero?
+        sf = 0 + sf
+        if sf < 0
+          df -= 1
+          sf += SECOND_IN_NANOSECONDS
+        elsif sf >= SECOND_IN_NANOSECONDS
+          df += 1
+          sf -= SECOND_IN_NANOSECONDS
+        end
+      end
+
+      if df.nonzero?
+        df = 0 + df
+        if df < 0
+          jd -= 1
+          df += DAY_IN_SECONDS
+        elsif df >= DAY_IN_SECONDS
+          jd += 1
+          df -= DAY_IN_SECONDS
+        end
+      end
+
+      if jd.nonzero?
+        jd = @jd + jd
+        nth, jd = canonicalize_jd(nth, jd)
+      else
+        jd = @jd
+      end
+
+      nth = nth.nonzero? ? @nth + nth : @nth
+
+      if df.zero? && sf.zero?
+        self.class.send(:new_with_jd, nth, jd, @sg)
+      else
+        self.class.send(:new_with_jd_and_time, nth, jd, df, sf, @of || 0, @sg)
+      end
     else
-      add_days(n.to_i)
+      raise TypeError, "expected numeric" unless other.is_a?(Numeric)
+
+      other = other.to_r
+      raise TypeError, "expected numeric" unless other.is_a?(Rational)
+
+      self + other
     end
   end
 
@@ -1667,5 +1836,18 @@ class RubyDate
 
   def valid_civil_date?(year, month, day, sg)
     self.class.send(:valid_civil_date?, year, month, day, sg)
+  end
+
+  def canonicalize_jd(nth, jd)
+    if jd < 0
+      nth = nth - 1
+      jd += CM_PERIOD
+    end
+    if jd >= CM_PERIOD
+      nth = nth + 1
+      jd -= CM_PERIOD
+    end
+
+    [nth, jd]
   end
 end

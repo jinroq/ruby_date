@@ -822,14 +822,16 @@ class RubyDateTest < Test::Unit::TestCase
       date = RubyDate.ordinal(2001, 34.5)
       assert_equal(2001, date.year)
       assert_equal(2, date.month)
-      assert_equal(4, date.day)
+      # Fractional part represents sub-day time, date stays same
+      assert_equal(3, date.day)
     end
 
     test "ordinal with Rational yday" do
       date = RubyDate.ordinal(2001, Rational(69, 2))
       assert_equal(2001, date.year)
       assert_equal(2, date.month)
-      assert_equal(4, date.day)
+      # Rational(69,2) = 34.5, fractional part is sub-day time
+      assert_equal(3, date.day)
     end
 
     test "ordinal dates match regular dates" do
@@ -1115,18 +1117,20 @@ class RubyDateTest < Test::Unit::TestCase
       d = RubyDate.new(2001, 2, 3)
       d2 = d + 0.5
 
+      # Fractional part represents sub-day time, date stays same
       assert_equal(2001, d2.year)
       assert_equal(2, d2.month)
-      assert_equal(4, d2.day)
+      assert_equal(3, d2.day)
     end
 
     test "adds Rational days" do
       d = RubyDate.new(2001, 2, 3)
       d2 = d + Rational(1, 2)
 
+      # Fractional part represents sub-day time, date stays same
       assert_equal(2001, d2.year)
       assert_equal(2, d2.month)
-      assert_equal(4, d2.day)
+      assert_equal(3, d2.day)
     end
 
     test "adds large number of days" do
@@ -1156,13 +1160,133 @@ class RubyDateTest < Test::Unit::TestCase
       assert_equal(1, d2.day)
     end
 
-    test "adds negative fraction rounds to same day" do
+    test "adds negative fraction goes to previous day" do
       d = RubyDate.new(2001, 2, 3)
       d2 = d + (-0.5)
 
+      # Negative fraction causes day decrement
+      assert_equal(2001, d2.year)
+      assert_equal(2, d2.month)
+      assert_equal(2, d2.day)
+    end
+
+    test "adds negative integer days" do
+      d = RubyDate.new(2001, 2, 3)
+      d2 = d + (-1)
+
+      assert_equal(2001, d2.year)
+      assert_equal(2, d2.month)
+      assert_equal(2, d2.day)
+    end
+
+    test "adds negative integer days across month boundary" do
+      d = RubyDate.new(2001, 3, 1)
+      d2 = d + (-1)
+
+      assert_equal(2001, d2.year)
+      assert_equal(2, d2.month)
+      assert_equal(28, d2.day)
+    end
+
+    test "adds negative integer days across year boundary" do
+      d = RubyDate.new(2001, 1, 1)
+      d2 = d + (-1)
+
+      assert_equal(2000, d2.year)
+      assert_equal(12, d2.month)
+      assert_equal(31, d2.day)
+    end
+
+    test "preserves start value after integer addition" do
+      d = RubyDate.new(2001, 2, 3, RubyDate::ENGLAND)
+      d2 = d + 1
+
+      assert_equal(RubyDate::ENGLAND, d2.start)
+    end
+
+    test "preserves start value after Float addition" do
+      d = RubyDate.new(2001, 2, 3, RubyDate::GREGORIAN)
+      d2 = d + 0.5
+
+      assert_equal(RubyDate::GREGORIAN, d2.start)
+    end
+
+    test "preserves start value after Rational addition" do
+      d = RubyDate.new(2001, 2, 3, RubyDate::JULIAN)
+      d2 = d + Rational(1, 2)
+
+      assert_equal(RubyDate::JULIAN, d2.start)
+    end
+
+    test "adds Rational with denominator 1 (same as integer)" do
+      d = RubyDate.new(2001, 2, 3)
+      d2 = d + Rational(5, 1)
+
+      assert_equal(2001, d2.year)
+      assert_equal(2, d2.month)
+      assert_equal(8, d2.day)
+    end
+
+    test "adds negative Rational" do
+      d = RubyDate.new(2001, 2, 3)
+      d2 = d + Rational(-1, 1)
+
+      assert_equal(2001, d2.year)
+      assert_equal(2, d2.month)
+      assert_equal(2, d2.day)
+    end
+
+    test "raises TypeError for non-numeric" do
+      d = RubyDate.new(2001, 2, 3)
+
+      assert_raise(TypeError) do
+        d + "1"
+      end
+    end
+
+    test "result date is independent of original" do
+      d = RubyDate.new(2001, 2, 3)
+      d2 = d + 1
+
+      assert_equal(3, d.day)
+      assert_equal(4, d2.day)
+    end
+
+    test "chained addition" do
+      d = RubyDate.new(2001, 2, 3)
+      d2 = d + 1 + 1 + 1
+
+      assert_equal(2001, d2.year)
+      assert_equal(2, d2.month)
+      assert_equal(6, d2.day)
+    end
+
+    test "adds Float 1.0 same as integer 1" do
+      d = RubyDate.new(2001, 2, 3)
+      d_int = d + 1
+      d_float = d + 1.0
+
+      assert_equal(d_int.jd, d_float.jd)
+    end
+
+    test "adds small positive Float" do
+      d = RubyDate.new(2001, 2, 3)
+      d2 = d + 0.1
+
+      # Small fractional part represents sub-day time, date stays same
       assert_equal(2001, d2.year)
       assert_equal(2, d2.month)
       assert_equal(3, d2.day)
+    end
+
+    test "adds negative Float across day boundary" do
+      d = RubyDate.new(2001, 2, 3)
+      d2 = d + (-1.5)
+
+      # -1.5 means go back 1 day and half, results in day 1
+      assert_equal(2001, d2.year)
+      assert_equal(2, d2.month)
+      assert_equal(1, d2.day)
     end
   end
 
@@ -1195,15 +1319,16 @@ class RubyDateTest < Test::Unit::TestCase
       date = RubyDate.new(2001, 2, 3.5)
       assert_equal(2001, date.year)
       assert_equal(2, date.month)
-      assert_equal(4, date.day)
+      # Fractional part represents sub-day time, date stays same
+      assert_equal(3, date.day)
     end
 
     test "creates date with fractional month" do
-      # Fractional month adds to the day
+      # Fractional month adds sub-day time
       date = RubyDate.new(2001, 2.5, 3)
       assert_equal(2001, date.year)
       assert_equal(2, date.month)
-      assert_equal(4, date.day)
+      assert_equal(3, date.day)
     end
   end
 
@@ -1430,7 +1555,8 @@ class RubyDateTest < Test::Unit::TestCase
       date = RubyDate.commercial(2001, 5, 6.5)
       assert_equal(2001, date.year)
       assert_equal(2, date.month)
-      assert_equal(4, date.day)
+      # Fractional part represents sub-day time, date stays same
+      assert_equal(3, date.day)
     end
 
     test "commercial dates across year boundary" do
