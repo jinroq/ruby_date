@@ -49,6 +49,23 @@ class RubyDate
   REFORM_END_JD = 2426355    # os 1930-12-31
   private_constant :REFORM_BEGIN_YEAR, :REFORM_END_YEAR, :REFORM_BEGIN_JD, :REFORM_END_JD
 
+  SEC_WIDTH  = 6
+  MIN_WIDTH  = 6
+  HOUR_WIDTH = 5
+  MDAY_WIDTH = 5
+  MON_WIDTH  = 4
+  private_constant :SEC_WIDTH, :MIN_WIDTH, :HOUR_WIDTH, :MDAY_WIDTH, :MON_WIDTH
+
+  SEC_SHIFT  = 0
+  MIN_SHIFT  = SEC_WIDTH
+  HOUR_SHIFT = MIN_WIDTH + SEC_WIDTH
+  MDAY_SHIFT = HOUR_WIDTH + MIN_WIDTH + SEC_WIDTH
+  MON_SHIFT  = MDAY_WIDTH + HOUR_WIDTH + MIN_WIDTH + SEC_WIDTH
+  private_constant :SEC_SHIFT, :MIN_SHIFT, :HOUR_SHIFT, :MDAY_SHIFT, :MON_SHIFT
+
+  PK_MASK = ->(x) { (1 << x) - 1 }
+  private_constant :PK_MASK
+
   # Days in each month (non-leap and leap year)
   MONTH_DAYS = [
     [0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31],  # non-leap
@@ -1610,6 +1627,33 @@ class RubyDate
   end
 
   # call-seq:
+  #   leap? -> true or false
+  #
+  # Returns +true+ if the year is a leap year, +false+ otherwise:
+  #
+  #   Date.new(2000).leap? # => true
+  #   Date.new(2001).leap? # => false
+  def leap?
+    if gregorian?
+      # For the Gregorian calendar, get m_year to determine if it is a leap year.
+      y = m_year
+
+      return self.class.send(:c_gregorian_leap_p?, y)
+    end
+
+    # For the Julian calendar, calculate JD for March 1st.
+    y = m_year
+    sg = m_virtual_sg
+    rjd, _ = self.class.send(:c_civil_to_jd, y, 3, 1, sg)
+
+    # Get the date of the day before March 1st (the last day of February).
+    _, _, rd = self.class.send(:c_jd_to_civil, rjd - 1, sg)
+
+    # If February 29th exists, it is a leap year.
+    rd == 29
+  end
+
+  # call-seq:
   #   infinite? -> false
   #
   # Returns +false+
@@ -1849,5 +1893,216 @@ class RubyDate
     end
 
     [nth, jd]
+  end
+
+  # If any of @df, @sf, or @of is not nil, it is considered complex.
+  def simple_dat_p?
+    @df.nil? && @sf.nil? && @of.nil?
+  end
+
+  def complex_dat_p?
+    !simple_dat_p?
+  end
+
+  def m_gregorian_p?
+    !m_julian_p?
+  end
+
+  def m_julian_p?
+    # Divide the processing into simple and complex.
+    if simple_dat_p?
+      get_s_jd
+      jd = @jd
+      sg = s_virtual_sg
+    else
+      get_c_jd
+      jd = @jd
+      sg = c_virtual_sg
+    end
+
+    return sg == JULIAN if sg.infinite?
+
+    jd < sg
+  end
+
+  def gregorian?
+    m_gregorian_p?
+  end
+
+  def julian?
+    m_julian_p?
+  end
+
+  def m_year
+    simple_dat_p? ? get_s_civil : get_c_civil
+
+    @year
+  end
+
+  def m_virtual_sg
+    simple_dat_p? ? s_virtual_sg : c_virtual_sg
+  end
+
+  def get_s_jd
+    # For simple data, if JD has not yet been calculated.
+    return if @has_jd
+
+    # Make sure you have civil data.
+    raise "No civil data" unless @has_civil
+
+    # Calculate JD from civil.
+    jd, _ = self.class.send(:c_civil_to_jd, @year, @month, @day, s_virtual_sg)
+    @jd = jd
+    @has_jd = true
+  end
+
+  def get_s_civil
+    # For simple data, if civil has not yet been calculated.
+    return if @has_civil
+
+    # Make sure you have a JD.
+    raise "No JD data" unless @has_jd
+
+    # Calculate civil from JD.
+    y, m, d = self.class.send(:c_jd_to_civil, @jd, s_virtual_sg)
+    @year = y
+    @month = m
+    @day = d
+    @has_civil = true
+  end
+
+  def get_c_jd
+    # For complex data, if JD has not yet been calculated.
+    return if @has_jd
+
+    # Make sure you have civil data.
+    raise "No civil data" unless @has_civil
+
+    # Calculate JD from civil.
+    jd, _ = self.class.send(:c_civil_to_jd, @year, @month, @day, c_virtual_sg)
+
+    # Consider time data.
+    get_c_time
+
+    # Convert from local to UTC.
+    @jd = jd_local_to_utc(jd, time_to_df(@hour || 0, @min || 0, @sec || 0), @of || 0)
+    @has_jd = true
+  end
+
+  def get_c_civil
+    # For complex data, if civil has not yet been calculated.
+    return if @has_civil
+
+    # Make sure you have a JD.
+    raise "No JD data" unless @has_jd
+
+    get_c_df
+
+    # Convert UTC to local.
+    jd = jd_utc_to_local(@jd, @df || 0, @of || 0)
+
+    # Calculate civil from JD.
+    y, m, d = self.class.send(:c_jd_to_civil, jd, c_virtual_sg)
+    @year = y
+    @month = m
+    @day = d
+    @has_civil = true
+  end
+
+  def get_c_df
+    # If df (day fraction) has not yet been calculated.
+    return if @df
+
+    # Check that time data is available.
+    raise "No time data" if @hour.nil? && @min.nil? && @sec.nil?
+
+    # Convert time to df
+    @df = df_local_to_utc(time_to_df(@hour, @min, @sec), @of || 0)
+  end
+
+  def get_c_time
+    # If the time data has not yet been calculated.
+    return unless @hour.nil?
+
+    # Make sure df exists.
+    raise "No df data" if @df.nil?
+
+    # Convert df to time.
+    r = df_utc_to_local(@df, @of || 0)
+
+    @hour, @min, @sec = df_to_time(r)
+  end
+
+  # For SimpleDateData (effectively a common implementation)
+  def s_virtual_sg
+    return @sg if @sg.infinite?
+    return @sg if @nth.zero?
+
+    @nth < 0 ? JULIAN : GREGORIAN
+  end
+
+  # For ComplexDateData (effectively a common implementation)
+  def c_virtual_sg
+    return @sg if @sg.infinite?
+    return @sg if @nth.zero?
+
+    @nth < 0 ? JULIAN : GREGORIAN
+  end
+
+  def jd_local_to_utc(jd, df, of)
+    df -= of
+    if df < 0
+      jd -= 1
+    elsif df >= DAY_IN_SECONDS
+      jd += 1
+    end
+
+    jd
+  end
+
+  def jd_utc_to_local(jd, df, of)
+    df += of
+    if df < 0
+      jd -= 1
+    elsif df >= DAY_IN_SECONDS
+      jd += 1
+    end
+
+    jd
+  end
+
+  def df_local_to_utc(df, of)
+    df -= of
+    if df < 0
+      df += DAY_IN_SECONDS
+    elsif df >= DAY_IN_SECONDS
+      df -= DAY_IN_SECONDS
+    end
+
+    df
+  end
+
+  def df_utc_to_local(df, of)
+    df += of
+    if df < 0
+      df += DAY_IN_SECONDS
+    elsif df >= DAY_IN_SECONDS
+      df -= DAY_IN_SECONDS
+    end
+
+    df
+  end
+
+  def time_to_df(h, min, s)
+    h * HOUR_IN_SECONDS + min * MINUTE_IN_SECONDS + s
+  end
+
+  def df_to_time(df)
+    h = df / HOUR_IN_SECONDS
+    df %= HOUR_IN_SECONDS
+    min = df / MINUTE_IN_SECONDS
+    s = df % MINUTE_IN_SECONDS
+
+    [h, min, s]
   end
 end

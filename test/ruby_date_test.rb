@@ -514,6 +514,49 @@ class RubyDateTest < Test::Unit::TestCase
     end
   end
 
+  # RubyDate#leap? instance method tests
+  sub_test_case "RubyDate#leap?" do
+    test "returns true for leap year" do
+      assert_true(RubyDate.new(2000, 1, 1).leap?)
+      assert_true(RubyDate.new(2004, 6, 15).leap?)
+      assert_true(RubyDate.new(2020, 12, 31).leap?)
+    end
+
+    test "returns false for non-leap year" do
+      assert_false(RubyDate.new(2001, 1, 1).leap?)
+      assert_false(RubyDate.new(2019, 6, 15).leap?)
+      assert_false(RubyDate.new(2100, 12, 31).leap?)
+    end
+
+    test "returns false for century year not divisible by 400 (Gregorian)" do
+      assert_false(RubyDate.new(1900, 1, 1).leap?)
+      assert_false(RubyDate.new(2100, 1, 1).leap?)
+    end
+
+    test "returns true for century year divisible by 400 (Gregorian)" do
+      assert_true(RubyDate.new(2000, 1, 1).leap?)
+      assert_true(RubyDate.new(2400, 1, 1).leap?)
+    end
+
+    test "returns true for century year in Julian calendar" do
+      # In Julian calendar, 1900 is a leap year (divisible by 4)
+      d = RubyDate.new(1900, 1, 1, RubyDate::JULIAN)
+      assert_true(d.leap?)
+    end
+
+    test "returns false for non-leap year in Julian calendar" do
+      d = RubyDate.new(1901, 1, 1, RubyDate::JULIAN)
+      assert_false(d.leap?)
+    end
+
+    test "works with negative years" do
+      # Year -4 (5 BCE) is a leap year
+      assert_true(RubyDate.new(-4, 1, 1).leap?)
+      # Year -1 (2 BCE) is not a leap year
+      assert_false(RubyDate.new(-1, 1, 1).leap?)
+    end
+  end
+
   # RubyDate.valid_civil? tests
   sub_test_case "RubyDate.valid_civil?" do
     test "returns true for valid dates" do
