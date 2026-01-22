@@ -289,6 +289,7 @@ class RubyDate
 
       c_gregorian_leap_p?(ry)
     end
+    alias_method :leap?, :gregorian_leap?
 
     # call-seq:
     #   Date.julian_leap?(year) -> true or false
