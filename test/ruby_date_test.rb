@@ -1333,6 +1333,155 @@ class RubyDateTest < Test::Unit::TestCase
     end
   end
 
+  # RubyDate#- tests
+  sub_test_case "date subtraction" do
+    test "subtracts integer days from date" do
+      d = RubyDate.new(2001, 2, 3)
+      d2 = d - 1
+
+      assert_equal(2001, d2.year)
+      assert_equal(2, d2.month)
+      assert_equal(2, d2.day)
+    end
+
+    test "subtracts multiple days from date" do
+      d = RubyDate.new(2001, 2, 13)
+      d2 = d - 10
+
+      assert_equal(2001, d2.year)
+      assert_equal(2, d2.month)
+      assert_equal(3, d2.day)
+    end
+
+    test "subtracting zero returns same date" do
+      d = RubyDate.new(2001, 2, 3)
+      d2 = d - 0
+
+      assert_equal(d.year, d2.year)
+      assert_equal(d.month, d2.month)
+      assert_equal(d.day, d2.day)
+    end
+
+    test "subtracts days across month boundary" do
+      d = RubyDate.new(2001, 3, 1)
+      d2 = d - 1
+
+      assert_equal(2001, d2.year)
+      assert_equal(2, d2.month)
+      assert_equal(28, d2.day)
+    end
+
+    test "subtracts days across year boundary" do
+      d = RubyDate.new(2001, 1, 1)
+      d2 = d - 1
+
+      assert_equal(2000, d2.year)
+      assert_equal(12, d2.month)
+      assert_equal(31, d2.day)
+    end
+
+    test "subtracts fractional days" do
+      d = RubyDate.new(2001, 2, 3)
+      d2 = d - 0.5
+
+      # Negative fraction causes day decrement
+      assert_equal(2001, d2.year)
+      assert_equal(2, d2.month)
+      assert_equal(2, d2.day)
+    end
+
+    test "subtracts Rational days" do
+      d = RubyDate.new(2001, 2, 3)
+      d2 = d - Rational(1, 2)
+
+      assert_equal(2001, d2.year)
+      assert_equal(2, d2.month)
+      assert_equal(2, d2.day)
+    end
+
+    test "subtracts large number of days" do
+      d = RubyDate.new(2002, 1, 1)
+      d2 = d - 365
+
+      assert_equal(2001, d2.year)
+      assert_equal(1, d2.month)
+      assert_equal(1, d2.day)
+    end
+
+    test "subtracts days from leap year" do
+      d = RubyDate.new(2000, 3, 1)
+      d2 = d - 1
+
+      assert_equal(2000, d2.year)
+      assert_equal(2, d2.month)
+      assert_equal(29, d2.day)
+    end
+
+    test "preserves start value after subtraction" do
+      d = RubyDate.new(2001, 2, 3, RubyDate::ENGLAND)
+      d2 = d - 1
+
+      assert_equal(RubyDate::ENGLAND, d2.start)
+    end
+
+    test "raises TypeError for non-numeric" do
+      d = RubyDate.new(2001, 2, 3)
+
+      assert_raise(TypeError) do
+        d - "1"
+      end
+    end
+
+    test "subtracting negative is same as adding" do
+      d = RubyDate.new(2001, 2, 3)
+      d_minus = d - (-1)
+      d_plus = d + 1
+
+      assert_equal(d_plus.jd, d_minus.jd)
+    end
+
+    test "returns Rational for date difference" do
+      d1 = RubyDate.new(2001, 2, 3)
+      d2 = RubyDate.new(2001, 2, 1)
+
+      result = d1 - d2
+      assert_instance_of(Rational, result)
+      assert_equal(Rational(2, 1), result)
+    end
+
+    test "returns negative Rational when subtracting later date" do
+      d1 = RubyDate.new(2001, 2, 1)
+      d2 = RubyDate.new(2001, 2, 3)
+
+      result = d1 - d2
+      assert_equal(Rational(-2, 1), result)
+    end
+
+    test "returns zero for same date difference" do
+      d1 = RubyDate.new(2001, 2, 3)
+      d2 = RubyDate.new(2001, 2, 3)
+
+      result = d1 - d2
+      assert_equal(Rational(0, 1), result)
+    end
+
+    test "date difference across year" do
+      d1 = RubyDate.new(2002, 1, 1)
+      d2 = RubyDate.new(2001, 1, 1)
+
+      result = d1 - d2
+      assert_equal(Rational(365, 1), result)
+    end
+
+    test "date difference in leap year" do
+      d1 = RubyDate.new(2001, 1, 1)
+      d2 = RubyDate.new(2000, 1, 1)
+
+      result = d1 - d2
+      assert_equal(Rational(366, 1), result)
+    end
+  end
+
   # Additional jd tests with different start dates
   sub_test_case "dates with different calendar systems" do
     test "creates date with ITALY start (default)" do

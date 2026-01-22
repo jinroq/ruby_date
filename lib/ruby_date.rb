@@ -1628,6 +1628,30 @@ class RubyDate
   end
 
   # call-seq:
+  #    d - other  ->  date or rational
+  #
+  # If the other is a date object, returns a Rational
+  # whose value is the difference between the two dates in days.
+  # If the other is a numeric value, returns a date object
+  # pointing +other+ days before self.
+  # If the other is a fractional number,
+  # assumes its precision is at most nanosecond.
+  #
+  #     Date.new(2001,2,3) - 1                              #=> #<Date: 2001-02-02 ...>
+  #     DateTime.new(2001,2,3) - Rational(1,2)              #=> #<DateTime: 2001-02-02T12:00:00+00:00 ...>
+  #     Date.new(2001,2,3) - Date.new(2001)                 #=> (33/1)
+  #     DateTime.new(2001,2,3) - DateTime.new(2001,2,2,12)  #=> (1/2)
+  def -(other)
+    return minus_dd(other) if other.is_a?(RubyDate)
+
+    raise TypeError, "expected numeric" unless other.is_a?(Numeric)
+
+    # Add a negative value for numbers.
+    # Works with all types: Integer, Float, Rational, Bignum, etc.
+    self + (-other)
+  end
+
+  # call-seq:
   #   leap? -> true or false
   #
   # Returns +true+ if the year is a leap year, +false+ otherwise:
@@ -2105,5 +2129,69 @@ class RubyDate
     s = df % MINUTE_IN_SECONDS
 
     [h, min, s]
+  end
+
+  def minus_dd(other)
+    n = @nth - other.instance_variable_get(:@nth)
+    d = m_jd - other.send(:m_jd)
+    df = m_df - other.send(:m_df)
+    sf = m_sf - other.send(:m_sf)
+    n, d = canonicalize_jd(n, d)
+
+    # Normalize df
+    if df < 0
+      d -= 1
+      df += DAY_IN_SECONDS
+    elsif df >= DAY_IN_SECONDS
+      d += 1
+      df -= DAY_IN_SECONDS
+    end
+
+    # Normalize sf
+    if sf < 0
+      df -= 1
+      sf += SECOND_IN_NANOSECONDS
+    elsif sf >= SECOND_IN_NANOSECONDS
+      df += 1
+      sf -= SECOND_IN_NANOSECONDS
+    end
+
+    r = n.zero? ? 0 : n * CM_PERIOD
+    r = r + Rational(d, 1) if d.nonzero?
+    r = r + isec_to_day(df) if df.nonzero?
+    r = r + ns_to_day(sf) if sf.nonzero?
+
+    r.is_a?(Rational) ? r : Rational(r, 1)
+  end
+
+  def m_jd
+    if simple_dat_p?
+      get_s_jd
+      @jd
+    else
+      get_c_jd
+      @jd
+    end
+  end
+
+  def m_df
+    if simple_dat_p?
+      0
+    else
+      get_c_df
+      @df || 0
+    end
+  end
+
+  def m_sf
+    simple_dat_p? ? 0 : @sf || 0
+  end
+
+  def isec_to_day(s)
+    Rational(s, DAY_IN_SECONDS)
+  end
+
+  def ns_to_day(n)
+    Rational(n, SECOND_IN_NANOSECONDS * DAY_IN_SECONDS)
   end
 end
