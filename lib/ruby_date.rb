@@ -1580,6 +1580,36 @@ class RubyDate
     self + (rjd2 - m_real_local_jd)
   end
 
+  # call-seq:
+  #    d << n  ->  date
+  #
+  # Returns a new \Date object representing the date
+  # +n+ months earlier; +n+ should be a numeric:
+  #
+  #   (Date.new(2001, 2, 3) << 1).to_s  # => "2001-01-03"
+  #   (Date.new(2001, 2, 3) << -2).to_s # => "2001-04-03"
+  #
+  # When the same day does not exist for the new month,
+  # the last day of that month is used instead:
+  #
+  #   (Date.new(2001, 3, 31) << 1).to_s  # => "2001-02-28"
+  #   (Date.new(2001, 3, 31) << -6).to_s # => "2001-09-30"
+  #
+  # This results in the following, possibly unexpected, behaviors:
+  #
+  #   d0 = Date.new(2001, 3, 31)
+  #   d0 << 2      # => #<Date: 2001-01-31>
+  #   d0 << 1 << 1 # => #<Date: 2001-01-28>
+  #
+  #   d0 = Date.new(2001, 3, 31)
+  #   d1 = d0 << 1  # => #<Date: 2001-02-28>
+  #   d2 = d1 << -1 # => #<Date: 2001-03-28>
+  def <<(n)
+    raise TypeError, "expected numeric" unless n.is_a?(Numeric)
+
+    self >> (-n)
+  end
+
   def ==(other) # :nodoc:
     return false unless other.is_a?(RubyDate)
 
