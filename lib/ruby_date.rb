@@ -1327,6 +1327,85 @@ class RubyDate
 
       obj
     end
+
+    def c_valid_gregorian_p(y, m, d)
+      m += 13 if m < 0
+      return nil if m < 1 || m > 12
+
+      last = c_gregorian_last_day_of_month(y, m)
+      d = last + d + 1 if d < 0
+      return nil if d < 1 || d > last
+
+      { rm: m, rd: d }
+    end
+
+    def c_valid_julian_p(y, m, d)
+      m += 13 if m < 0
+      return nil if m < 1 || m > 12
+
+      last = c_julian_last_day_of_month(y, m)
+      d = last + d + 1 if d < 0
+      return nil if d < 1 || d > last
+
+      { rm: m, rd: d }
+    end
+
+    def c_julian_last_day_of_month(y, m)
+      raise ArgumentError unless m >= 1 && m <= 12
+
+      MONTH_DAYS[julian_leap?(y) ? 1 : 0][m]
+    end
+
+    def valid_civil_p(y, m, d, sg)
+      style = guess_style(y, sg)
+
+      if style.zero?
+        # If year is a Fixnum
+        int_year = y.to_i
+
+        # Validate with c_valid_civil_p
+        result = c_valid_civil_p(int_year, m, d, sg)
+        return nil unless result
+
+        # decode_jd
+        nth, rjd = decode_jd(result[:jd])
+
+        if nth.zero?
+          ry = int_year
+        else
+          ns = result[:ns]
+          _, ry = decode_year(y, ns != 0 ? -1 : 1)
+        end
+
+        return {
+          nth:,
+          ry:,
+          rm: result[:rm],
+          rd: result[:rd],
+          rjd:,
+          ns: result[:ns],
+         }
+      else
+        # If year is a large number
+        nth, ry = decode_year(y, style)
+
+        result = style < 0 ? c_valid_gregorian_p(ry, m, d) : result = c_valid_julian_p(ry, m, d)
+        return nil unless result
+
+        # Calculate JD from civil
+        rjd, ns = c_civil_to_jd(ry, result[:rm], result[:rd], style)
+
+        return {
+          nth:,
+          ry:,
+          rm: result[:rm],
+          rd: result[:rd],
+          rjd:,
+          ns:,
+        }
+      end
+    end
+
   end
 
   # Instance methods
@@ -1441,6 +1520,64 @@ class RubyDate
     return nth_cmp unless nth_cmp.zero?
 
     @jd <=> other.instance_variable_get(:@jd)
+  end
+
+  # call-seq:
+  #   d >> n -> new_date
+  #
+  # Returns a new \Date object representing the date
+  # +n+ months later; +n+ should be a numeric:
+  #
+  #   (Date.new(2001, 2, 3) >> 1).to_s  # => "2001-03-03"
+  #   (Date.new(2001, 2, 3) >> -2).to_s # => "2000-12-03"
+  #
+  # When the same day does not exist for the new month,
+  # the last day of that month is used instead:
+  #
+  #   (Date.new(2001, 1, 31) >> 1).to_s  # => "2001-02-28"
+  #   (Date.new(2001, 1, 31) >> -4).to_s # => "2000-09-30"
+  #
+  # This results in the following, possibly unexpected, behaviors:
+  #
+  #   d0 = Date.new(2001, 1, 31)
+  #   d1 = d0 >> 1 # => #<Date: 2001-02-28>
+  #   d2 = d1 >> 1 # => #<Date: 2001-03-28>
+  #
+  #   d0 = Date.new(2001, 1, 31)
+  #   d1 = d0 >> 1  # => #<Date: 2001-02-28>
+  #   d2 = d1 >> -1 # => #<Date: 2001-01-28>
+  def >>(n)
+    # Calculate years and months
+    t = m_real_year * 12 + (m_mon - 1) + n
+
+    if t.is_a?(Integer) && t.abs < (1 << 62)
+      # Fixnum
+      y = t / 12
+      m = (t % 12) + 1
+    else
+      # Bignum
+      y = t.div(12)
+      m = (t % 12).to_i + 1
+    end
+
+    d = m_mday
+    sg = m_sg
+
+    # Decrement days until a valid date.
+    result = nil
+    loop do
+      result = self.class.send(:valid_civil_p, y, m, d, sg)
+      break if result
+
+      d -= 1
+      raise ArgumentError, "invalid date" if d < 1
+    end
+
+    nth = result[:nth]
+    rjd = result[:rjd]
+    rjd2 = self.class.send(:encode_jd, nth, rjd)
+
+    self + (rjd2 - m_real_local_jd)
   end
 
   def ==(other) # :nodoc:
@@ -2193,5 +2330,92 @@ class RubyDate
 
   def ns_to_day(n)
     Rational(n, SECOND_IN_NANOSECONDS * DAY_IN_SECONDS)
+  end
+
+  def m_real_year
+    nth = @nth
+    year = m_year
+
+    return year if nth.zero?
+
+    encode_year(nth, year, gregorian? ? -1 : 1)
+  end
+
+  def m_mon
+    if simple_dat_p?
+      get_s_civil
+      @month
+    else
+      get_c_civil
+      @month
+    end
+  end
+
+  def m_year
+    if simple_dat_p?
+      get_s_civil
+      @year
+    else
+      get_c_civil
+      @year
+    end
+  end
+
+  def m_mday
+    if simple_dat_p?
+      get_s_civil
+      @day
+    else
+      get_c_civil
+      @day
+    end
+  end
+
+  def m_sg
+    if simple_dat_p?
+      @sg
+    else
+      get_c_jd
+      @sg
+    end
+  end
+
+  def encode_year(nth, y, style)
+    period = (style < 0) ? CM_PERIOD_GCY : CM_PERIOD_JCY
+
+    f_zero_p?(nth) ? y : period * nth + y
+  end
+
+  def m_real_local_jd
+    nth = @nth
+    jd = m_local_jd
+
+    self.class.send(:encode_jd, nth, jd)
+  end
+
+  def m_local_jd
+    if simple_dat_p?
+      get_s_jd
+      @jd
+    else
+      get_c_jd
+      get_c_df
+      local_jd
+    end
+  end
+
+  def local_jd
+    jd = @jd
+    df = @df || 0
+    of = @of || 0
+
+    df += of
+    if df < 0
+      jd -= 1
+    elsif df >= DAY_IN_SECONDS
+      jd += 1
+    end
+
+    jd
   end
 end
