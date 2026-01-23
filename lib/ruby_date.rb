@@ -2299,10 +2299,12 @@ class RubyDate
   end
 
   def minus_dd(other)
-    n = @nth - other.instance_variable_get(:@nth)
+    n = m_nth - other.send(:m_nth)
     d = m_jd - other.send(:m_jd)
     df = m_df - other.send(:m_df)
     sf = m_sf - other.send(:m_sf)
+
+    # Normalize jd
     n, d = canonicalize_jd(n, d)
 
     # Normalize df
@@ -2447,5 +2449,15 @@ class RubyDate
     end
 
     jd
+  end
+
+  def m_nth
+    if simple_dat_p?
+      @nth
+    else
+      # For complex, get civil data and then return nth.
+      get_c_civil
+      @nth
+    end
   end
 end
