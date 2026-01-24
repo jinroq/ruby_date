@@ -491,7 +491,7 @@ class RubyDate
     def today(start = DEFAULT_SG)
       begin
         time = Time.now
-      rescue => e
+      rescue
         raise SystemCallError, "time"
       end
 
@@ -499,7 +499,7 @@ class RubyDate
         y = time.year
         m = time.month
         d = time.day
-      rescue => e
+      rescue
         raise SystemCallError, "localtime"
       end
 
@@ -913,7 +913,7 @@ class RubyDate
 
         nth, rjd = decode_jd(result[:jd])
 
-        if nth.zero?
+        if f_zero_p?(nth)
           ry = int_year
         else
           ns = result[:ns]
@@ -1212,7 +1212,7 @@ class RubyDate
 
         nth, rjd = decode_jd(result[:jd])
 
-        if nth.zero?
+        if f_zero_p?(nth)
           ry = int_year
         else
           ns = result[:ns]
@@ -1370,7 +1370,7 @@ class RubyDate
         # decode_jd
         nth, rjd = decode_jd(result[:jd])
 
-        if nth.zero?
+        if f_zero_p?(nth)
           ry = int_year
         else
           ns = result[:ns]
@@ -1484,11 +1484,7 @@ class RubyDate
   #    DateTime.new(2001,2,3,4,5,6,'+7').jd    #=> 2451944
   #    DateTime.new(2001,2,3,4,5,6,'-7').jd    #=> 2451944
   def jd
-    if @nth.zero?
-      @jd
-    else
-      @nth * CM_PERIOD + @jd
-    end
+    self.class.send(:f_zero_p?, @nth) ? @jd : @nth * CM_PERIOD + @jd
   end
 
   # call-seq:
@@ -2365,7 +2361,7 @@ class RubyDate
   # For SimpleDateData (effectively a common implementation)
   def s_virtual_sg
     return @sg if @sg.infinite?
-    return @sg if @nth.zero?
+    return @sg if self.class.send(:f_zero_p?, @nth)
 
     @nth < 0 ? JULIAN : GREGORIAN
   end
@@ -2373,7 +2369,7 @@ class RubyDate
   # For ComplexDateData (effectively a common implementation)
   def c_virtual_sg
     return @sg if @sg.infinite?
-    return @sg if @nth.zero?
+    return @sg if self.class.send(:f_zero_p?, @nth)
 
     @nth < 0 ? JULIAN : GREGORIAN
   end
@@ -2470,13 +2466,9 @@ class RubyDate
   end
 
   def m_jd
-    if simple_dat_p?
-      get_s_jd
-      @jd
-    else
-      get_c_jd
-      @jd
-    end
+    simple_dat_p? ? get_s_jd : get_c_jd
+
+    @jd
   end
 
   def m_df
@@ -2504,48 +2496,27 @@ class RubyDate
     nth = @nth
     year = m_year
 
-    return year if nth.zero?
+    return year if self.class.send(:f_zero_p?, nth)
 
     encode_year(nth, year, gregorian? ? -1 : 1)
   end
 
   def m_mon
-    if simple_dat_p?
-      get_s_civil
-      @month
-    else
-      get_c_civil
-      @month
-    end
-  end
+    simple_dat_p? ? get_s_civil : get_c_civil
 
-  def m_year
-    if simple_dat_p?
-      get_s_civil
-      @year
-    else
-      get_c_civil
-      @year
-    end
+    @month
   end
 
   def m_mday
-    if simple_dat_p?
-      get_s_civil
-      @day
-    else
-      get_c_civil
-      @day
-    end
+    simple_dat_p? ? get_s_civil : get_c_civil
+
+    @day
   end
 
   def m_sg
-    if simple_dat_p?
-      @sg
-    else
-      get_c_jd
-      @sg
-    end
+    get_c_jd unless simple_dat_p?
+
+    @sg
   end
 
   def encode_year(nth, y, style)
@@ -2588,13 +2559,10 @@ class RubyDate
   end
 
   def m_nth
-    if simple_dat_p?
-      @nth
-    else
-      # For complex, get civil data and then return nth.
-      get_c_civil
-      @nth
-    end
+    # For complex, get civil data and then return nth.
+    get_c_civil unless simple_dat_p?
+
+    @nth
   end
 
   def equal_gen(other)
@@ -2642,25 +2610,6 @@ class RubyDate
 
     # Invalidate civil data if JD changes.
     @has_civil = false if @jd != j
-  end
-
-  def m_local_jd
-    if simple_dat_p?
-      get_s_jd
-      @jd
-    else
-      get_c_jd
-      # Converts from UTC to local if complex.
-      jd_utc_to_local(@jd, @df || 0, @of || 0)
-    end
-  end
-
-  def m_real_local_jd
-    # Actual JD, a combination of nth and jd.
-    nth = m_nth
-    jd = m_local_jd
-
-    nth.zero? ? jd : nth * CM_PERIOD + jd
   end
 
   def f_jd(other)
@@ -2719,18 +2668,14 @@ class RubyDate
   def set_sg(sg)
     if simple_dat_p?
       get_s_jd
-
-      clear_civil
-
-      @sg = sg
     else
       get_c_jd
       get_c_df
-
-      clear_civil
-
-      @sg = sg
     end
+
+    clear_civil
+
+    @sg = sg
   end
 
   def clear_civil
