@@ -1840,6 +1840,55 @@ class RubyDateTest < Test::Unit::TestCase
     end
   end
 
+  # RubyDate#gregorian tests
+  sub_test_case "RubyDate#gregorian" do
+    test "returns new date with GREGORIAN start" do
+      d = RubyDate.new(2001, 2, 3, RubyDate::ITALY)
+      d2 = d.gregorian
+
+      assert_equal(RubyDate::GREGORIAN, d2.start)
+    end
+
+    test "preserves year, month, day" do
+      d = RubyDate.new(2001, 2, 3, RubyDate::ITALY)
+      d2 = d.gregorian
+
+      assert_equal(2001, d2.year)
+      assert_equal(2, d2.month)
+      assert_equal(3, d2.day)
+    end
+
+    test "does not modify original date" do
+      d = RubyDate.new(2001, 2, 3, RubyDate::ITALY)
+      d.gregorian
+
+      assert_equal(RubyDate::ITALY, d.start)
+    end
+
+    test "converts from JULIAN to GREGORIAN" do
+      d = RubyDate.new(2001, 2, 3, RubyDate::JULIAN)
+      d2 = d.gregorian
+
+      assert_equal(RubyDate::GREGORIAN, d2.start)
+      assert_true(d2.gregorian?)
+    end
+
+    test "returns date that is always gregorian?" do
+      d = RubyDate.new(1500, 1, 1, RubyDate::ITALY)
+      d2 = d.gregorian
+
+      # Even ancient dates become gregorian with GREGORIAN start
+      assert_true(d2.gregorian?)
+    end
+
+    test "preserves JD value" do
+      d = RubyDate.new(2001, 2, 3, RubyDate::ITALY)
+      d2 = d.gregorian
+
+      assert_equal(d.jd, d2.jd)
+    end
+  end
+
   # Additional jd tests with different start dates
   sub_test_case "dates with different calendar systems" do
     test "creates date with ITALY start (default)" do

@@ -1406,6 +1406,44 @@ class RubyDate
       end
     end
 
+    # Create a simple RubyDate object.
+    def d_lite_s_alloc_simple
+      obj = allocate
+      obj.instance_variable_set(:@nth, 0)
+      obj.instance_variable_set(:@jd, 0)
+      obj.instance_variable_set(:@sg, DEFAULT_SG)
+      obj.instance_variable_set(:@df, nil)
+      obj.instance_variable_set(:@sf, nil)
+      obj.instance_variable_set(:@of, nil)
+      obj.instance_variable_set(:@year, nil)
+      obj.instance_variable_set(:@month, nil)
+      obj.instance_variable_set(:@day, nil)
+      obj.instance_variable_set(:@has_jd, true)
+      obj.instance_variable_set(:@has_civil, false)
+
+      obj
+    end
+
+    # Create a complex RubyDate object.
+    def d_lite_s_alloc_complex
+      obj = allocate
+      obj.instance_variable_set(:@nth, 0)
+      obj.instance_variable_set(:@jd, 0)
+      obj.instance_variable_set(:@sg, DEFAULT_SG)
+      obj.instance_variable_set(:@df, nil)
+      obj.instance_variable_set(:@sf, nil)
+      obj.instance_variable_set(:@of, nil)
+      obj.instance_variable_set(:@year, nil)
+      obj.instance_variable_set(:@month, nil)
+      obj.instance_variable_set(:@day, nil)
+      obj.instance_variable_set(:@hour, nil)
+      obj.instance_variable_set(:@min, nil)
+      obj.instance_variable_set(:@sec, nil)
+      obj.instance_variable_set(:@has_jd, true)
+      obj.instance_variable_set(:@has_civil, false)
+
+      obj
+    end
   end
 
   # Instance methods
@@ -1866,6 +1904,14 @@ class RubyDate
     # Add a negative value for numbers.
     # Works with all types: Integer, Float, Rational, Bignum, etc.
     self + (-other)
+  end
+
+  # call-seq:
+  #   gregorian -> new_date
+  #
+  # Equivalent to Date#new_start with argument Date::GREGORIAN.
+  def gregorian
+    dup_obj_with_new_start(GREGORIAN)
   end
 
   # call-seq:
@@ -2584,4 +2630,82 @@ class RubyDate
     # Get JD from another Date object.
     other.send(:m_real_local_jd)
   end
+
+  def dup_obj_with_new_start(sg)
+    dup = dup_obj
+    dup.send(:set_sg, sg)
+
+    dup
+  end
+
+  def dup_obj
+    if simple_dat_p?
+      # Simple data replication
+      new_obj = self.class.send(:d_lite_s_alloc_simple)
+
+      new_obj.instance_variable_set(:@nth, canon(@nth))
+      new_obj.instance_variable_set(:@jd, @jd)
+      new_obj.instance_variable_set(:@sg, @sg)
+      new_obj.instance_variable_set(:@year, @year)
+      new_obj.instance_variable_set(:@month, @month)
+      new_obj.instance_variable_set(:@day, @day)
+      new_obj.instance_variable_set(:@has_jd, @has_jd)
+      new_obj.instance_variable_set(:@has_civil, @has_civil)
+      new_obj.instance_variable_set(:@df, nil)
+      new_obj.instance_variable_set(:@sf, nil)
+      new_obj.instance_variable_set(:@of, nil)
+
+      new_obj
+    else
+      # Complex data replication
+      new_obj = self.class.send(:d_lite_s_alloc_complex)
+
+      new_obj.instance_variable_set(:@nth, canon(@nth))
+      new_obj.instance_variable_set(:@jd, @jd)
+      new_obj.instance_variable_set(:@sg, @sg)
+      new_obj.instance_variable_set(:@year, @year)
+      new_obj.instance_variable_set(:@month, @month)
+      new_obj.instance_variable_set(:@day, @day)
+      new_obj.instance_variable_set(:@hour, @hour)
+      new_obj.instance_variable_set(:@min, @min)
+      new_obj.instance_variable_set(:@sec, @sec)
+      new_obj.instance_variable_set(:@df, @df)
+      new_obj.instance_variable_set(:@sf, canon(@sf))
+      new_obj.instance_variable_set(:@of, @of)
+      new_obj.instance_variable_set(:@has_jd, @has_jd)
+      new_obj.instance_variable_set(:@has_civil, @has_civil)
+
+      new_obj
+    end
+  end
+
+  def set_sg(sg)
+    if simple_dat_p?
+      get_s_jd
+
+      clear_civil
+
+      @sg = sg
+    else
+      get_c_jd
+      get_c_df
+
+      clear_civil
+
+      @sg = sg
+    end
+  end
+
+  def clear_civil
+    @has_civil = false
+    @year = nil
+    @month = nil
+    @day = nil
+  end
+
+  # If the argument is Rational and the denominator is 1, return the numerator.
+  def canon(x)
+    x.is_a?(Rational) && x.denominator == 1 ? x.numerator : x
+  end
+
 end
