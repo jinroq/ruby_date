@@ -1713,6 +1713,133 @@ class RubyDateTest < Test::Unit::TestCase
     end
   end
 
+  # RubyDate#=== tests
+  sub_test_case "RubyDate#===" do
+    test "returns true for same date" do
+      d1 = RubyDate.new(2001, 2, 3)
+      d2 = RubyDate.new(2001, 2, 3)
+
+      assert_true(d1 === d2)
+    end
+
+    test "returns false for different dates" do
+      d1 = RubyDate.new(2001, 2, 3)
+      d2 = RubyDate.new(2001, 2, 4)
+
+      assert_false(d1 === d2)
+    end
+
+    test "returns true for same date with different start values" do
+      d1 = RubyDate.new(2001, 2, 3, RubyDate::ITALY)
+      d2 = RubyDate.new(2001, 2, 3, RubyDate::ENGLAND)
+
+      assert_true(d1 === d2)
+    end
+
+    test "returns true when compared with matching JD number" do
+      d = RubyDate.new(2001, 2, 3)
+
+      assert_true(d === d.jd)
+    end
+
+    test "returns false when compared with non-matching JD number" do
+      d = RubyDate.new(2001, 2, 3)
+
+      assert_false(d === (d.jd + 1))
+    end
+
+    test "returns true for identical object" do
+      d = RubyDate.new(2001, 2, 3)
+
+      assert_true(d === d)
+    end
+
+    test "returns false for non-date non-numeric" do
+      d = RubyDate.new(2001, 2, 3)
+
+      assert_false(d === "2001-02-03")
+    end
+
+    test "returns false for nil" do
+      d = RubyDate.new(2001, 2, 3)
+
+      assert_false(d === nil)
+    end
+
+    test "works in case statement" do
+      d = RubyDate.new(2001, 2, 3)
+      target = RubyDate.new(2001, 2, 3)
+
+      result = case target
+               when d then :matched
+               else :not_matched
+               end
+
+      assert_equal(:matched, result)
+    end
+
+    test "case statement with JD" do
+      d = RubyDate.new(2001, 2, 3)
+      jd = d.jd
+
+      result = case jd
+               when d then :matched
+               else :not_matched
+               end
+
+      assert_equal(:matched, result)
+    end
+  end
+
+  # RubyDate#gregorian? tests
+  sub_test_case "RubyDate#gregorian?" do
+    test "returns true for date after Gregorian reform (ITALY)" do
+      d = RubyDate.new(2001, 2, 3, RubyDate::ITALY)
+
+      assert_true(d.gregorian?)
+    end
+
+    test "returns true for date on Gregorian reform date (ITALY)" do
+      # 1582-10-15 is the first day of Gregorian calendar in Italy
+      d = RubyDate.new(1582, 10, 15, RubyDate::ITALY)
+
+      assert_true(d.gregorian?)
+    end
+
+    test "returns false for date before Gregorian reform (ITALY)" do
+      # 1582-10-04 is the last day of Julian calendar in Italy
+      d = RubyDate.new(1582, 10, 4, RubyDate::ITALY)
+
+      assert_false(d.gregorian?)
+    end
+
+    test "returns true for any date with GREGORIAN start" do
+      d = RubyDate.new(1000, 1, 1, RubyDate::GREGORIAN)
+
+      assert_true(d.gregorian?)
+    end
+
+    test "returns false for any date with JULIAN start" do
+      d = RubyDate.new(2001, 2, 3, RubyDate::JULIAN)
+
+      assert_false(d.gregorian?)
+    end
+
+    test "returns true for date after English reform (ENGLAND)" do
+      # 1752-09-14 is the first day of Gregorian calendar in England
+      d = RubyDate.new(1752, 9, 14, RubyDate::ENGLAND)
+
+      assert_true(d.gregorian?)
+    end
+
+    test "returns false for date before English reform (ENGLAND)" do
+      # 1752-09-02 is the last day of Julian calendar in England
+      d = RubyDate.new(1752, 9, 2, RubyDate::ENGLAND)
+
+      assert_false(d.gregorian?)
+    end
+  end
+
   # Additional jd tests with different start dates
   sub_test_case "dates with different calendar systems" do
     test "creates date with ITALY start (default)" do

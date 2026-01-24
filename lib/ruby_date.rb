@@ -1523,6 +1523,56 @@ class RubyDate
   end
 
   # call-seq:
+  #   self === other -> true, false, or nil.
+  #
+  # Returns +true+ if +self+ and +other+ represent the same date,
+  # +false+ if not, +nil+ if the two are not comparable.
+  #
+  # Argument +other+ may be:
+  #
+  # - Another \Date object:
+  #
+  #     d = Date.new(2022, 7, 27) # => #<Date: 2022-07-27 ((2459788j,0s,0n),+0s,2299161j)>
+  #     prev_date = d.prev_day    # => #<Date: 2022-07-26 ((2459787j,0s,0n),+0s,2299161j)>
+  #     next_date = d.next_day    # => #<Date: 2022-07-28 ((2459789j,0s,0n),+0s,2299161j)>
+  #     d === prev_date           # => false
+  #     d === d                   # => true
+  #     d === next_date           # => false
+  #
+  # - A DateTime object:
+  #
+  #     d === DateTime.new(2022, 7, 26) # => false
+  #     d === DateTime.new(2022, 7, 27) # => true
+  #     d === DateTime.new(2022, 7, 28) # => false
+  #
+  # - A numeric (compares <tt>self.jd</tt> to +other+):
+  #
+  #     d === 2459788 # => true
+  #     d === 2459787 # => false
+  #     d === 2459786 # => false
+  #     d === d.jd    # => true
+  #
+  # - An object not comparable:
+  #
+  #     d === Object.new # => nil
+  def ===(other)
+    return equal_gen(other) unless other.is_a?(RubyDate)
+
+    # Call equal_gen even if the Gregorian calendars do not match.
+    return equal_gen(other) unless m_gregorian_p? == other.send(:m_gregorian_p?)
+
+    m_canonicalize_jd
+    other.send(:m_canonicalize_jd)
+
+    a_nth = m_nth
+    b_nth = other.send(:m_nth)
+    a_jd = m_local_jd
+    b_jd = other.send(:m_local_jd)
+
+    a_nth == b_nth && a_jd == b_jd
+  end
+
+  # call-seq:
   #   d >> n -> new_date
   #
   # Returns a new \Date object representing the date
@@ -1816,6 +1866,18 @@ class RubyDate
     # Add a negative value for numbers.
     # Works with all types: Integer, Float, Rational, Bignum, etc.
     self + (-other)
+  end
+
+  # call-seq:
+  #   gregorian? -> true or false
+  #
+  # Returns +true+ if the date is on or after
+  # the date of calendar reform, +false+ otherwise:
+  #
+  #   Date.new(1582, 10, 15).gregorian?       # => true
+  #   (Date.new(1582, 10, 15) - 1).gregorian? # => false
+  def gregorian?
+    m_gregorian_p?
   end
 
   # call-seq:
@@ -2117,14 +2179,6 @@ class RubyDate
     jd < sg
   end
 
-  def gregorian?
-    m_gregorian_p?
-  end
-
-  def julian?
-    m_julian_p?
-  end
-
   def m_year
     simple_dat_p? ? get_s_civil : get_c_civil
 
@@ -2304,10 +2358,9 @@ class RubyDate
     df = m_df - other.send(:m_df)
     sf = m_sf - other.send(:m_sf)
 
-    # Normalize jd
     n, d = canonicalize_jd(n, d)
 
-    # Normalize df
+    # Canonicalize df
     if df < 0
       d -= 1
       df += DAY_IN_SECONDS
@@ -2316,7 +2369,7 @@ class RubyDate
       df -= DAY_IN_SECONDS
     end
 
-    # Normalize sf
+    # Canonicalize sf
     if sf < 0
       df -= 1
       sf += SECOND_IN_NANOSECONDS
@@ -2459,5 +2512,76 @@ class RubyDate
       get_c_civil
       @nth
     end
+  end
+
+  def equal_gen(other)
+    if other.is_a?(Numeric)
+      m_real_local_jd == other
+    elsif other.is_a?(RubyDate)
+      m_real_local_jd == other.send(:f_jd)
+    else
+      begin
+        coerced = other.coerce(self)
+        coerced[0] == coerced[1]
+      rescue
+        false
+      end
+    end
+  end
+
+  def m_canonicalize_jd
+    if simple_dat_p?
+      get_s_jd
+      canonicalize_s_jd
+    else
+      get_c_jd
+      canonicalize_c_jd
+    end
+  end
+
+  # Simple
+  def canonicalize_s_jd
+    j = @jd
+    nth = @nth
+
+    @nth, @jd = canonicalize_jd(@nth, @jd)
+
+    # Invalidate civil data if JD changes.
+    @has_civil = false if @jd != j
+  end
+
+  # Complex
+  def canonicalize_c_jd
+    j = @jd
+    nth = @nth
+
+    @nth, @jd = canonicalize_jd(@nth, @jd)
+
+    # Invalidate civil data if JD changes.
+    @has_civil = false if @jd != j
+  end
+
+  def m_local_jd
+    if simple_dat_p?
+      get_s_jd
+      @jd
+    else
+      get_c_jd
+      # Converts from UTC to local if complex.
+      jd_utc_to_local(@jd, @df || 0, @of || 0)
+    end
+  end
+
+  def m_real_local_jd
+    # Actual JD, a combination of nth and jd.
+    nth = m_nth
+    jd = m_local_jd
+
+    nth.zero? ? jd : nth * CM_PERIOD + jd
+  end
+
+  def f_jd(other)
+    # Get JD from another Date object.
+    other.send(:m_real_local_jd)
   end
 end
