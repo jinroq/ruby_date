@@ -1927,6 +1927,26 @@ class RubyDate
   end
 
   # call-seq:
+  #   julian -> new_date
+  #
+  # Equivalent to Date#new_start with argument Date::JULIAN.
+  def julian
+    dup_obj_with_new_start(JULIAN)
+  end
+
+  # call-seq:
+  #   d.julian? -> true or false
+  #
+  # Returns +true+ if the date is before the date of calendar reform,
+  # +false+ otherwise:
+  #
+  #   (Date.new(1582, 10, 15) - 1).julian? # => true
+  #   Date.new(1582, 10, 15).julian?       # => false
+  def julian?
+    m_julian_p?
+  end
+
+  # call-seq:
   #   leap? -> true or false
   #
   # Returns +true+ if the year is a leap year, +false+ otherwise:

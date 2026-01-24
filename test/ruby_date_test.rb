@@ -1889,6 +1889,104 @@ class RubyDateTest < Test::Unit::TestCase
     end
   end
 
+  # RubyDate#julian tests
+  sub_test_case "RubyDate#julian" do
+    test "returns new date with JULIAN start" do
+      d = RubyDate.new(2001, 2, 3, RubyDate::ITALY)
+      d2 = d.julian
+
+      assert_equal(RubyDate::JULIAN, d2.start)
+    end
+
+    test "does not modify original date" do
+      d = RubyDate.new(2001, 2, 3, RubyDate::ITALY)
+      d.julian
+
+      assert_equal(RubyDate::ITALY, d.start)
+    end
+
+    test "converts from GREGORIAN to JULIAN" do
+      d = RubyDate.new(2001, 2, 3, RubyDate::GREGORIAN)
+      d2 = d.julian
+
+      assert_equal(RubyDate::JULIAN, d2.start)
+      assert_true(d2.julian?)
+    end
+
+    test "returns date that is always julian?" do
+      d = RubyDate.new(2001, 2, 3, RubyDate::ITALY)
+      d2 = d.julian
+
+      assert_true(d2.julian?)
+    end
+
+    test "preserves JD value" do
+      d = RubyDate.new(2001, 2, 3, RubyDate::ITALY)
+      d2 = d.julian
+
+      assert_equal(d.jd, d2.jd)
+    end
+
+    test "recalculates year/month/day for Julian calendar" do
+      # JD is preserved but date is recalculated in Julian calendar
+      d = RubyDate.new(2001, 2, 3, RubyDate::GREGORIAN)
+      d2 = d.julian
+
+      assert_equal(d.jd, d2.jd)
+      # Julian calendar differs from Gregorian by ~13 days in 2001
+      assert_equal(2001, d2.year)
+      assert_equal(1, d2.month)
+      assert_equal(21, d2.day)
+    end
+  end
+
+  # RubyDate#julian? tests
+  sub_test_case "RubyDate#julian?" do
+    test "returns true for date with JULIAN start" do
+      d = RubyDate.new(2001, 2, 3, RubyDate::JULIAN)
+
+      assert_true(d.julian?)
+    end
+
+    test "returns false for date with GREGORIAN start" do
+      d = RubyDate.new(2001, 2, 3, RubyDate::GREGORIAN)
+
+      assert_false(d.julian?)
+    end
+
+    test "returns false for date after Gregorian reform (ITALY)" do
+      d = RubyDate.new(2001, 2, 3, RubyDate::ITALY)
+
+      assert_false(d.julian?)
+    end
+
+    test "returns true for date before Gregorian reform (ITALY)" do
+      d = RubyDate.new(1582, 10, 4, RubyDate::ITALY)
+
+      assert_true(d.julian?)
+    end
+
+    test "returns true for date before English reform (ENGLAND)" do
+      d = RubyDate.new(1752, 9, 2, RubyDate::ENGLAND)
+
+      assert_true(d.julian?)
+    end
+
+    test "returns false for date after English reform (ENGLAND)" do
+      d = RubyDate.new(1752, 9, 14, RubyDate::ENGLAND)
+
+      assert_false(d.julian?)
+    end
+
+    test "is opposite of gregorian?" do
+      d1 = RubyDate.new(2001, 2, 3, RubyDate::ITALY)
+      d2 = RubyDate.new(1582, 10, 4, RubyDate::ITALY)
+
+      assert_equal(!d1.gregorian?, d1.julian?)
+      assert_equal(!d2.gregorian?, d2.julian?)
+    end
+  end
+
   # Additional jd tests with different start dates
   sub_test_case "dates with different calendar systems" do
     test "creates date with ITALY start (default)" do
