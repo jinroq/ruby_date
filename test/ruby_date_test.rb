@@ -1987,6 +1987,60 @@ class RubyDateTest < Test::Unit::TestCase
     end
   end
 
+  # RubyDate#new_start tests
+  sub_test_case "RubyDate#new_start" do
+    test "returns new date with specified start" do
+      d = RubyDate.new(2001, 2, 3, RubyDate::ITALY)
+      d2 = d.new_start(RubyDate::ENGLAND)
+
+      assert_equal(RubyDate::ENGLAND, d2.start)
+    end
+
+    test "preserves JD value" do
+      d = RubyDate.new(2001, 2, 3, RubyDate::ITALY)
+      d2 = d.new_start(RubyDate::ENGLAND)
+
+      assert_equal(d.jd, d2.jd)
+    end
+
+    test "does not modify original date" do
+      d = RubyDate.new(2001, 2, 3, RubyDate::ITALY)
+      d.new_start(RubyDate::ENGLAND)
+
+      assert_equal(RubyDate::ITALY, d.start)
+    end
+
+    test "can change to GREGORIAN" do
+      d = RubyDate.new(2001, 2, 3, RubyDate::ITALY)
+      d2 = d.new_start(RubyDate::GREGORIAN)
+
+      assert_equal(RubyDate::GREGORIAN, d2.start)
+      assert_true(d2.gregorian?)
+    end
+
+    test "can change to JULIAN" do
+      d = RubyDate.new(2001, 2, 3, RubyDate::ITALY)
+      d2 = d.new_start(RubyDate::JULIAN)
+
+      assert_equal(RubyDate::JULIAN, d2.start)
+      assert_true(d2.julian?)
+    end
+
+    test "defaults to ITALY when no argument" do
+      d = RubyDate.new(2001, 2, 3, RubyDate::ENGLAND)
+      d2 = d.new_start
+
+      assert_equal(RubyDate::ITALY, d2.start)
+    end
+
+    test "can change to specific reform date" do
+      d = RubyDate.new(2001, 2, 3, RubyDate::ITALY)
+      d2 = d.new_start(RubyDate::ENGLAND)
+
+      assert_equal(RubyDate::ENGLAND, d2.start)
+    end
+  end
+
   # Additional jd tests with different start dates
   sub_test_case "dates with different calendar systems" do
     test "creates date with ITALY start (default)" do

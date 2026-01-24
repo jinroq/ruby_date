@@ -1974,6 +1974,23 @@ class RubyDate
   end
 
   # call-seq:
+  #   new_start(start = Date::ITALY]) -> new_date
+  #
+  # Returns a copy of +self+ with the given +start+ value:
+  #
+  #   d0 = Date.new(2000, 2, 3)
+  #   d0.julian? # => false
+  #   d1 = d0.new_start(Date::JULIAN)
+  #   d1.julian? # => true
+  #
+  # See argument {start}[rdoc-ref:language/calendars.rdoc@Argument+start].
+  def new_start(start = DEFAULT_SG)
+    sg = start ? val2sg(start) : DEFAULT_SG
+
+    dup_obj_with_new_start(sg)
+  end
+
+  # call-seq:
   #   infinite? -> false
   #
   # Returns +false+
@@ -2728,4 +2745,30 @@ class RubyDate
     x.is_a?(Rational) && x.denominator == 1 ? x.numerator : x
   end
 
+  def val2sg(vsg)
+    # Convert to Number.
+    sg = vsg.to_f
+
+    # Check for a valid start.
+    unless c_valid_start_p?(sg)
+      warn "invalid start is ignored"
+      sg = DEFAULT_SG
+    end
+
+    sg
+  end
+
+  def c_valid_start_p?(sg)
+    # Invalid for NaN.
+    return false if sg.respond_to?(:nan?) && sg.nan?
+
+    # Valid for Infinity.
+    return true if sg.respond_to?(:infinite?) && sg.infinite?
+
+    # If it is a finite value, check if it is within the range
+    # from REFORM_BEGIN_JD to REFORM_END_JD
+    return false if sg < REFORM_BEGIN_JD || sg > REFORM_END_JD
+
+    true
+  end
 end
