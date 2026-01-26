@@ -212,6 +212,7 @@ class RubyDate
 
       !result.nil?
     end
+    alias_method :valid_date?, :valid_civil?
 
     # call-seq:
     #   Date.jd(jd = 0, start = Date::ITALY) -> date
