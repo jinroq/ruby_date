@@ -290,7 +290,7 @@ class RubyDate
     #
     # Related: Date.julian_leap?.
     def gregorian_leap?(year)
-      return false unless numeric?(year)
+      raise TypeError, "invalid year (not numeric)" unless numeric?(year)
 
       _, ry = decode_year(year, -1)
 
@@ -309,7 +309,11 @@ class RubyDate
     #
     # Related: Date.gregorian_leap?.
     def julian_leap?(year)
-      (year % 4).zero?
+      raise TypeError, "invalid year (not numeric)" unless numeric?(year)
+
+      _, ry = decode_year(year, +1)
+
+      c_julian_leap_p?(ry)
     end
 
     # call-seq:
@@ -1312,6 +1316,10 @@ class RubyDate
 
     def c_gregorian_leap_p?(year)
       !!(((year % 4).zero? && (year % 100).nonzero?) || (year % 400).zero?)
+    end
+
+    def c_julian_leap_p?(year)
+      (year % 4).zero?
     end
 
     def new_with_jd(nth, jd, start)
@@ -2933,7 +2941,7 @@ class RubyDate
   end
 
   def c_julian_to_yday(year, month, day)
-    leap = self.class.julian_leap?(year)
+    leap = self.class.send(:c_julian_leap_p?, year)
 
     YEARTAB[leap ? 1 : 0][month] + day
   end
