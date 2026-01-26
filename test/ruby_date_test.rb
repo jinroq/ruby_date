@@ -173,4 +173,13 @@ class RubyDateTest < Test::Unit::TestCase
   def test_now
     assert_equal(false, RubyDate.respond_to?(:now))
   end
+
+  def test__plus
+    d = RubyDate.new(2000,2,29) + -1
+    assert_equal([2000, 2, 28], [d.year, d.mon, d.mday])
+    d = RubyDate.new(2000,2,29) + 0
+    assert_equal([2000, 2, 29], [d.year, d.mon, d.mday])
+    d = RubyDate.new(2000,2,29) + 1
+    assert_equal([2000, 3, 1], [d.year, d.mon, d.mday])
+  end
 end

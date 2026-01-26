@@ -1836,8 +1836,8 @@ class RubyDate
   def +(other)
     case other
     when Integer
-      nth = @nth
-      jd = @jd
+      nth = m_nth
+      jd = m_jd
 
       if (other / CM_PERIOD).nonzero?
         nth = nth + (other / CM_PERIOD)
@@ -2762,7 +2762,7 @@ class RubyDate
   def encode_year(nth, y, style)
     period = (style < 0) ? CM_PERIOD_GCY : CM_PERIOD_JCY
 
-    f_zero_p?(nth) ? y : period * nth + y
+    self.class.send(:f_zero_p?, nth) ? y : period * nth + y
   end
 
   def m_real_local_jd
