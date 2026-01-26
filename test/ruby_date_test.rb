@@ -2764,6 +2764,69 @@ class RubyDateTest < Test::Unit::TestCase
     end
   end
 
+  # RubyDate#yday tests
+  sub_test_case "RubyDate#yday" do
+    test "returns 1 for January 1" do
+      d = RubyDate.new(2001, 1, 1)
+
+      assert_equal(1, d.yday)
+    end
+
+    test "returns 31 for January 31" do
+      d = RubyDate.new(2001, 1, 31)
+
+      assert_equal(31, d.yday)
+    end
+
+    test "returns 32 for February 1" do
+      d = RubyDate.new(2001, 2, 1)
+
+      assert_equal(32, d.yday)
+    end
+
+    test "returns 34 for February 3" do
+      d = RubyDate.new(2001, 2, 3)
+
+      assert_equal(34, d.yday)
+    end
+
+    test "returns 365 for December 31 in non-leap year" do
+      d = RubyDate.new(2001, 12, 31)
+
+      assert_equal(365, d.yday)
+    end
+
+    test "returns 366 for December 31 in leap year" do
+      d = RubyDate.new(2000, 12, 31)
+
+      assert_equal(366, d.yday)
+    end
+
+    test "returns 60 for February 29 in leap year" do
+      d = RubyDate.new(2000, 2, 29)
+
+      assert_equal(60, d.yday)
+    end
+
+    test "returns 60 for March 1 in non-leap year" do
+      d = RubyDate.new(2001, 3, 1)
+
+      assert_equal(60, d.yday)
+    end
+
+    test "returns 61 for March 1 in leap year" do
+      d = RubyDate.new(2000, 3, 1)
+
+      assert_equal(61, d.yday)
+    end
+
+    test "works with JULIAN start" do
+      d = RubyDate.new(2001, 2, 3, RubyDate::JULIAN)
+
+      assert_equal(34, d.yday)
+    end
+  end
+
   # Additional jd tests with different start dates
   sub_test_case "dates with different calendar systems" do
     test "creates date with ITALY start (default)" do

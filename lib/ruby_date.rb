@@ -73,6 +73,12 @@ class RubyDate
   ].freeze
   private_constant :MONTH_DAYS
 
+  YEARTAB = [
+    [0, 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334],  # non-leap
+    [0, 0, 31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335]   # leap
+  ].freeze
+  private_constant :YEARTAB
+
   # Neri-Schneider algorithm constants
   # JDN of March 1, Year 0 in proleptic Gregorian calendar
   NS_EPOCH = 1721120
@@ -2143,6 +2149,16 @@ class RubyDate
   end
 
   # call-seq:
+  #   yday -> integer
+  #
+  # Returns the day of the year, in range (1..366):
+  #
+  #   Date.new(2001, 2, 3).yday # => 34
+  def yday
+    m_yday
+  end
+
+  # call-seq:
   #   infinite? -> false
   #
   # Returns +false+
@@ -2879,5 +2895,45 @@ class RubyDate
 
   def c_jd_to_wday(jd)
     (jd + 1) % 7
+  end
+
+  def m_yday
+    jd = m_local_jd
+    sg = m_virtual_sg
+
+    # proleptic gregorian or if more than 366 days have passed since the calendar change
+    return c_gregorian_to_yday(m_year, m_mon, m_mday) if m_proleptic_gregorian_p? || (jd - sg) > 366
+
+    # proleptic Julian
+    return c_julian_to_yday(m_year, m_mon, m_mday) if m_proleptic_julian_p?
+
+    # Otherwise, convert from JD to ordinal.
+    _, rd = self.class.send(:c_jd_to_ordinal, jd, sg)
+
+    rd
+  end
+
+  def m_proleptic_gregorian_p?
+    sg = @sg
+
+    sg.infinite? && sg < 0
+  end
+
+  def m_proleptic_julian_p?
+    sg = @sg
+
+    sg.infinite? && sg > 0
+  end
+
+  def c_gregorian_to_yday(year, month, day)
+    leap = self.class.send(:c_gregorian_leap_p?, year)
+
+    YEARTAB[leap ? 1 : 0][month] + day
+  end
+
+  def c_julian_to_yday(year, month, day)
+    leap = self.class.julian_leap?(year)
+
+    YEARTAB[leap ? 1 : 0][month] + day
   end
 end
