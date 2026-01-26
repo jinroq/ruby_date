@@ -1959,6 +1959,19 @@ class RubyDate
   end
 
   # call-seq:
+  #   ld -> integer
+  #
+  # Returns the
+  # {Lilian day number}[https://en.wikipedia.org/wiki/Lilian_date],
+  # which is the number of days since the beginning of the Gregorian
+  # calendar, October 15, 1582.
+  #
+  #   Date.new(2001, 2, 3).ld # => 152784
+  def ld
+    m_real_local_jd - 2299160
+  end
+
+  # call-seq:
   #   leap? -> true or false
   #
   # Returns +true+ if the year is a leap year, +false+ otherwise:

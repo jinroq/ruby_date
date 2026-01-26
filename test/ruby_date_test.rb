@@ -2135,6 +2135,56 @@ class RubyDateTest < Test::Unit::TestCase
     end
   end
 
+  # RubyDate#ld tests
+  sub_test_case "RubyDate#ld" do
+    test "returns Lilian Day Number" do
+      # October 15, 1582 (start of Gregorian calendar) = JD 2299161 = LD 1
+      d = RubyDate.new(1582, 10, 15)
+
+      assert_equal(1, d.ld)
+    end
+
+    test "returns 0 for day before Gregorian calendar start" do
+      # October 14, 1582 (Julian) = JD 2299160 = LD 0
+      d = RubyDate.new(1582, 10, 4, RubyDate::JULIAN)
+
+      assert_equal(0, d.ld)
+    end
+
+    test "returns negative for dates before Gregorian calendar" do
+      # September 24, 1582 (Julian) = JD 2299150 = LD -10
+      d = RubyDate.new(1582, 9, 24, RubyDate::JULIAN)
+
+      assert_equal(-10, d.ld)
+    end
+
+    test "returns correct ld for 2001-02-03" do
+      # 2001-02-03 = JD 2451944 = LD 152784
+      d = RubyDate.new(2001, 2, 3)
+
+      assert_equal(152784, d.ld)
+    end
+
+    test "returns correct ld for 2000-01-01" do
+      # 2000-01-01 = JD 2451545 = LD 152385
+      d = RubyDate.new(2000, 1, 1)
+
+      assert_equal(152385, d.ld)
+    end
+
+    test "calculates correctly: ld = jd - 2299160" do
+      d = RubyDate.new(2001, 2, 3)
+
+      assert_equal(d.jd - 2299160, d.ld)
+    end
+
+    test "works with JULIAN start" do
+      d = RubyDate.new(2001, 2, 3, RubyDate::JULIAN)
+
+      assert_equal(d.jd - 2299160, d.ld)
+    end
+  end
+
   # Additional jd tests with different start dates
   sub_test_case "dates with different calendar systems" do
     test "creates date with ITALY start (default)" do
