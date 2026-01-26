@@ -2016,6 +2016,35 @@ class RubyDate
   end
 
   # call-seq:
+  #   next_day(n = 1) -> new_date
+  #
+  # Equivalent to Date#+ with argument +n+.
+  def next_day(n = 1)
+    self + n
+  end
+
+  # call-seq:
+  #   prev_day(n = 1) -> new_date
+  #
+  # Equivalent to Date#- with argument +n+.
+  def prev_day(n = 1)
+    self - n
+  end
+
+  # call-seq:
+  #   d.next -> new_date
+  #
+  # Returns a new \Date object representing the following day:
+  #
+  #   d = Date.new(2001, 2, 3)
+  #   d.to_s      # => "2001-02-03"
+  #   d.next.to_s # => "2001-02-04"
+  def next
+    next_day
+  end
+  alias_method :succ, :next
+
+  # call-seq:
   #   infinite? -> false
   #
   # Returns +false+

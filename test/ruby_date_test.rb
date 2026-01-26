@@ -2185,6 +2185,199 @@ class RubyDateTest < Test::Unit::TestCase
     end
   end
 
+  # RubyDate#next_day tests
+  sub_test_case "RubyDate#next_day" do
+    test "returns next day by default" do
+      d = RubyDate.new(2001, 2, 3)
+      d2 = d.next_day
+
+      assert_equal(2001, d2.year)
+      assert_equal(2, d2.month)
+      assert_equal(4, d2.day)
+    end
+
+    test "returns n days later" do
+      d = RubyDate.new(2001, 2, 3)
+      d2 = d.next_day(5)
+
+      assert_equal(2001, d2.year)
+      assert_equal(2, d2.month)
+      assert_equal(8, d2.day)
+    end
+
+    test "crosses month boundary" do
+      d = RubyDate.new(2001, 1, 31)
+      d2 = d.next_day
+
+      assert_equal(2001, d2.year)
+      assert_equal(2, d2.month)
+      assert_equal(1, d2.day)
+    end
+
+    test "crosses year boundary" do
+      d = RubyDate.new(2000, 12, 31)
+      d2 = d.next_day
+
+      assert_equal(2001, d2.year)
+      assert_equal(1, d2.month)
+      assert_equal(1, d2.day)
+    end
+
+    test "handles negative argument (goes backward)" do
+      d = RubyDate.new(2001, 2, 3)
+      d2 = d.next_day(-1)
+
+      assert_equal(2001, d2.year)
+      assert_equal(2, d2.month)
+      assert_equal(2, d2.day)
+    end
+
+    test "does not modify original date" do
+      d = RubyDate.new(2001, 2, 3)
+      d.next_day
+
+      assert_equal(3, d.day)
+    end
+
+    test "preserves start" do
+      d = RubyDate.new(2001, 2, 3, RubyDate::JULIAN)
+      d2 = d.next_day
+
+      assert_equal(RubyDate::JULIAN, d2.start)
+    end
+  end
+
+  # RubyDate#prev_day tests
+  sub_test_case "RubyDate#prev_day" do
+    test "returns previous day by default" do
+      d = RubyDate.new(2001, 2, 3)
+      d2 = d.prev_day
+
+      assert_equal(2001, d2.year)
+      assert_equal(2, d2.month)
+      assert_equal(2, d2.day)
+    end
+
+    test "returns n days earlier" do
+      d = RubyDate.new(2001, 2, 8)
+      d2 = d.prev_day(5)
+
+      assert_equal(2001, d2.year)
+      assert_equal(2, d2.month)
+      assert_equal(3, d2.day)
+    end
+
+    test "crosses month boundary backward" do
+      d = RubyDate.new(2001, 2, 1)
+      d2 = d.prev_day
+
+      assert_equal(2001, d2.year)
+      assert_equal(1, d2.month)
+      assert_equal(31, d2.day)
+    end
+
+    test "crosses year boundary backward" do
+      d = RubyDate.new(2001, 1, 1)
+      d2 = d.prev_day
+
+      assert_equal(2000, d2.year)
+      assert_equal(12, d2.month)
+      assert_equal(31, d2.day)
+    end
+
+    test "handles negative argument (goes forward)" do
+      d = RubyDate.new(2001, 2, 3)
+      d2 = d.prev_day(-1)
+
+      assert_equal(2001, d2.year)
+      assert_equal(2, d2.month)
+      assert_equal(4, d2.day)
+    end
+
+    test "does not modify original date" do
+      d = RubyDate.new(2001, 2, 3)
+      d.prev_day
+
+      assert_equal(3, d.day)
+    end
+
+    test "preserves start" do
+      d = RubyDate.new(2001, 2, 3, RubyDate::JULIAN)
+      d2 = d.prev_day
+
+      assert_equal(RubyDate::JULIAN, d2.start)
+    end
+  end
+
+  # RubyDate#next tests
+  sub_test_case "RubyDate#next" do
+    test "returns next day" do
+      d = RubyDate.new(2001, 2, 3)
+      d2 = d.next
+
+      assert_equal(2001, d2.year)
+      assert_equal(2, d2.month)
+      assert_equal(4, d2.day)
+    end
+
+    test "crosses month boundary" do
+      d = RubyDate.new(2001, 1, 31)
+      d2 = d.next
+
+      assert_equal(2001, d2.year)
+      assert_equal(2, d2.month)
+      assert_equal(1, d2.day)
+    end
+
+    test "does not modify original date" do
+      d = RubyDate.new(2001, 2, 3)
+      d.next
+
+      assert_equal(3, d.day)
+    end
+
+    test "preserves start" do
+      d = RubyDate.new(2001, 2, 3, RubyDate::JULIAN)
+      d2 = d.next
+
+      assert_equal(RubyDate::JULIAN, d2.start)
+    end
+  end
+
+  # RubyDate#succ tests
+  sub_test_case "RubyDate#succ" do
+    test "is alias for next" do
+      d = RubyDate.new(2001, 2, 3)
+
+      assert_equal(d.next, d.succ)
+    end
+
+    test "returns next day" do
+      d = RubyDate.new(2001, 2, 3)
+      d2 = d.succ
+
+      assert_equal(2001, d2.year)
+      assert_equal(2, d2.month)
+      assert_equal(4, d2.day)
+    end
+
+    test "crosses month boundary" do
+      d = RubyDate.new(2001, 1, 31)
+      d2 = d.succ
+
+      assert_equal(2001, d2.year)
+      assert_equal(2, d2.month)
+      assert_equal(1, d2.day)
+    end
+
+    test "preserves start" do
+      d = RubyDate.new(2001, 2, 3, RubyDate::JULIAN)
+      d2 = d.succ
+
+      assert_equal(RubyDate::JULIAN, d2.start)
+    end
+  end
+
   # Additional jd tests with different start dates
   sub_test_case "dates with different calendar systems" do
     test "creates date with ITALY start (default)" do
