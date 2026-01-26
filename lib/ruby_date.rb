@@ -290,25 +290,25 @@ class RubyDate
     #
     # Related: Date.new.
     def jd(jd = 0, start = DEFAULT_SG)
-      raise TypeError, "invalid jd (not numeric)" unless jd.is_a?(Numeric)
+      j = 0
+      fr = 0
+      sg = start
 
-      jd_int, fraction = extract_fraction(jd)
+      sg = valid_sg(start) if start
 
-      nth = jd_int / CM_PERIOD
-      rjd = jd_int % CM_PERIOD
+      if jd
+        raise TypeError, "invalid jd (not numeric)" unless jd.is_a?(Numeric)
 
-      obj = allocate
-      obj.instance_variable_set(:@nth, nth)
-      obj.instance_variable_set(:@jd, rjd)
-      obj.instance_variable_set(:@sg, start)
-      obj.instance_variable_set(:@flags, HAVE_JD)
-      obj.instance_variable_set(:@year, nil)
-      obj.instance_variable_set(:@month, nil)
-      obj.instance_variable_set(:@day, nil)
+        j, fr = value_trunc(jd)
+      end
 
-      obj = obj.send(:add_fraction, fraction) if fraction.nonzero?
+      nth, rjd = decode_jd(j)
 
-      obj
+      ret = d_simple_new_internal(nth, rjd, sg, 0, 0, 0, HAVE_JD)
+
+      ret = ret + fr if fr.nonzero?
+
+      ret
     end
 
     # call-seq:
@@ -1516,6 +1516,40 @@ class RubyDate
 
       obj
     end
+
+    def value_trunc(value)
+      if value.is_a?(Integer)
+        [value, 0]
+      elsif value.is_a?(Float) || value.is_a?(Rational)
+        trunc = value.truncate
+        frac = value - trunc
+
+        [trunc, frac]
+      else
+        [value.to_i, 0]
+      end
+    end
+
+    def d_simple_new_internal(nth, jd, sg, year, mon, mday, flags)
+      obj = allocate
+      obj.instance_variable_set(:@nth, canon(nth))
+      obj.instance_variable_set(:@jd, jd)
+      obj.instance_variable_set(:@sg, sg)
+      obj.instance_variable_set(:@year, year)
+      obj.instance_variable_set(:@month, mon)
+      obj.instance_variable_set(:@day, mday)
+      obj.instance_variable_set(:@has_jd, (flags & HAVE_JD).nonzero?)
+      obj.instance_variable_set(:@has_civil, (flags & HAVE_CIVIL).nonzero?)
+      obj.instance_variable_set(:@df, nil)
+      obj.instance_variable_set(:@sf, nil)
+      obj.instance_variable_set(:@of, nil)
+
+      obj
+    end
+
+    def canon(x)
+      x.is_a?(Rational) && x.denominator == 1 ? x.numerator : x
+    end
   end
 
   # Instance methods
@@ -2490,8 +2524,9 @@ class RubyDate
     # For simple data, if civil has not yet been calculated.
     return if @has_civil
 
-    # Make sure you have a JD.
-    raise "No JD data" unless @has_jd
+    # If not simple or there is no JD, do nothing.
+    return unless simple_dat_p?
+    return unless @has_jd
 
     # Calculate civil from JD.
     y, m, d = self.class.send(:c_jd_to_civil, @jd, s_virtual_sg)
