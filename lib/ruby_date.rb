@@ -124,6 +124,8 @@ class RubyDate
   NS_JD_MAX = 538_000_000
   private_constant :NS_JD_MIN, :NS_JD_MAX
 
+  Error = Class.new(StandardError)
+
   # Initialize method
   # call-seq:
   #   Date.new(year = -4712, month = 1, mday = 1, start = Date::ITALY) -> date
@@ -147,42 +149,91 @@ class RubyDate
   #
   # Related: Date.jd.
   def initialize(year = -4712, month = 1, day = 1, start = DEFAULT_SG)
+    y = year
+    m = month
+    d = day
+    sg = start
+    fr2 = 0
+
     # argument type checking
-    raise TypeError, "invalid year (not numeric)" unless year.is_a?(Numeric)
-    raise TypeError, "invalid month (not numeric)" unless month.is_a?(Numeric)
-    raise TypeError, "invalid day (not numeric)" unless day.is_a?(Numeric)
-
-    @sg = start
-
-    year_int, year_frac = extract_fraction(year)
-    month_int, month_frac = extract_fraction(month)
-    day_int, day_frac = extract_fraction(day)
-
-    total_frac = year_frac + month_frac + day_frac
-
-    result = self.class.send(:validate_civil, year_int, month_int, day_int, start)
-    raise ArgumentError, "invalid date" unless result
-    nth, ry, rm, rd, rjd, _ = result
-
-    @nth = nth
-    @year = ry
-    @month = rm
-    @day = rd
-    @jd = rjd
-    @has_jd = true
-    @has_civil = true
-
-    if total_frac.nonzero?
-      self_plus = self + total_frac
-
-      @nth = self_plus.instance_variable_get(:@nth)
-      @jd = self_plus.instance_variable_get(:@jd)
-      @year = self_plus.instance_variable_get(:@year)
-      @month = self_plus.instance_variable_get(:@month)
-      @day = self_plus.instance_variable_get(:@day)
-      @has_jd = self_plus.instance_variable_get(:@has_jd)
-      @has_civil = self_plus.instance_variable_get(:@has_civil)
+    if y
+      raise TypeError, "invalid year (not numeric)" unless year.is_a?(Numeric)
     end
+    if m
+      raise TypeError, "invalid month (not numeric)" unless month.is_a?(Numeric)
+    end
+    if d
+      raise TypeError, "invalid day (not numeric)" unless day.is_a?(Numeric)
+      # Check if there is a decimal part.
+      d_trunc, fr = d_trunc_with_frac(d)
+      d = d_trunc
+      fr2 = fr if fr.nonzero?
+    end
+
+    sg = self.class.send(:valid_sg, sg)
+    style = self.class.send(:guess_style, y, sg)
+
+    if style < 0
+      # gregorian calendar only
+      result = self.class.send(:valid_gregorian_p, y, m, d)
+      raise Error unless result
+
+      nth, ry = self.class.send(:decode_year, y, -1)
+      rm = result[:rm]
+      rd = result[:rd]
+
+      @nth = canon(nth)
+      @jd = 0
+      @sg = sg
+      @year = ry
+      @month = rm
+      @day = rd
+      @has_jd = false
+      @has_civil = true
+      @df = nil
+      @sf = nil
+      @of = nil
+    else
+      # full validation
+      result = self.class.send(:valid_civil_p, y, m, d, sg)
+      raise Error unless result
+
+      nth = result[:nth]
+      ry = result[:ry]
+      rm = result[:rm]
+      rd = result[:rd]
+      rjd = result[:rjd]
+
+      @nth = canon(nth)
+      @jd = rjd
+      @sg = sg
+      @year = ry
+      @month = rm
+      @day = rd
+      @has_jd = true
+      @has_civil = true
+      @df = nil
+      @sf = nil
+      @of = nil
+    end
+
+    # Add any decimal parts.
+    if fr2.nonzero?
+      new_date = self + fr2
+      @nth = new_date.instance_variable_get(:@nth)
+      @jd = new_date.instance_variable_get(:@jd)
+      @sg = new_date.instance_variable_get(:@sg)
+      @year = new_date.instance_variable_get(:@year)
+      @month = new_date.instance_variable_get(:@month)
+      @day = new_date.instance_variable_get(:@day)
+      @has_jd = new_date.instance_variable_get(:@has_jd)
+      @has_civil = new_date.instance_variable_get(:@has_civil)
+      @df = new_date.instance_variable_get(:@df)
+      @sf = new_date.instance_variable_get(:@sf)
+      @of = new_date.instance_variable_get(:@of)
+    end
+
+    self
   end
 
   # Class methods
@@ -352,9 +403,9 @@ class RubyDate
       yday, yday_frac = extract_fraction(yday)
       total_frac = year_frac + yday_frac
 
-      result = validate_ordinal(year, yday, start)
+      result = valid_ordinal_p(year, yday, start)
 
-      raise ArgumentError, "invalid date" unless result
+      raise Error unless result
 
       nth, _, _, rjd, _ = result
 
@@ -448,7 +499,7 @@ class RubyDate
       # Validate ISO week date
       result = validate_commercial(cwyear_int, cweek_int, cwday_int, start)
 
-      raise ArgumentError, "invalid date" unless result
+      raise Error unless result
 
       nth, _, _, _, rjd, _ = result
 
@@ -1097,6 +1148,56 @@ class RubyDate
       yc + mc + d0 + NS_EPOCH
     end
 
+    def valid_civil_p(y, m, d, sg)
+      style = guess_style(y, sg)
+
+      if style.zero?
+        # If year is a Fixnum
+        int_year = y.to_i
+
+        # Validate with c_valid_civil_p
+        result = c_valid_civil_p(int_year, m, d, sg)
+        return nil unless result
+
+        # decode_jd
+        nth, rjd = decode_jd(result[:jd])
+
+        if f_zero_p?(nth)
+          ry = int_year
+        else
+          ns = result[:ns]
+          _, ry = decode_year(y, ns.nonzero? ? -1 : 1)
+        end
+
+        return {
+          nth:,
+          ry:,
+          rm: result[:rm],
+          rd: result[:rd],
+          rjd:,
+          ns: result[:ns],
+         }
+      else
+        # If year is a large number
+        nth, ry = decode_year(y, style)
+
+        result = style < 0 ? c_valid_gregorian_p(ry, m, d) : result = c_valid_julian_p(ry, m, d)
+        return nil unless result
+
+        # Calculate JD from civil
+        rjd, ns = c_civil_to_jd(ry, result[:rm], result[:rd], style)
+
+        return {
+          nth:,
+          ry:,
+          rm: result[:rm],
+          rd: result[:rd],
+          rjd:,
+          ns:,
+        }
+      end
+    end
+
     def c_valid_civil_p(year, month, day, sg)
       month += 13 if month < 0
       return nil if month < 1 || month > 12
@@ -1230,13 +1331,13 @@ class RubyDate
           _, ry = decode_year(year, ns.nonzero? ? -1 : 1)
         end
 
-        return { nth: nth, ry: ry, rd: result[:rd], rjd: rjd, ns: result[:ns] }
+        return { nth:, ry:, rd: result[:rd], rjd:, ns: result[:ns] }
       else
         nth, ry = decode_year(year, style)
         result = c_valid_ordinal_p(ry, day, style)
         return nil unless result
 
-        return { nth: nth, ry: ry, rd: result[:rd], rjd: result[:rjd], ns: result[:ns] }
+        return { nth:, ry:, rd: result[:rd], rjd: result[:rjd], ns: result[:ns] }
       end
     end
 
@@ -1343,6 +1444,12 @@ class RubyDate
       obj
     end
 
+    def valid_gregorian_p(y, m, d)
+      decode_year(y, -1)
+
+      c_valid_gregorian_p(y, m, d)
+    end
+
     def c_valid_gregorian_p(y, m, d)
       m += 13 if m < 0
       return nil if m < 1 || m > 12
@@ -1366,59 +1473,9 @@ class RubyDate
     end
 
     def c_julian_last_day_of_month(y, m)
-      raise ArgumentError unless m >= 1 && m <= 12
+      raise Error unless m >= 1 && m <= 12
 
       MONTH_DAYS[julian_leap?(y) ? 1 : 0][m]
-    end
-
-    def valid_civil_p(y, m, d, sg)
-      style = guess_style(y, sg)
-
-      if style.zero?
-        # If year is a Fixnum
-        int_year = y.to_i
-
-        # Validate with c_valid_civil_p
-        result = c_valid_civil_p(int_year, m, d, sg)
-        return nil unless result
-
-        # decode_jd
-        nth, rjd = decode_jd(result[:jd])
-
-        if f_zero_p?(nth)
-          ry = int_year
-        else
-          ns = result[:ns]
-          _, ry = decode_year(y, ns != 0 ? -1 : 1)
-        end
-
-        return {
-          nth:,
-          ry:,
-          rm: result[:rm],
-          rd: result[:rd],
-          rjd:,
-          ns: result[:ns],
-         }
-      else
-        # If year is a large number
-        nth, ry = decode_year(y, style)
-
-        result = style < 0 ? c_valid_gregorian_p(ry, m, d) : result = c_valid_julian_p(ry, m, d)
-        return nil unless result
-
-        # Calculate JD from civil
-        rjd, ns = c_civil_to_jd(ry, result[:rm], result[:rd], style)
-
-        return {
-          nth:,
-          ry:,
-          rm: result[:rm],
-          rd: result[:rd],
-          rjd:,
-          ns:,
-        }
-      end
     end
 
     # Create a simple RubyDate object.
@@ -1471,7 +1528,7 @@ class RubyDate
   #   Date.new(2001, 2, 3).year    # => 2001
   #   (Date.new(1, 1, 1) - 1).year # => 0
   def year
-    @year ||= jd_to_civil[0]
+    m_real_year
   end
 
   # call-seq:
@@ -1481,12 +1538,12 @@ class RubyDate
   #
   #   Date.new(2001, 2, 3).mon # => 2
   def month
-    @month ||= jd_to_civil[1]
+    m_mon
   end
   alias mon month
 
   def day
-    @day ||= jd_to_civil[2]
+    m_mday
   end
   alias mday day
 
@@ -1669,7 +1726,7 @@ class RubyDate
       break if result
 
       d -= 1
-      raise ArgumentError, "invalid date" if d < 1
+      raise Error if d < 1
     end
 
     nth = result[:nth]
@@ -2278,42 +2335,9 @@ class RubyDate
     self.class.send(:gregorian_civil_to_jd, y, m, d)
   end
 
-  def jd_to_civil
-    return [@year, @month, @day] if @year && @month && @day
-
-    jd = @jd
-    sg = @sg
-
-    # Original algorithm from date_core.c
-    if jd < sg
-      # Julian calendar
-      a = jd
-    else
-      # Gregorian calendar
-      x = ((jd - 1867216.25) / 36524.25).floor
-      a = jd + 1 + x - (x / 4.0).floor
-    end
-
-    b = a + 1524
-    c = ((b - 122.1) / 365.25).floor
-    d = (365.25 * c).floor
-    e = ((b - d) / 30.6001).floor
-
-    dom = b - d - (30.6001 * e).floor
-
-    if e <= 13
-      month = e - 1
-      year = c - 4716
-    else
-      month = e - 13
-      year = c - 4715
-    end
-
-    @year = year.to_i
-    @month = month.to_i
-    @day = dom.to_i
-
-    [@year, @month, @day]
+  def jd_to_civil(jd, sg)
+    decode_jd(jd)
+    c_jd_to_civil(jd, sg)
   end
 
   def extract_fraction(value)
@@ -2944,5 +2968,23 @@ class RubyDate
     leap = self.class.send(:c_julian_leap_p?, year)
 
     YEARTAB[leap ? 1 : 0][month] + day
+  end
+
+  def d_trunc_with_frac(value)
+    if value.is_a?(Integer)
+      [value, 0]
+    elsif value.is_a?(Float)
+      trunc = value.truncate
+      frac = value - trunc
+
+      [trunc, frac]
+    elsif value.is_a?(Rational)
+      trunc = value.truncate
+      frac = value - trunc
+
+      [trunc, frac]
+    else
+      [value.to_i, 0]
+    end
   end
 end
