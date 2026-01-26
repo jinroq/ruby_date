@@ -1656,10 +1656,19 @@ class RubyDate
   def <=>(other)
     return nil unless other.is_a?(RubyDate)
 
-    nth_cmp = @nth <=> other.instance_variable_get(:@nth)
-    return nth_cmp unless nth_cmp.zero?
+    m_canonicalize_jd
+    other.send(:m_canonicalize_jd)
 
-    @jd <=> other.instance_variable_get(:@jd)
+    a_nth = m_nth
+    b_nth = other.send(:m_nth)
+
+    cmp = a_nth <=> b_nth
+    return cmp if cmp.nonzero?
+
+    a_jd = m_jd
+    b_jd = other.send(:m_jd)
+
+    a_jd <=> b_jd
   end
 
   # call-seq:

@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "test_helper"
+require "timeout"
 
 class RubyDateTest < Test::Unit::TestCase
   test "VERSION" do
@@ -174,6 +175,12 @@ class RubyDateTest < Test::Unit::TestCase
     assert_equal(false, RubyDate.respond_to?(:now))
   end
 
+  # copy from date/test/date/test_date_arith.rb
+
+  class Rat < Numeric
+    def to_r; self; end
+  end
+
   def test__plus
     d = RubyDate.new(2000,2,29) + -1
     assert_equal([2000, 2, 28], [d.year, d.mon, d.mday])
@@ -181,5 +188,51 @@ class RubyDateTest < Test::Unit::TestCase
     assert_equal([2000, 2, 29], [d.year, d.mon, d.mday])
     d = RubyDate.new(2000,2,29) + 1
     assert_equal([2000, 3, 1], [d.year, d.mon, d.mday])
+  end
+
+  def test__plus__ex
+    e = TypeError
+    assert_raise(e) do
+      RubyDate.new(2000,2,29) + 'foo'
+    end
+    assert_raise(e) do
+      RubyDate.new(2000,2,29) + Time.mktime(2000,2,29)
+    end
+    n = Rat.new
+    assert_raise(e) do
+      Timeout.timeout(1) {RubyDate.new(2000,2,29) + n}
+    end
+  end
+
+  def test__minus
+    d = RubyDate.new(2000,3,1) - -1
+    assert_equal([2000, 3, 2], [d.year, d.mon, d.mday])
+    d = RubyDate.new(2000,3,1) - 0
+    assert_equal([2000, 3, 1], [d.year, d.mon, d.mday])
+    d = RubyDate.new(2000,3,1) - 1
+    assert_equal([2000, 2, 29], [d.year, d.mon, d.mday])
+
+    d = RubyDate.new(2000,3,1) - RubyDate.new(2000,2,29)
+    assert_equal(1, d)
+    d = RubyDate.new(2000,2,29) - RubyDate.new(2000,3,1)
+    assert_equal(-1, d)
+  end
+
+  def test__minus__ex
+    e = TypeError
+    assert_raise(e) do
+      RubyDate.new(2000,2,29) - 'foo'
+    end
+    assert_raise(e) do
+      RubyDate.new(2000,2,29) - Time.mktime(2000,2,29)
+    end
+  end
+
+  def test__compare
+    assert_equal(0, (RubyDate.new(2000,1,1) <=> RubyDate.new(2000,1,1)))
+    assert_equal(-1, (RubyDate.new(2000,1,1) <=> RubyDate.new(2000,1,2)))
+    assert_equal(1, (RubyDate.new(2000,1,2) <=> RubyDate.new(2000,1,1)))
+    assert_equal(0, (RubyDate.new(2001,1,4,RubyDate::JULIAN) <=>
+                     RubyDate.new(2001,1,17, RubyDate::GREGORIAN)))
   end
 end
