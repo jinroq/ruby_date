@@ -2045,6 +2045,38 @@ class RubyDate
   alias_method :succ, :next
 
   # call-seq:
+  #   next_year(n = 1) -> new_date
+  #
+  # Equivalent to #>> with argument <tt>n * 12</tt>.
+  def next_year(n = 1)
+    self >> (n * 12)
+  end
+
+  # call-seq:
+  #   prev_year(n = 1) -> new_date
+  #
+  # Equivalent to #<< with argument <tt>n * 12</tt>.
+  def prev_year(n = 1)
+    self << (n * 12)
+  end
+
+  # call-seq:
+  #   next_month(n = 1) -> new_date
+  #
+  # Equivalent to #>> with argument +n+.
+  def next_month(n = 1)
+    self >> n
+  end
+
+  # call-seq:
+  #   prev_month(n = 1) -> new_date
+  #
+  # Equivalent to #<< with argument +n+.
+  def prev_month(n = 1)
+    self << n
+  end
+
+  # call-seq:
   #   infinite? -> false
   #
   # Returns +false+
