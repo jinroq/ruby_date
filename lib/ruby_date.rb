@@ -1923,6 +1923,22 @@ class RubyDate
   end
 
   # call-seq:
+  #   italy -> new_date
+  #
+  # Equivalent to Date#new_start with argument Date::ITALY.
+  def italy
+    dup_obj_with_new_start(ITALY)
+  end
+
+  # call-seq:
+  #   england -> new_date
+  #
+  # Equivalent to Date#new_start with argument Date::ENGLAND.
+  def england
+    dup_obj_with_new_start(ENGLAND)
+  end
+
+  # call-seq:
   #   julian -> new_date
   #
   # Equivalent to Date#new_start with argument Date::JULIAN.

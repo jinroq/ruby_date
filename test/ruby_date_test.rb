@@ -2041,6 +2041,100 @@ class RubyDateTest < Test::Unit::TestCase
     end
   end
 
+  # RubyDate#italy tests
+  sub_test_case "RubyDate#italy" do
+    test "returns new date with ITALY start" do
+      d = RubyDate.new(2001, 2, 3, RubyDate::ENGLAND)
+      d2 = d.italy
+
+      assert_equal(RubyDate::ITALY, d2.start)
+    end
+
+    test "preserves JD value" do
+      d = RubyDate.new(2001, 2, 3, RubyDate::ENGLAND)
+      d2 = d.italy
+
+      assert_equal(d.jd, d2.jd)
+    end
+
+    test "does not modify original date" do
+      d = RubyDate.new(2001, 2, 3, RubyDate::ENGLAND)
+      d.italy
+
+      assert_equal(RubyDate::ENGLAND, d.start)
+    end
+
+    test "preserves year, month, day for modern dates" do
+      d = RubyDate.new(2001, 2, 3, RubyDate::GREGORIAN)
+      d2 = d.italy
+
+      assert_equal(2001, d2.year)
+      assert_equal(2, d2.month)
+      assert_equal(3, d2.day)
+    end
+
+    test "converts from JULIAN start" do
+      d = RubyDate.new(2001, 2, 3, RubyDate::JULIAN)
+      d2 = d.italy
+
+      assert_equal(RubyDate::ITALY, d2.start)
+    end
+
+    test "converts from GREGORIAN start" do
+      d = RubyDate.new(2001, 2, 3, RubyDate::GREGORIAN)
+      d2 = d.italy
+
+      assert_equal(RubyDate::ITALY, d2.start)
+    end
+  end
+
+  # RubyDate#england tests
+  sub_test_case "RubyDate#england" do
+    test "returns new date with ENGLAND start" do
+      d = RubyDate.new(2001, 2, 3, RubyDate::ITALY)
+      d2 = d.england
+
+      assert_equal(RubyDate::ENGLAND, d2.start)
+    end
+
+    test "preserves JD value" do
+      d = RubyDate.new(2001, 2, 3, RubyDate::ITALY)
+      d2 = d.england
+
+      assert_equal(d.jd, d2.jd)
+    end
+
+    test "does not modify original date" do
+      d = RubyDate.new(2001, 2, 3, RubyDate::ITALY)
+      d.england
+
+      assert_equal(RubyDate::ITALY, d.start)
+    end
+
+    test "preserves year, month, day for modern dates" do
+      d = RubyDate.new(2001, 2, 3, RubyDate::GREGORIAN)
+      d2 = d.england
+
+      assert_equal(2001, d2.year)
+      assert_equal(2, d2.month)
+      assert_equal(3, d2.day)
+    end
+
+    test "converts from JULIAN start" do
+      d = RubyDate.new(2001, 2, 3, RubyDate::JULIAN)
+      d2 = d.england
+
+      assert_equal(RubyDate::ENGLAND, d2.start)
+    end
+
+    test "converts from GREGORIAN start" do
+      d = RubyDate.new(2001, 2, 3, RubyDate::GREGORIAN)
+      d2 = d.england
+
+      assert_equal(RubyDate::ENGLAND, d2.start)
+    end
+  end
+
   # Additional jd tests with different start dates
   sub_test_case "dates with different calendar systems" do
     test "creates date with ITALY start (default)" do
