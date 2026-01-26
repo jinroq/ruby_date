@@ -2608,6 +2608,162 @@ class RubyDateTest < Test::Unit::TestCase
     end
   end
 
+  # RubyDate#wday tests
+  sub_test_case "RubyDate#wday" do
+    test "returns 0 for Sunday" do
+      d = RubyDate.new(2001, 2, 4)  # Sunday
+
+      assert_equal(0, d.wday)
+    end
+
+    test "returns 1 for Monday" do
+      d = RubyDate.new(2001, 2, 5)  # Monday
+
+      assert_equal(1, d.wday)
+    end
+
+    test "returns 2 for Tuesday" do
+      d = RubyDate.new(2001, 2, 6)  # Tuesday
+
+      assert_equal(2, d.wday)
+    end
+
+    test "returns 3 for Wednesday" do
+      d = RubyDate.new(2001, 2, 7)  # Wednesday
+
+      assert_equal(3, d.wday)
+    end
+
+    test "returns 4 for Thursday" do
+      d = RubyDate.new(2001, 2, 8)  # Thursday
+
+      assert_equal(4, d.wday)
+    end
+
+    test "returns 5 for Friday" do
+      d = RubyDate.new(2001, 2, 9)  # Friday
+
+      assert_equal(5, d.wday)
+    end
+
+    test "returns 6 for Saturday" do
+      d = RubyDate.new(2001, 2, 3)  # Saturday
+
+      assert_equal(6, d.wday)
+    end
+
+    test "works with JULIAN start" do
+      d = RubyDate.new(2001, 2, 3, RubyDate::JULIAN)
+
+      assert_kind_of(Integer, d.wday)
+    end
+  end
+
+  # RubyDate#sunday? tests
+  sub_test_case "RubyDate#sunday?" do
+    test "returns true for Sunday" do
+      d = RubyDate.new(2001, 2, 4)  # Sunday
+
+      assert_true(d.sunday?)
+    end
+
+    test "returns false for other days" do
+      d = RubyDate.new(2001, 2, 3)  # Saturday
+
+      assert_false(d.sunday?)
+    end
+  end
+
+  # RubyDate#monday? tests
+  sub_test_case "RubyDate#monday?" do
+    test "returns true for Monday" do
+      d = RubyDate.new(2001, 2, 5)  # Monday
+
+      assert_true(d.monday?)
+    end
+
+    test "returns false for other days" do
+      d = RubyDate.new(2001, 2, 4)  # Sunday
+
+      assert_false(d.monday?)
+    end
+  end
+
+  # RubyDate#tuesday? tests
+  sub_test_case "RubyDate#tuesday?" do
+    test "returns true for Tuesday" do
+      d = RubyDate.new(2001, 2, 6)  # Tuesday
+
+      assert_true(d.tuesday?)
+    end
+
+    test "returns false for other days" do
+      d = RubyDate.new(2001, 2, 5)  # Monday
+
+      assert_false(d.tuesday?)
+    end
+  end
+
+  # RubyDate#wednesday? tests
+  sub_test_case "RubyDate#wednesday?" do
+    test "returns true for Wednesday" do
+      d = RubyDate.new(2001, 2, 7)  # Wednesday
+
+      assert_true(d.wednesday?)
+    end
+
+    test "returns false for other days" do
+      d = RubyDate.new(2001, 2, 6)  # Tuesday
+
+      assert_false(d.wednesday?)
+    end
+  end
+
+  # RubyDate#thursday? tests
+  sub_test_case "RubyDate#thursday?" do
+    test "returns true for Thursday" do
+      d = RubyDate.new(2001, 2, 8)  # Thursday
+
+      assert_true(d.thursday?)
+    end
+
+    test "returns false for other days" do
+      d = RubyDate.new(2001, 2, 7)  # Wednesday
+
+      assert_false(d.thursday?)
+    end
+  end
+
+  # RubyDate#friday? tests
+  sub_test_case "RubyDate#friday?" do
+    test "returns true for Friday" do
+      d = RubyDate.new(2001, 2, 9)  # Friday
+
+      assert_true(d.friday?)
+    end
+
+    test "returns false for other days" do
+      d = RubyDate.new(2001, 2, 8)  # Thursday
+
+      assert_false(d.friday?)
+    end
+  end
+
+  # RubyDate#saturday? tests
+  sub_test_case "RubyDate#saturday?" do
+    test "returns true for Saturday" do
+      d = RubyDate.new(2001, 2, 3)  # Saturday
+
+      assert_true(d.saturday?)
+    end
+
+    test "returns false for other days" do
+      d = RubyDate.new(2001, 2, 9)  # Friday
+
+      assert_false(d.saturday?)
+    end
+  end
+
   # Additional jd tests with different start dates
   sub_test_case "dates with different calendar systems" do
     test "creates date with ITALY start (default)" do

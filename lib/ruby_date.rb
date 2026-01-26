@@ -2077,6 +2077,72 @@ class RubyDate
   end
 
   # call-seq:
+  #   sunday? -> true or false
+  #
+  # Returns +true+ if +self+ is a Sunday, +false+ otherwise.
+  def sunday?
+    m_wday.zero?
+  end
+
+  # call-seq:
+  #   monday? -> true or false
+  #
+  # Returns +true+ if +self+ is a Monday, +false+ otherwise.
+  def monday?
+    m_wday == 1
+  end
+
+  # call-seq:
+  #   tuesday? -> true or false
+  #
+  # Returns +true+ if +self+ is a Tuesday, +false+ otherwise.
+  def tuesday?
+    m_wday == 2
+  end
+
+  # call-seq:
+  #   wednesday? -> true or false
+  #
+  # Returns +true+ if +self+ is a Wednesday, +false+ otherwise.
+  def wednesday?
+    m_wday == 3
+  end
+
+  # call-seq:
+  #   thursday? -> true or false
+  #
+  # Returns +true+ if +self+ is a Thursday, +false+ otherwise.
+  def thursday?
+    m_wday == 4
+  end
+
+  # call-seq:
+  #   friday? -> true or false
+  #
+  # Returns +true+ if +self+ is a Friday, +false+ otherwise.
+  def friday?
+    m_wday == 5
+  end
+
+  # call-seq:
+  #   saturday? -> true or false
+  #
+  # Returns +true+ if +self+ is a Saturday, +false+ otherwise.
+  def saturday?
+    m_wday == 6
+  end
+
+  # call-seq:
+  #   wday -> integer
+  #
+  # Returns the day of week in range (0..6); Sunday is 0:
+  #
+  #   Date.new(2001, 2, 3).wday # => 6
+  def wday
+    m_wday
+  end
+
+  # call-seq:
   #   infinite? -> false
   #
   # Returns +false+
@@ -2805,5 +2871,13 @@ class RubyDate
     return false if sg < REFORM_BEGIN_JD || sg > REFORM_END_JD
 
     true
+  end
+
+  def m_wday
+    c_jd_to_wday(m_local_jd)
+  end
+
+  def c_jd_to_wday(jd)
+    (jd + 1) % 7
   end
 end
