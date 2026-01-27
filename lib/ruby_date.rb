@@ -1613,7 +1613,7 @@ class RubyDate
   #    DateTime.new(2001,2,3,4,5,6,'+7').jd    #=> 2451944
   #    DateTime.new(2001,2,3,4,5,6,'-7').jd    #=> 2451944
   def jd
-    self.class.send(:f_zero_p?, @nth) ? @jd : @nth * CM_PERIOD + @jd
+    m_real_jd
   end
 
   # call-seq:
@@ -3148,5 +3148,12 @@ class RubyDate
     else
       [value.to_i, 0]
     end
+  end
+
+  def m_real_jd
+    nth = m_nth
+    jd = m_local_jd
+
+    self.class.send(:encode_jd, nth, jd)
   end
 end
