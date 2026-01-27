@@ -487,33 +487,37 @@ class RubyDate
     #
     # Related: Date.jd, Date.new, Date.ordinal.
     def commercial(cwyear = -4712, cweek = 1, cwday = 1, start = DEFAULT_SG)
-      raise TypeError, "invalid year (not numeric)" unless cwyear.is_a?(Numeric)
-      raise TypeError, "invalid cweek (not numeric)" unless cweek.is_a?(Numeric)
-      raise TypeError, "invalid cwday (not numeric)" unless cwday.is_a?(Numeric)
+      y = cwyear
+      w = cweek
+      d = cwday
+      fr2 = 0
+      sg = start
 
-      cwyear_int, year_frac = extract_fraction(cwyear)
-      cweek_int, week_frac = extract_fraction(cweek)
-      cwday_int, day_frac = extract_fraction(cwday)
-      total_frac = year_frac + week_frac + day_frac
+      if y
+        raise TypeError, "invalid year (not numeric)" unless cwyear.is_a?(Numeric)
+      end
+      if w
+        raise TypeError, "invalid cweek (not numeric)" unless cweek.is_a?(Numeric)
+        w = w.to_i
+      end
+      if d
+        raise TypeError, "invalid cwday (not numeric)" unless cwday.is_a?(Numeric)
+        d_trunc, fr = value_trunc(d)
+        d = d_trunc
+        fr2 = fr if fr.nonzero?
+      end
 
-      # Validate ISO week date
-      result = validate_commercial(cwyear_int, cweek_int, cwday_int, start)
+      sg = valid_sg(start) if start
 
+      result = valid_commercial_p(y, w, d, sg)
       raise Error unless result
 
-      nth, _, _, _, rjd, _ = result
+      nth = result[:nth]
+      rjd = result[:rjd]
 
-      obj = allocate
-      obj.instance_variable_set(:@nth, nth)
-      obj.instance_variable_set(:@jd, rjd)
-      obj.instance_variable_set(:@sg, start)
-      obj.instance_variable_set(:@has_jd, true)
-      obj.instance_variable_set(:@has_civil, false)
-      obj.instance_variable_set(:@year, nil)
-      obj.instance_variable_set(:@month, nil)
-      obj.instance_variable_set(:@day, nil)
+      obj = d_simple_new_internal(nth, rjd, sg, 0, 0, 0, HAVE_JD)
 
-      obj = obj + total_frac if total_frac.nonzero?
+      obj = obj + fr2 if fr2.nonzero?
 
       obj
     end
@@ -988,7 +992,7 @@ class RubyDate
         result = c_valid_commercial_p(ry, week, day, style)
         return nil unless result
 
-        { nth:, ry:, rw: result[:rw], rd: result[:rd], rjd: result[:rjd], ns: result[:ns] }
+        { nth:, ry:, rw: result[:rw], rd: result[:rd], rjd: result[:jd], ns: result[:ns] }
       end
     end
 
@@ -1093,8 +1097,12 @@ class RubyDate
     end
 
     def c_jd_to_civil(jd, sg)
-      return c_gregorian_jd_to_civil(jd) if c_gregorian_only_p?(sg) || jd >= sg
+      # Fast path: pure Gregorian or date after switchover, within safe range
+      if (c_gregorian_only_p?(sg) || jd >= sg) && ns_jd_in_range(jd)
+        return c_gregorian_jd_to_civil(jd)
+      end
 
+      # Original algorithm for Julian calendar or extreme dates
       if jd < sg
         a = jd
       else
@@ -1119,25 +1127,46 @@ class RubyDate
       [y.to_i, m.to_i, dom.to_i]
     end
 
+    # Optimized: Julian Day Number -> Gregorian date
     def c_gregorian_jd_to_civil(jd)
-      a = jd + 32044
-      b = (4 * a + 3) / GC_PERIOD0
-      c = a - (GC_PERIOD0 * b) / 4
-      d = (4 * c + 3) / JC_PERIOD0
-      e = c - (JC_PERIOD0 * d) / 4
-      m = (5 * e + 2) / 153
+      # Convert JDN to rata die (March 1, Year 0 epoch)
+      r0 = jd - NS_EPOCH
 
-      day = e - (153 * m + 2) / 5 + 1
-      month = m + 3 - 12 * (m / 10)
-      year = 100 * b + d - 4800 + m / 10
+      # Extract century and day within 400-year cycle
+      # Use Euclidean (floor) division for negative values
+      n1 = 4 * r0 + 3
+      q1 = n1 / NS_DAYS_IN_400_YEARS
+      r1 = (n1 % NS_DAYS_IN_400_YEARS) / 4
 
-      [year, month, day]
+      # Calculate year within century and day of year
+      n2 = 4 * r1 + 3
+      # Use 64-bit arithmetic to avoid overflow
+      u2 = NS_YEAR_MULTIPLIER * n2
+      q2 = u2 >> 32
+      r2 = (u2 & 0xFFFFFFFF) / NS_YEAR_MULTIPLIER / 4
+
+      # Calculate month and day using integer arithmetic
+      n3 = NS_MONTH_COEFF * r2 + NS_MONTH_OFFSET
+      q3 = n3 >> 16
+      r3 = (n3 & 0xFFFF) / NS_MONTH_COEFF
+
+      # Combine century and year
+      y0 = NS_YEARS_PER_CENTURY * q1 + q2
+
+      # Adjust for January/February (shift from fiscal year)
+      j = (r2 >= NS_DAYS_BEFORE_NEW_YEAR) ? 1 : 0
+
+      ry = y0 + j
+      rm = j != 0 ? q3 - 12 : q3
+      rd = r3 + 1
+
+      [ry, rm, rd]
     end
 
     def c_gregorian_civil_to_jd(year, month, day)
       j = (month < 3) ? 1 : 0
       y0 = year - j
-      m0 = j != 0 ? month + 12 : month
+      m0 = j.nonzero? ? month + 12 : month
       d0 = day - 1
 
       q1 = y0 / 100
@@ -1549,6 +1578,10 @@ class RubyDate
 
     def canon(x)
       x.is_a?(Rational) && x.denominator == 1 ? x.numerator : x
+    end
+
+    def ns_jd_in_range(jd)
+      jd >= NS_JD_MIN && jd <= NS_JD_MAX
     end
   end
 
@@ -2380,7 +2413,7 @@ class RubyDate
 
   def jd_to_civil(jd, sg)
     decode_jd(jd)
-    c_jd_to_civil(jd, sg)
+    self.class.send(:c_jd_to_civil, jd, sg)
   end
 
   def extract_fraction(value)
