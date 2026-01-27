@@ -396,29 +396,30 @@ class RubyDate
     #
     # Related: Date.jd, Date.new.
     def ordinal(year = -4712, yday = 1, start = DEFAULT_SG)
-      raise TypeError, "invalid year (not numeric)" unless year.is_a?(Numeric)
-      raise TypeError, "invalid yday (not numeric)" unless yday.is_a?(Numeric)
+      y = year
+      d = yday
+      fr2 = 0
+      sg = start
 
-      year, year_frac = extract_fraction(year)
-      yday, yday_frac = extract_fraction(yday)
-      total_frac = year_frac + yday_frac
+      if y
+        raise TypeError, "invalid year (not numeric)" unless year.is_a?(Numeric)
+      end
+      if d
+        raise TypeError, "invalid yday (not numeric)" unless yday.is_a?(Numeric)
+        d_trunc, fr = value_trunc(d)
+        d = d_trunc
+        fr2 = fr if fr.nonzero?
+      end
 
       result = valid_ordinal_p(year, yday, start)
-
       raise Error unless result
 
-      nth, _, _, rjd, _ = result
+      nth = result[:nth]
+      rjd = result[:rjd]
 
-      obj = allocate
-      obj.instance_variable_set(:@nth, nth)
-      obj.instance_variable_set(:@jd, rjd)
-      obj.instance_variable_set(:@sg, start)
-      obj.instance_variable_set(:@flags, HAVE_JD)
-      obj.instance_variable_set(:@year, nil)
-      obj.instance_variable_set(:@month, nil)
-      obj.instance_variable_set(:@day, nil)
+      obj = d_simple_new_internal(nth, rjd, sg, 0, 0, 0, HAVE_JD)
 
-      obj = obj + total_frac if total_frac.nonzero?
+      obj = obj + fr2 if fr2.nonzero?
 
       obj
     end
@@ -1198,14 +1199,7 @@ class RubyDate
           _, ry = decode_year(y, ns.nonzero? ? -1 : 1)
         end
 
-        return {
-          nth:,
-          ry:,
-          rm: result[:rm],
-          rd: result[:rd],
-          rjd:,
-          ns: result[:ns],
-         }
+        return { nth:, ry:, rm: result[:rm], rd: result[:rd], rjd:, ns: result[:ns] }
       else
         # If year is a large number
         nth, ry = decode_year(y, style)
@@ -1216,14 +1210,7 @@ class RubyDate
         # Calculate JD from civil
         rjd, ns = c_civil_to_jd(ry, result[:rm], result[:rd], style)
 
-        return {
-          nth:,
-          ry:,
-          rm: result[:rm],
-          rd: result[:rd],
-          rjd:,
-          ns:,
-        }
+        return { nth:, ry:, rm: result[:rm], rd: result[:rd], rjd:, ns: }
       end
     end
 
@@ -1231,23 +1218,24 @@ class RubyDate
       month += 13 if month < 0
       return nil if month < 1 || month > 12
 
-      if day < 0
+      rd = day
+      if rd < 0
         result = c_find_ldom(year, month, sg)
         return nil unless result
 
-        rjd, ns = result
-        ry, rm, rd = c_jd_to_civil(rjd + day + 1, sg)
-        return nil if ry != year || rm != month
+        rjd2, _ = result
+        ry2, rm2, rd2 = c_jd_to_civil(rjd2 + rd + 1, sg)
+        return nil if ry2 != year || rm2 != month
 
-        day = rd
+        rd = rd2
       end
 
-      rjd, ns = c_civil_to_jd(year, month, day, sg)
-      ry, rm, rd = c_jd_to_civil(rjd, sg)
+      rjd, ns = c_civil_to_jd(year, month, rd, sg)
+      ry2, rm2, rd2 = c_jd_to_civil(rjd, sg)
 
-      return nil if ry != year || rm != month || rd != day
+      return nil if ry2 != year || rm2 != month || rd2 != rd
 
-      { jd: rjd, ns: ns, rm: rm, rd: rd }
+      { jd: rjd, ns:, rm: rm2, rd: }
     end
 
     def c_gregorian_ldom_jd(year, month)
@@ -1349,6 +1337,7 @@ class RubyDate
       if style.zero?
         int_year = year.to_i
         result = c_valid_ordinal_p(int_year, day, start)
+
         return nil unless result
 
         nth, rjd = decode_jd(result[:jd])
@@ -1366,28 +1355,29 @@ class RubyDate
         result = c_valid_ordinal_p(ry, day, style)
         return nil unless result
 
-        return { nth:, ry:, rd: result[:rd], rjd: result[:rjd], ns: result[:ns] }
+        return { nth:, ry:, rd: result[:rd], rjd: result[:jd], ns: result[:ns] }
       end
     end
 
     def c_valid_ordinal_p(year, day, sg)
-      if day < 0
+      rd = day
+      if rd < 0
         result = c_find_ldoy(year, sg)
         return nil unless result
 
         rjd2, _ = result
-        ry2, rd2 = c_jd_to_ordinal(rjd2 + day + 1, sg)
+        ry2, rd2 = c_jd_to_ordinal(rjd2 + rd + 1, sg)
         return nil if ry2 != year
 
-         day = rd2
+         rd = rd2
       end
 
-      rjd, ns = c_ordinal_to_jd(year, day, sg)
+      rjd, ns = c_ordinal_to_jd(year, rd, sg)
       ry2, rd2 = c_jd_to_ordinal(rjd, sg)
 
-      return nil if ry2 != year || rd2 != day
+      return nil if ry2 != year || rd2 != rd
 
-      { jd: rjd, ns: ns, rd: day }
+      { jd: rjd, ns:, rd: }
     end
 
     def c_find_ldoy(year, sg)
@@ -1414,11 +1404,11 @@ class RubyDate
 
     def c_jd_to_ordinal(jd, sg)
       ry, _, _ = c_jd_to_civil(jd, sg)
-      rjd_fdoy, _ = c_find_fdoy(ry, sg)
+      rjd, _ = c_find_fdoy(ry, sg)
 
-      day_of_year = (jd - rjd_fdoy) + 1
+      rd = (jd - rjd) + 1
 
-      [ry, day_of_year]
+      [ry, rd]
     end
 
     def c_ordinal_to_jd(year, day, sg)
@@ -1434,9 +1424,9 @@ class RubyDate
       when Integer
         x.zero?
       when Rational
-        x.numerator.zero?
+        x.numerator == 0
       else
-        x.zero?
+        x == 0
       end
     end
 
