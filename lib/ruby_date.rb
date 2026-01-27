@@ -2908,14 +2908,6 @@ class RubyDate
     simple_dat_p? ? 0 : @sf || 0
   end
 
-  def isec_to_day(s)
-    Rational(s, DAY_IN_SECONDS)
-  end
-
-  def ns_to_day(n)
-    Rational(n, SECOND_IN_NANOSECONDS * DAY_IN_SECONDS)
-  end
-
   def m_real_year
     nth = @nth
     year = m_year
@@ -3241,10 +3233,6 @@ class RubyDate
     df_utc_to_local(@df || 0, @of || 0)
   end
 
-  def m_sf
-    simple_dat_p? ? 0 : (@sf || 0)
-  end
-
   def isec_to_day(s)
     sec_to_day(s)
   end
@@ -3290,13 +3278,5 @@ class RubyDate
     w = m_wday
     # ISO 8601 places Sunday at 7.
     w.zero? ? 7 : w
-  end
-
-  def m_wday
-    c_jd_to_wday(m_local_jd)
-  end
-
-  def c_jd_to_wday(jd)
-    (jd + 1) % 7
   end
 end
