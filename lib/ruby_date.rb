@@ -2291,6 +2291,67 @@ class RubyDate
   end
 
   # call-seq:
+  #   step(limit, step = 1){|date| ... } -> self
+  #
+  # Calls the block with specified dates;
+  # returns +self+.
+  #
+  # - The first +date+ is +self+.
+  # - Each successive +date+ is <tt>date + step</tt>,
+  #   where +step+ is the numeric step size in days.
+  # - The last date is the last one that is before or equal to +limit+,
+  #   which should be a \Date object.
+  #
+  # Example:
+  #
+  #   limit = Date.new(2001, 12, 31)
+  #   Date.new(2001).step(limit){|date| p date.to_s if date.mday == 31 }
+  #
+  # Output:
+  #
+  #   "2001-01-31"
+  #   "2001-03-31"
+  #   "2001-05-31"
+  #   "2001-07-31"
+  #   "2001-08-31"
+  #   "2001-10-31"
+  #   "2001-12-31"
+  #
+  # Returns an Enumerator if no block is given.
+  def step(limit, step = 1)
+    raise ArgumentError, "step must be numeric" unless step.respond_to?(:<=>)
+
+    return to_enum(:step, limit, step) unless block_given?
+
+    date = self
+    cmp = step <=> 0
+
+    raise ArgumentError, "step must be numeric" if cmp.nil?
+
+    case cmp
+    when -1
+      # If step is negative (reverse order)
+      while (date <=> limit) >= 0
+        yield date
+        date = date + step
+      end
+    when 0
+      # If step is 0 (infinite loop)
+      loop do
+        yield date
+      end
+    else
+      # If step is positive (forward direction)
+      while (date <=> limit) <= 0
+        yield date
+        date = date + step
+      end
+    end
+
+    self
+  end
+
+  # call-seq:
   #   infinite? -> false
   #
   # Returns +false+
