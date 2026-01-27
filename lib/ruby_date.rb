@@ -2396,6 +2396,18 @@ class RubyDate
   end
 
   # call-seq:
+  #    d.mjd  ->  integer
+  #
+  # Returns the modified Julian day number.  This is a whole number,
+  # which is adjusted by the offset as the local time.
+  #
+  #    DateTime.new(2001,2,3,4,5,6,'+7').mjd  #=> 51943
+  #    DateTime.new(2001,2,3,4,5,6,'-7').mjd  #=> 51943
+  def mjd
+    m_real_local_jd - 2_400_001
+  end
+
+  # call-seq:
   #   infinite? -> false
   #
   # Returns +false+
@@ -2903,7 +2915,7 @@ class RubyDate
   end
 
   def m_real_local_jd
-    nth = @nth
+    nth = m_nth
     jd = m_local_jd
 
     self.class.send(:encode_jd, nth, jd)
