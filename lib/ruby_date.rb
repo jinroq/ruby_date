@@ -2352,6 +2352,40 @@ class RubyDate
   end
 
   # call-seq:
+  #   upto(max){|date| ... } -> self
+  #
+  # Equivalent to #step with arguments +max+ and +1+.
+  def upto(max)
+    return to_enum(:upto, max) unless block_given?
+
+    date = self
+
+    while (date <=> max) <= 0
+      yield date
+      date = date + 1
+    end
+
+    self
+  end
+
+  # call-seq:
+  #   downto(min){|date| ... } -> self
+  #
+  # Equivalent to #step with arguments +min+ and <tt>-1</tt>.
+  def downto(min)
+    return to_enum(:downto, min) unless block_given?
+
+    date = self
+
+    while (date <=> min) >= 0
+      yield date
+      date = date - 1
+    end
+
+    self
+  end
+
+  # call-seq:
   #   infinite? -> false
   #
   # Returns +false+

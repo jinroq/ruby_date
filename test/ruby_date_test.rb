@@ -235,4 +235,185 @@ class RubyDateTest < Test::Unit::TestCase
     assert_equal(0, (RubyDate.new(2001,1,4,RubyDate::JULIAN) <=>
                      RubyDate.new(2001,1,17, RubyDate::GREGORIAN)))
   end
+
+  def test_prev
+    d = RubyDate.new(2000,1,1)
+    assert_raise(NoMethodError) do
+      d.prev
+    end
+  end
+
+  def test_prev_day
+    d = RubyDate.new(2001,1,1).prev_day
+    assert_equal([2000, 12, 31], [d.year, d.mon, d.mday])
+    d = RubyDate.new(2001,1,1).prev_day(2)
+    assert_equal([2000, 12, 30], [d.year, d.mon, d.mday])
+    d = RubyDate.new(2000,12,31).prev_day(-2)
+    assert_equal([2001, 1, 2], [d.year, d.mon, d.mday])
+  end
+
+  def test_prev_month
+    d = RubyDate.new(2000,1,31) << -1
+    assert_equal([2000, 2, 29], [d.year, d.mon, d.mday])
+    d = RubyDate.new(2000,1,31) << 1
+    assert_equal([1999, 12, 31], [d.year, d.mon, d.mday])
+    d = RubyDate.new(2000,1,31) << 12
+    assert_equal([1999, 1, 31], [d.year, d.mon, d.mday])
+    d = RubyDate.new(2000,1,31) << 14
+    assert_equal([1998, 11, 30], [d.year, d.mon, d.mday])
+  end
+
+  def test_prev_month__2
+    d = RubyDate.new(2000,1,31).prev_month(-1)
+    assert_equal([2000, 2, 29], [d.year, d.mon, d.mday])
+    d = RubyDate.new(2000,1,31).prev_month
+    assert_equal([1999, 12, 31], [d.year, d.mon, d.mday])
+    d = RubyDate.new(2000,1,31).prev_month(12)
+    assert_equal([1999, 1, 31], [d.year, d.mon, d.mday])
+    d = RubyDate.new(2000,1,31).prev_month(14)
+    assert_equal([1998, 11, 30], [d.year, d.mon, d.mday])
+  end
+
+  def test_prev_year
+    d = RubyDate.new(2000,1,31).prev_year(-1)
+    assert_equal([2001, 1, 31], [d.year, d.mon, d.mday])
+    d = RubyDate.new(2000,1,31).prev_year
+    assert_equal([1999, 1, 31], [d.year, d.mon, d.mday])
+    d = RubyDate.new(2000,1,31).prev_year(10)
+    assert_equal([1990, 1, 31], [d.year, d.mon, d.mday])
+    d = RubyDate.new(2000,1,31).prev_year(100)
+    assert_equal([1900, 1, 31], [d.year, d.mon, d.mday])
+  end
+
+  def test_next
+    d = RubyDate.new(2000,12,31).next
+    assert_equal([2001, 1, 1], [d.year, d.mon, d.mday])
+    d = RubyDate.new(2000,12,31).succ
+    assert_equal([2001, 1, 1], [d.year, d.mon, d.mday])
+
+    d = RubyDate.today
+    d2 = d.next
+    assert_equal(d, (d2 - 1))
+    d = RubyDate.today
+    d2 = d.succ
+    assert_equal(d, (d2 - 1))
+  end
+
+  def test_next_day
+    d = RubyDate.new(2000,12,31).next_day
+    assert_equal([2001, 1, 1], [d.year, d.mon, d.mday])
+    d = RubyDate.new(2000,12,31).next_day(2)
+    assert_equal([2001, 1, 2], [d.year, d.mon, d.mday])
+    d = RubyDate.new(2001,1,1).next_day(-2)
+    assert_equal([2000, 12, 30], [d.year, d.mon, d.mday])
+  end
+
+  def test_next_month
+    d = RubyDate.new(2000,1,31) >> -1
+    assert_equal([1999, 12, 31], [d.year, d.mon, d.mday])
+    d = RubyDate.new(2000,1,31) >> 1
+    assert_equal([2000, 2, 29], [d.year, d.mon, d.mday])
+    d = RubyDate.new(2000,1,31) >> 12
+    assert_equal([2001, 1, 31], [d.year, d.mon, d.mday])
+    d = RubyDate.new(2000,1,31) >> 13
+    assert_equal([2001, 2, 28], [d.year, d.mon, d.mday])
+  end
+
+  def test_next_month__2
+    d = RubyDate.new(2000,1,31).next_month(-1)
+    assert_equal([1999, 12, 31], [d.year, d.mon, d.mday])
+    d = RubyDate.new(2000,1,31).next_month
+    assert_equal([2000, 2, 29], [d.year, d.mon, d.mday])
+    d = RubyDate.new(2000,1,31).next_month(12)
+    assert_equal([2001, 1, 31], [d.year, d.mon, d.mday])
+    d = RubyDate.new(2000,1,31).next_month(13)
+    assert_equal([2001, 2, 28], [d.year, d.mon, d.mday])
+  end
+
+  def test_next_year
+    d = RubyDate.new(2000,1,31).next_year(-1)
+    assert_equal([1999, 1, 31], [d.year, d.mon, d.mday])
+    d = RubyDate.new(2000,1,31).next_year
+    assert_equal([2001, 1, 31], [d.year, d.mon, d.mday])
+    d = RubyDate.new(2000,1,31).next_year(10)
+    assert_equal([2010, 1, 31], [d.year, d.mon, d.mday])
+    d = RubyDate.new(2000,1,31).next_year(100)
+    assert_equal([2100, 1, 31], [d.year, d.mon, d.mday])
+  end
+
+  def test_downto
+    p = RubyDate.new(2001,1,14)
+    q = RubyDate.new(2001,1,7)
+    i = 0
+    p.downto(q) do
+      i += 1
+    end
+    assert_equal(8, i)
+  end
+
+  def test_downto__noblock
+    p = RubyDate.new(2001,1,14)
+    q = RubyDate.new(2001,1,7)
+    e = p.downto(q)
+    assert_equal(8, e.to_a.size)
+  end
+
+  def test_upto
+    p = RubyDate.new(2001,1,14)
+    q = RubyDate.new(2001,1,21)
+    i = 0
+    p.upto(q) do
+      i += 1
+    end
+    assert_equal(8, i)
+  end
+
+  def test_upto__noblock
+    p = RubyDate.new(2001,1,14)
+    q = RubyDate.new(2001,1,21)
+    e = p.upto(q)
+    assert_equal(8, e.to_a.size)
+  end
+
+  def test_step
+    p = RubyDate.new(2001,1,14)
+    q = RubyDate.new(2001,1,21)
+    i = 0
+    p.step(q, 2) do
+      i += 1
+    end
+    assert_equal(4, i)
+
+    i = 0
+    p.step(q) do
+      i += 1
+    end
+    assert_equal(8, i)
+  end
+
+  def test_step__noblock
+    p = RubyDate.new(2001,1,14)
+    q = RubyDate.new(2001,1,21)
+    e = p.step(q, 2)
+    assert_equal(4, e.to_a.size)
+
+    e = p.step(q)
+    assert_equal(8, e.to_a.size)
+  end
+
+  def test_step__compare
+    p = RubyDate.new(2000, 1, 1)
+    q = RubyDate.new(1999, 12, 31)
+    o = Object.new
+    def o.<=>(*);end
+    assert_raise(ArgumentError) {
+      p.step(q, o).to_a
+    }
+
+    o = Object.new
+    def o.<=>(*);2;end
+    a = []
+    p.step(q, o) {|d| a << d}
+    assert_empty(a)
+  end
 end
