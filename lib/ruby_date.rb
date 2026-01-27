@@ -2408,6 +2408,18 @@ class RubyDate
   end
 
   # call-seq:
+  #   cwyear -> integer
+  #
+  # Returns commercial-date year for +self+
+  # (see Date.commercial):
+  #
+  #   Date.new(2001, 2, 3).cwyear # => 2001
+  #   Date.new(2000, 1, 1).cwyear # => 1999
+  def cwyear
+    m_real_cwyear
+  end
+
+  # call-seq:
   #   infinite? -> false
   #
   # Returns +false+
@@ -3224,5 +3236,21 @@ class RubyDate
     else
       n.quo(DAY_IN_SECONDS * SECOND_IN_NANOSECONDS)
     end
+  end
+
+  def m_real_cwyear
+    nth = m_nth
+    year = m_cwyear
+
+    nth.zero? ? year : encode_year(nth, year, m_gregorian_p? ? -1 : 1)
+  end
+
+  def m_cwyear
+    jd = m_local_jd
+    sg = m_virtual_sg
+
+    ry, _, _ = self.class.send(:c_jd_to_commercial, jd, sg)
+
+    ry
   end
 end
