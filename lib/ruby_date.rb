@@ -2386,6 +2386,16 @@ class RubyDate
   end
 
   # call-seq:
+  #   day_fraction -> rational
+  #
+  # Returns the fractional part of the day in range (Rational(0, 1)...Rational(1, 1)):
+  #
+  #   DateTime.new(2001,2,3,12).day_fraction # => (1/2)
+  def day_fraction
+    simple_dat_p? ? 0 : m_fr
+  end
+
+  # call-seq:
   #   infinite? -> false
   #
   # Returns +false+
@@ -3155,5 +3165,52 @@ class RubyDate
     jd = m_local_jd
 
     self.class.send(:encode_jd, nth, jd)
+  end
+
+  def m_fr
+    if simple_dat_p
+      0
+    else
+      df = m_local_df
+      sf = m_sf
+
+      fr = isec_to_day(df)
+      fr = fr + ns_to_day(sf) if sf.nonzero?
+
+      fr
+    end
+  end
+
+  def m_local_df
+    if simple_dat_p
+      0
+    else
+      get_c_df
+      local_df
+    end
+  end
+
+  def local_df
+    df_utc_to_local(@df || 0, @of || 0)
+  end
+
+  def m_sf
+    simple_dat_p? ? 0 : (@sf || 0)
+  end
+
+  def isec_to_day(s)
+    sec_to_day(s)
+  end
+
+  def sec_to_day(s)
+    s.is_a?(Integer) ? Rational(s, DAY_IN_SECONDS) : s.quo(DAY_IN_SECONDS)
+  end
+
+  def ns_to_day(n)
+    if n.is_a?(Integer)
+      Rational(n, DAY_IN_SECONDS * SECOND_IN_NANOSECONDS)
+    else
+      n.quo(DAY_IN_SECONDS * SECOND_IN_NANOSECONDS)
+    end
   end
 end
