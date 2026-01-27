@@ -2420,6 +2420,17 @@ class RubyDate
   end
 
   # call-seq:
+  #   cweek -> integer
+  #
+  # Returns commercial-date week index for +self+
+  # (see Date.commercial):
+  #
+  #   Date.new(2001, 2, 3).cweek # => 5
+  def cweek
+    m_cweek
+  end
+
+  # call-seq:
   #   infinite? -> false
   #
   # Returns +false+
@@ -3252,5 +3263,14 @@ class RubyDate
     ry, _, _ = self.class.send(:c_jd_to_commercial, jd, sg)
 
     ry
+  end
+
+  def m_cweek
+    jd = m_local_jd
+    sg = m_virtual_sg
+
+    _, rw, _ = self.class.send(:c_jd_to_commercial, jd, sg)
+
+    rw
   end
 end
