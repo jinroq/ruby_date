@@ -2431,6 +2431,18 @@ class RubyDate
   end
 
   # call-seq:
+  #   cwday -> integer
+  #
+  # Returns the commercial-date weekday index for +self+
+  # (see Date.commercial);
+  # 1 is Monday:
+  #
+  #   Date.new(2001, 2, 3).cwday # => 6
+  def cwday
+    m_cwday
+  end
+
+  # call-seq:
   #   infinite? -> false
   #
   # Returns +false+
@@ -3272,5 +3284,19 @@ class RubyDate
     _, rw, _ = self.class.send(:c_jd_to_commercial, jd, sg)
 
     rw
+  end
+
+  def m_cwday
+    w = m_wday
+    # ISO 8601 places Sunday at 7.
+    w.zero? ? 7 : w
+  end
+
+  def m_wday
+    c_jd_to_wday(m_local_jd)
+  end
+
+  def c_jd_to_wday(jd)
+    (jd + 1) % 7
   end
 end

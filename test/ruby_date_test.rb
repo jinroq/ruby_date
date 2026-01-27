@@ -416,4 +416,78 @@ class RubyDateTest < Test::Unit::TestCase
     p.step(q, o) {|d| a << d}
     assert_empty(a)
   end
+
+  # copy from date/test/date/test_date_attr.rb
+
+  def test__attr
+    d = RubyDate.new(1965, 5, 23)
+
+    assert_equal('1965-05-23', d.to_s)
+
+    assert_equal('', d.inspect.gsub!(/./,''))
+    assert_equal('', d.to_s.gsub!(/./,''))
+
+    assert_equal(2438904, d.jd)
+
+    assert_equal(0, d.day_fraction)
+
+    assert_equal(38903, d.mjd)
+    assert_equal(139744, d.ld)
+
+    assert_equal(1965, d.year)
+    assert_equal(143, d.yday)
+    assert_equal(5, d.mon)
+    assert_equal(d.mon, d.month)
+    assert_equal(23, d.mday)
+    assert_equal(d.mday, d.day)
+
+    assert_equal(false, d.respond_to?(:hour))
+    assert_equal(false, d.respond_to?(:min))
+    assert_equal(false, d.respond_to?(:sec))
+    assert_equal(false, d.respond_to?(:sec_fraction))
+    assert_equal(false, d.respond_to?(:zone))
+    assert_equal(false, d.respond_to?(:offset))
+
+    assert_equal(1965, d.cwyear)
+    assert_equal(20, d.cweek)
+    assert_equal(7, d.cwday)
+
+    assert_equal(0, d.wday)
+    assert_equal(false, d.leap?)
+    assert_equal(false, d.julian?)
+    assert_equal(true, d.gregorian?)
+
+    assert_equal(RubyDate::ITALY, d.start)
+    assert_equal(d.start, d.start)
+  end
+
+  def test__wday_predicate
+    d = RubyDate.new(2005, 10, 23)
+    assert_equal(true, d.sunday?)
+    assert_equal(false, d.monday?)
+    assert_equal(false, d.tuesday?)
+    assert_equal(false, d.wednesday?)
+    assert_equal(false, d.thursday?)
+    assert_equal(false, d.friday?)
+    assert_equal(false, d.saturday?)
+
+    d = RubyDate.new(2005, 10, 30)
+    14.times do |i|
+      assert((d + i).__send__(%w(sunday? monday? tuesday? wednesday? thursday? friday? saturday?)[i % 7]))
+    end
+  end
+
+  def test_nth_kday
+    assert_equal(false, RubyDate.new(2001,1,14).nth_kday?(1,0))
+    assert_equal(true, RubyDate.new(2001,1,14).nth_kday?(2,0))
+    assert_equal(false, RubyDate.new(2001,1,14).nth_kday?(3,0))
+    assert_equal(false, RubyDate.new(2001,1,14).nth_kday?(4,0))
+    assert_equal(false, RubyDate.new(2001,1,14).nth_kday?(5,0))
+    assert_equal(false, RubyDate.new(2001,1,14).nth_kday?(-1,0))
+    assert_equal(false, RubyDate.new(2001,1,14).nth_kday?(-2,0))
+    assert_equal(true, RubyDate.new(2001,1,14).nth_kday?(-3,0))
+    assert_equal(false, RubyDate.new(2001,1,14).nth_kday?(-4,0))
+    assert_equal(false, RubyDate.new(2001,1,14).nth_kday?(-5,0))
+  end if RubyDate.new.respond_to?(:nth_kday?, true)
+
 end
