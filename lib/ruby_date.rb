@@ -2464,6 +2464,14 @@ class RubyDate
   end
 
   # call-seq:
+  #   to_date -> self
+  #
+  # Returns +self+.
+  def to_date
+    self
+  end
+
+  # call-seq:
   #   infinite? -> false
   #
   # Returns +false+
@@ -3306,4 +3314,9 @@ class Time
   def to_time
     self
   end unless method_defined?(:to_time)
+
+  def to_date
+    # Create Date from Time.
+    RubyDate.civil(year, month, day)
+  end unless method_defined?(:to_date)
 end
