@@ -1932,10 +1932,10 @@ class RubyDate
       end
 
       if jd.nonzero?
-        jd = @jd + jd
+        jd = m_jd + jd
         nth, jd = canonicalize_jd(nth, jd)
       else
-        jd = @jd
+        jd = m_jd
       end
 
       nth = nth.nonzero? ? @nth + nth : @nth
@@ -1971,7 +1971,7 @@ class RubyDate
       end
 
       if sf.nonzero?
-        sf = 0 + sf
+        sf = (@sf || 0) + sf
         if sf < 0
           df -= 1
           sf += SECOND_IN_NANOSECONDS
@@ -1979,10 +1979,12 @@ class RubyDate
           df += 1
           sf -= SECOND_IN_NANOSECONDS
         end
+      else
+        sf = @sf || 0
       end
 
       if df.nonzero?
-        df = 0 + df
+        df = (@df || 0) + df
         if df < 0
           jd -= 1
           df += DAY_IN_SECONDS
@@ -1990,13 +1992,15 @@ class RubyDate
           jd += 1
           df -= DAY_IN_SECONDS
         end
+      else
+        df = @df || 0
       end
 
       if jd.nonzero?
-        jd = @jd + jd
+        jd = m_jd + jd
         nth, jd = canonicalize_jd(nth, jd)
       else
-        jd = @jd
+        jd = m_jd
       end
 
       nth = nth.nonzero? ? @nth + nth : @nth
@@ -3236,7 +3240,7 @@ class RubyDate
   end
 
   def m_fr
-    if simple_dat_p
+    if simple_dat_p?
       0
     else
       df = m_local_df
@@ -3250,7 +3254,7 @@ class RubyDate
   end
 
   def m_local_df
-    if simple_dat_p
+    if simple_dat_p?
       0
     else
       get_c_df
