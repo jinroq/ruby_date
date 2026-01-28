@@ -3301,3 +3301,9 @@ class RubyDate
     w.zero? ? 7 : w
   end
 end
+
+class Time
+  def to_time
+    self
+  end unless method_defined?(:to_time)
+end
