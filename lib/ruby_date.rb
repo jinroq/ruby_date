@@ -2443,6 +2443,27 @@ class RubyDate
   end
 
   # call-seq:
+  #   to_time -> time
+  #
+  # Returns a new Time object with the same value as +self+;
+  # if +self+ is a Julian date, derives its Gregorian date
+  # for conversion to the \Time object:
+  #
+  #   Date.new(2001, 2, 3).to_time               # => 2001-02-03 00:00:00 -0600
+  #   Date.new(2001, 2, 3, Date::JULIAN).to_time # => 2001-02-16 00:00:00 -0600
+  def to_time
+    # Julian calendar converted to Gregorian calendar.
+    date = m_julian_p? ? gregorian : self
+
+    # Create a Time object using Time.local.
+    Time.local(
+      date.send(:m_real_year),
+      date.send(:m_mon),
+      date.send(:m_mday)
+    )
+  end
+
+  # call-seq:
   #   infinite? -> false
   #
   # Returns +false+
