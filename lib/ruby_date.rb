@@ -2565,11 +2565,40 @@ class RubyDate
     sprintf("%04d-%02d-%02d", year, month, day)
   end
 
+  # call-seq:
+  #   inspect -> string
+  #
+  # Returns a string representation of +self+:
+  #
+  #   Date.new(2001, 2, 3).inspect
+  #   # => "#<Date: 2001-02-03 ((2451944j,0s,0n),+0s,2299161j)>"
   def inspect
-    "#<#{self.class}: #{to_s} ((#{jd}j,0s,0n),+0s,#{@sg.to_i}j)>"
+    if simple_dat_p?
+      inspect_raw
+    else
+      # In the case of complex, time information is also displayed.
+      strftime("%Y-%m-%d %H:%M:%S")
+    end
   end
 
   private
+
+  def inspect_raw
+    # If @sg is infinity
+    if @sg.infinite?
+      if @sg < 0
+        return "#<Date: -Inf-XX-XX ((0j,0s,0n),+0s,Inf)>"
+      else
+        return "#<Date: +Inf-XX-XX ((0j,0s,0n),+0s,-Inf)>"
+      end
+    end
+
+    date_str = strftime("%Y-%m-%d")
+    jd_val = @jd || 0
+    sg_val = @sg.infinite? ? (@sg < 0 ? "Inf" : "-Inf") : @sg.to_i
+
+    "#<Date: #{date_str} ((#{jd_val}j,0s,0n),+0s,#{sg_val}j)>"
+  end
 
   def valid_civil?(y, m, d)
     return false if m < 1 || m > 12
@@ -2728,8 +2757,9 @@ class RubyDate
     # For simple data, if JD has not yet been calculated.
     return if @has_jd
 
-    # Make sure you have civil data.
-    raise "No civil data" unless @has_civil
+    return unless simple_dat_p?
+
+    return unless @has_civil
 
     # Calculate JD from civil.
     jd, _ = self.class.send(:c_civil_to_jd, @year, @month, @day, s_virtual_sg)
@@ -3116,7 +3146,7 @@ class RubyDate
 
   def set_sg(sg)
     if simple_dat_p?
-      get_s_jd
+      get_s_jd if @has_jd || @has_civil
     else
       get_c_jd
       get_c_df
@@ -3320,7 +3350,22 @@ class Time
   end unless method_defined?(:to_time)
 
   def to_date
-    # Create Date from Time.
-    RubyDate.civil(year, month, day)
+    y = year
+    m = month
+    d = day
+
+    nth, ry = RubyDate.send(:decode_year, y, -1)
+
+    # First, create it in GREGORIAN (dates during the reform period are also valid).
+    obj = RubyDate.send(:d_simple_new_internal,
+                        nth, 0,
+                        RubyDate::GREGORIAN,
+                        ry, m, d,
+                        0x04)  # RubyDate::HAVE_CIVIL
+
+    # Then change to DEFAULT_SG.
+    obj.send(:set_sg, RubyDate::ITALY)
+
+    obj
   end unless method_defined?(:to_date)
 end
