@@ -2475,6 +2475,37 @@ class RubyDate
     self
   end
 
+  # :nodoc:
+  def marshal_dump
+    [
+      m_nth,
+      m_jd,
+      m_df,
+      m_sf,
+      m_of,
+      @sg
+    ]
+  end
+
+  # :nodoc:
+  def marshal_load(array)
+    nth, jd, df, sf, of, sg = array
+
+    @nth = nth
+    @jd = jd
+    @df = df == 0 ? nil : df
+    @sf = sf == 0 ? nil : sf
+    @of = of == 0 ? nil : of
+    @sg = sg
+
+    @has_jd = true
+    @has_civil = false
+
+    @year = nil
+    @month = nil
+    @day = nil
+  end
+
   # call-seq:
   #   infinite? -> false
   #
@@ -2969,6 +3000,15 @@ class RubyDate
 
   def m_sf
     simple_dat_p? ? 0 : @sf || 0
+  end
+
+  def m_of
+    if simple_dat_p?
+      0
+    else
+      get_c_jd
+      @of || 0
+    end
   end
 
   def m_real_year
