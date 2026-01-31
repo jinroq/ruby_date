@@ -2504,18 +2504,6 @@ class RubyDate
     m_amjd
   end
 
-  # call-seq:
-  #    d.mjd  ->  integer
-  #
-  # Returns the modified Julian day number.  This is a whole number,
-  # which is adjusted by the offset as the local time.
-  #
-  #    DateTime.new(2001,2,3,4,5,6,'+7').mjd    #=> 51943
-  #    DateTime.new(2001,2,3,4,5,6,'-7').mjd    #=> 51943
-  def mjd
-    m_real_local_jd - 2400001
-  end
-
   # :nodoc:
   def marshal_dump
     [
