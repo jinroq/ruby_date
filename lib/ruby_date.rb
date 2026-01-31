@@ -31,9 +31,10 @@ class RubyDate
   MINUTE_IN_SECONDS      = 60
   HOUR_IN_SECONDS        = 3600
   DAY_IN_SECONDS         = 86400
+  HALF_DAYS_IN_SECONDS   = DAY_IN_SECONDS / 2
   SECOND_IN_MILLISECONDS = 1000
   SECOND_IN_NANOSECONDS  = 1_000_000_000
-  private_constant :MINUTE_IN_SECONDS, :HOUR_IN_SECONDS, :DAY_IN_SECONDS, :SECOND_IN_MILLISECONDS, :SECOND_IN_NANOSECONDS
+  private_constant :MINUTE_IN_SECONDS, :HOUR_IN_SECONDS, :DAY_IN_SECONDS, :SECOND_IN_MILLISECONDS, :SECOND_IN_NANOSECONDS, :HALF_DAYS_IN_SECONDS
 
   JC_PERIOD0 = 1461     # 365.25 * 4
   GC_PERIOD0 = 146097   # 365.2425 * 400
@@ -2511,6 +2512,18 @@ class RubyDate
   end
 
   # call-seq:
+  #    d.ajd  ->  rational
+  #
+  # Returns the astronomical Julian day number.  This is a fractional
+  # number, which is not adjusted by the offset.
+  #
+  #    DateTime.new(2001,2,3,4,5,6,'+7').ajd    #=> (11769328217/4800)
+  #    DateTime.new(2001,2,2,14,5,6,'-7').ajd   #=> (11769328217/4800)
+  def ajd
+    m_ajd
+  end
+
+  # call-seq:
   #   infinite? -> false
   #
   # Returns +false+
@@ -3385,6 +3398,37 @@ class RubyDate
     w = m_wday
     # ISO 8601 places Sunday at 7.
     w.zero? ? 7 : w
+  end
+
+  def m_ajd
+    if simple_dat_p?
+      # For simple date:
+      r = m_real_jd
+
+      # Optimization: Integer operations within Fixnum range
+      if r.is_a?(Integer) && r <= (2**62 - 1) / 2 && r >= (-(2**62) + 1) / 2
+        ir = r * 2 - 1
+        return Rational(ir, 2)
+      else
+        return Rational(r * 2 - 1, 2)
+      end
+    end
+
+    # For complex date:
+    r = m_real_jd
+    df = m_df
+
+    # Subtract half a day (12 hours) from df.
+    df -= HALF_DAYS_IN_SECONDS
+
+    # If df is not zero, add.
+    r = r + isec_to_day(df) if df.nonzero?
+
+    # If sf is not zero, add.
+    sf = m_sf
+    r = r + ns_to_day(sf) if sf.nonzero?
+
+    r
   end
 end
 
