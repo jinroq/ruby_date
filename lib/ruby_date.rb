@@ -2480,6 +2480,30 @@ class RubyDate
     self
   end
 
+  # call-seq:
+  #    d.ajd  ->  rational
+  #
+  # Returns the astronomical Julian day number.  This is a fractional
+  # number, which is not adjusted by the offset.
+  #
+  #    DateTime.new(2001,2,3,4,5,6,'+7').ajd    #=> (11769328217/4800)
+  #    DateTime.new(2001,2,2,14,5,6,'-7').ajd   #=> (11769328217/4800)
+  def ajd
+    m_ajd
+  end
+
+  # call-seq:
+  #    d.amjd  ->  rational
+  #
+  # Returns the astronomical modified Julian day number.  This is
+  # a fractional number, which is not adjusted by the offset.
+  #
+  #    DateTime.new(2001,2,3,4,5,6,'+7').amjd   #=> (249325817/4800)
+  #    DateTime.new(2001,2,2,14,5,6,'-7').amjd  #=> (249325817/4800)
+  def amjd
+    m_amjd
+  end
+
   # :nodoc:
   def marshal_dump
     [
@@ -2509,18 +2533,6 @@ class RubyDate
     @year = nil
     @month = nil
     @day = nil
-  end
-
-  # call-seq:
-  #    d.ajd  ->  rational
-  #
-  # Returns the astronomical Julian day number.  This is a fractional
-  # number, which is not adjusted by the offset.
-  #
-  #    DateTime.new(2001,2,3,4,5,6,'+7').ajd    #=> (11769328217/4800)
-  #    DateTime.new(2001,2,2,14,5,6,'-7').ajd   #=> (11769328217/4800)
-  def ajd
-    m_ajd
   end
 
   # call-seq:
@@ -3422,11 +3434,35 @@ class RubyDate
     df -= HALF_DAYS_IN_SECONDS
 
     # If df is not zero, add.
-    r = r + isec_to_day(df) if df.nonzero?
+    r = r + isec_to_day(df) if df != 0
 
     # If sf is not zero, add.
     sf = m_sf
-    r = r + ns_to_day(sf) if sf.nonzero?
+    r = r + ns_to_day(sf) if sf != 0
+
+    r
+  end
+
+  def m_amjd
+    r = m_real_jd
+
+    # Optimization: Integer operations within Fixnum range
+    if r.is_a?(Integer) && r >= (-(2**62) + 2400001)
+      ir = r - 2400001
+      r = Rational(ir, 1)
+    else
+      r = Rational(m_real_jd - 2400001, 1)
+    end
+
+    # For simple date, stop here.
+    return r if simple_dat_p?
+
+    # For complex date, add df and sf.
+    df = m_df
+    r = r + isec_to_day(df) if df != 0
+
+    sf = m_sf
+    r = r + ns_to_day(sf) if sf != 0
 
     r
   end
