@@ -760,16 +760,16 @@ class RubyDateTest < Test::Unit::TestCase
     assert_equal([2001, 2, 3], [d.year, d.mon, d.mday])
     d = RubyDate.new(2001, 2, Rational('3.5'))
     assert_equal([2001, 2, 3], [d.year, d.mon, d.mday])
-    d = RubyDate.new(2001,2, 3, Date::JULIAN)
+    d = RubyDate.new(2001,2, 3, RubyDate::JULIAN)
     assert_equal([2001, 2, 3], [d.year, d.mon, d.mday])
-    d = RubyDate.new(2001,2, 3, Date::GREGORIAN)
+    d = RubyDate.new(2001,2, 3, RubyDate::GREGORIAN)
     assert_equal([2001, 2, 3], [d.year, d.mon, d.mday])
 
     d = RubyDate.new(2001,-12, -31)
     assert_equal([2001, 1, 1], [d.year, d.mon, d.mday])
-    d = RubyDate.new(2001,-12, -31, Date::JULIAN)
+    d = RubyDate.new(2001,-12, -31, RubyDate::JULIAN)
     assert_equal([2001, 1, 1], [d.year, d.mon, d.mday])
-    d = RubyDate.new(2001,-12, -31, Date::GREGORIAN)
+    d = RubyDate.new(2001,-12, -31, RubyDate::GREGORIAN)
     assert_equal([2001, 1, 1], [d.year, d.mon, d.mday])
 
     # d = DateTime.new(2001, 2, 3, 4, 5, 6)
@@ -793,10 +793,10 @@ class RubyDateTest < Test::Unit::TestCase
     # d = DateTime.new(2001, -12, -31, -4, -5, -6, '-09:00')
     # assert_equal([2001, 1, 1, 20, 55, 54, Rational(-9,24)],
     #              [d.year, d.mon, d.mday, d.hour, d.min, d.sec, d.offset])
-    # d = DateTime.new(2001, -12, -31, -4, -5, -6, '-09:00', Date::JULIAN)
+    # d = DateTime.new(2001, -12, -31, -4, -5, -6, '-09:00', RubyDate::JULIAN)
     # assert_equal([2001, 1, 1, 20, 55, 54, Rational(-9,24)],
     #              [d.year, d.mon, d.mday, d.hour, d.min, d.sec, d.offset])
-    # d = DateTime.new(2001, -12, -31, -4, -5, -6, '-09:00', Date::GREGORIAN)
+    # d = DateTime.new(2001, -12, -31, -4, -5, -6, '-09:00', RubyDate::GREGORIAN)
     # assert_equal([2001, 1, 1, 20, 55, 54, Rational(-9,24)],
     #              [d.year, d.mon, d.mday, d.hour, d.min, d.sec, d.offset])
   end
@@ -845,14 +845,14 @@ class RubyDateTest < Test::Unit::TestCase
 
     d = RubyDate.ordinal(2001, 2)
     assert_equal([2001, 2], [d.year, d.yday])
-    d = RubyDate.ordinal(2001, 2, Date::JULIAN)
+    d = RubyDate.ordinal(2001, 2, RubyDate::JULIAN)
     assert_equal([2001, 2], [d.year, d.yday])
-    d = RubyDate.ordinal(2001, 2, Date::GREGORIAN)
+    d = RubyDate.ordinal(2001, 2, RubyDate::GREGORIAN)
     assert_equal([2001, 2], [d.year, d.yday])
 
-    d = RubyDate.ordinal(2001, -2, Date::JULIAN)
+    d = RubyDate.ordinal(2001, -2, RubyDate::JULIAN)
     assert_equal([2001, 364], [d.year, d.yday])
-    d = RubyDate.ordinal(2001, -2, Date::GREGORIAN)
+    d = RubyDate.ordinal(2001, -2, RubyDate::GREGORIAN)
     assert_equal([2001, 364], [d.year, d.yday])
 
     # d = DateTime.ordinal
@@ -886,16 +886,16 @@ class RubyDateTest < Test::Unit::TestCase
 
     d = RubyDate.commercial(2001, 2, 3)
     assert_equal([2001, 2, 3], [d.cwyear, d.cweek, d.cwday])
-    d = RubyDate.commercial(2001, 2, 3, Date::JULIAN)
+    d = RubyDate.commercial(2001, 2, 3, RubyDate::JULIAN)
     assert_equal([2001, 2, 3], [d.cwyear, d.cweek, d.cwday])
-    d = RubyDate.commercial(2001, 2, 3, Date::GREGORIAN)
+    d = RubyDate.commercial(2001, 2, 3, RubyDate::GREGORIAN)
     assert_equal([2001, 2, 3], [d.cwyear, d.cweek, d.cwday])
 
     d = RubyDate.commercial(2001, -2, -3)
     assert_equal([2001, 51, 5], [d.cwyear, d.cweek, d.cwday])
-    d = RubyDate.commercial(2001, -2, -3, Date::JULIAN)
+    d = RubyDate.commercial(2001, -2, -3, RubyDate::JULIAN)
     assert_equal([2001, 51, 5], [d.cwyear, d.cweek, d.cwday])
-    d = RubyDate.commercial(2001, -2, -3, Date::GREGORIAN)
+    d = RubyDate.commercial(2001, -2, -3, RubyDate::GREGORIAN)
     assert_equal([2001, 51, 5], [d.cwyear, d.cweek, d.cwday])
 
     # d = DateTime.commercial
@@ -1052,7 +1052,7 @@ class RubyDateTest < Test::Unit::TestCase
     assert_equal(0, RubyDate.new(2001,2,3) <=> Rational('4903887/2'))
     assert_equal(1, RubyDate.new(2001,2,3) <=> Rational('4903886/2'))
 
-    assert_equal(-1, RubyDate.new(-4713,11,1,Date::GREGORIAN) <=> RubyDate.new(-4713,12,1,Date::GREGORIAN))
+    assert_equal(-1, RubyDate.new(-4713,11,1,RubyDate::GREGORIAN) <=> RubyDate.new(-4713,12,1,RubyDate::GREGORIAN))
   end
 
   def test_eqeqeq
@@ -1078,12 +1078,12 @@ class RubyDateTest < Test::Unit::TestCase
     d2 = d.gregorian
     assert_equal([-5001, 11, 22, 5], [d2.year, d2.mon, d2.mday, d.wday])
 
-    d = RubyDate.new(-5000,1,1,Date::JULIAN)
+    d = RubyDate.new(-5000,1,1,RubyDate::JULIAN)
     assert_equal([-5000, 1, 1, 5], [d.year, d.mon, d.mday, d.wday])
     d2 = d.gregorian
     assert_equal([-5001, 11, 22, 5], [d2.year, d2.mon, d2.mday, d.wday])
 
-    d = RubyDate.new(-5000,1,1,Date::GREGORIAN)
+    d = RubyDate.new(-5000,1,1,RubyDate::GREGORIAN)
     assert_equal([-5000, 1, 1, 3], [d.year, d.mon, d.mday, d.wday])
     d2 = d.julian
     assert_equal([-5000, 2, 10, 3], [d2.year, d2.mon, d2.mday, d.wday])
@@ -1093,12 +1093,12 @@ class RubyDateTest < Test::Unit::TestCase
     d2 = d.gregorian
     assert_equal([-5001, 11, 22, 5], [d2.year, d2.mon, d2.mday, d.wday])
 
-    d = RubyDate.jd(-105192,Date::JULIAN)
+    d = RubyDate.jd(-105192,RubyDate::JULIAN)
     assert_equal([-5000, 1, 1, 5], [d.year, d.mon, d.mday, d.wday])
     d2 = d.gregorian
     assert_equal([-5001, 11, 22, 5], [d2.year, d2.mon, d2.mday, d.wday])
 
-    d = RubyDate.jd(-105152,Date::GREGORIAN)
+    d = RubyDate.jd(-105152,RubyDate::GREGORIAN)
     assert_equal([-5000, 1, 1, 3], [d.year, d.mon, d.mday, d.wday])
     d2 = d.julian
     assert_equal([-5000, 2, 10, 3], [d2.year, d2.mon, d2.mday, d.wday])
@@ -1109,12 +1109,12 @@ class RubyDateTest < Test::Unit::TestCase
     d2 = d.gregorian
     assert_equal([-5_000_103, 4, 28, 3], [d2.year, d2.mon, d2.mday, d.wday])
 
-    d = RubyDate.new(-5_000_000,1,1,Date::JULIAN)
+    d = RubyDate.new(-5_000_000,1,1,RubyDate::JULIAN)
     assert_equal([-5_000_000, 1, 1, 3], [d.year, d.mon, d.mday, d.wday])
     d2 = d.gregorian
     assert_equal([-5_000_103, 4, 28, 3], [d2.year, d2.mon, d2.mday, d.wday])
 
-    d = RubyDate.new(-5_000_000,1,1,Date::GREGORIAN)
+    d = RubyDate.new(-5_000_000,1,1,RubyDate::GREGORIAN)
     assert_equal([-5_000_000, 1, 1, 6], [d.year, d.mon, d.mday, d.wday])
     d2 = d.julian
     assert_equal([-4_999_898, 9, 4, 6], [d2.year, d2.mon, d2.mday, d.wday])
@@ -1124,12 +1124,12 @@ class RubyDateTest < Test::Unit::TestCase
     d2 = d.gregorian
     assert_equal([-5_000_103, 4, 28, 3], [d2.year, d2.mon, d2.mday, d.wday])
 
-    d = RubyDate.jd(-1824528942,Date::JULIAN)
+    d = RubyDate.jd(-1824528942,RubyDate::JULIAN)
     assert_equal([-5_000_000, 1, 1, 3], [d.year, d.mon, d.mday, d.wday])
     d2 = d.gregorian
     assert_equal([-5_000_103, 4, 28, 3], [d2.year, d2.mon, d2.mday, d.wday])
 
-    d = RubyDate.jd(-1824491440,Date::GREGORIAN)
+    d = RubyDate.jd(-1824491440,RubyDate::GREGORIAN)
     assert_equal([-5_000_000, 1, 1, 6], [d.year, d.mon, d.mday, d.wday])
     d2 = d.julian
     assert_equal([-4_999_898, 9, 4, 6], [d2.year, d2.mon, d2.mday, d.wday])
@@ -1140,12 +1140,12 @@ class RubyDateTest < Test::Unit::TestCase
     d2 = d.julian
     assert_equal([4_999_897, 5, 3, 6], [d2.year, d2.mon, d2.mday, d.wday])
 
-    d = RubyDate.new(5_000_000,1,1,Date::JULIAN)
+    d = RubyDate.new(5_000_000,1,1,RubyDate::JULIAN)
     assert_equal([5_000_000, 1, 1, 5], [d.year, d.mon, d.mday, d.wday])
     d2 = d.gregorian
     assert_equal([5_000_102, 9, 1, 5], [d2.year, d2.mon, d2.mday, d.wday])
 
-    d = RubyDate.new(5_000_000,1,1,Date::GREGORIAN)
+    d = RubyDate.new(5_000_000,1,1,RubyDate::GREGORIAN)
     assert_equal([5_000_000, 1, 1, 6], [d.year, d.mon, d.mday, d.wday])
     d2 = d.julian
     assert_equal([4_999_897, 5, 3, 6], [d2.year, d2.mon, d2.mday, d.wday])
@@ -1155,12 +1155,12 @@ class RubyDateTest < Test::Unit::TestCase
     d2 = d.julian
     assert_equal([4_999_897, 5, 3, 6], [d2.year, d2.mon, d2.mday, d.wday])
 
-    d = RubyDate.jd(1827971058,Date::JULIAN)
+    d = RubyDate.jd(1827971058,RubyDate::JULIAN)
     assert_equal([5_000_000, 1, 1, 5], [d.year, d.mon, d.mday, d.wday])
     d2 = d.gregorian
     assert_equal([5_000_102, 9, 1, 5], [d2.year, d2.mon, d2.mday, d.wday])
 
-    d = RubyDate.jd(1827933560,Date::GREGORIAN)
+    d = RubyDate.jd(1827933560,RubyDate::GREGORIAN)
     assert_equal([5_000_000, 1, 1, 6], [d.year, d.mon, d.mday, d.wday])
     d2 = d.julian
     assert_equal([4_999_897, 5, 3, 6], [d2.year, d2.mon, d2.mday, d.wday])
@@ -1199,10 +1199,10 @@ class RubyDateTest < Test::Unit::TestCase
   end
 
   def period2_iter(from, to)
-    period2_iter2(from, to, Date::GREGORIAN)
-    period2_iter2(from, to, Date::ITALY)
-    period2_iter2(from, to, Date::ENGLAND)
-    period2_iter2(from, to, Date::JULIAN)
+    period2_iter2(from, to, RubyDate::GREGORIAN)
+    period2_iter2(from, to, RubyDate::ITALY)
+    period2_iter2(from, to, RubyDate::ENGLAND)
+    period2_iter2(from, to, RubyDate::JULIAN)
   end
 
   def test_period2
@@ -1216,54 +1216,54 @@ class RubyDateTest < Test::Unit::TestCase
   end
 
   def test_different_alignments
-    assert_equal(0, RubyDate.jd(0) <=> RubyDate.civil(-4713, 11, 24, Date::GREGORIAN))
+    assert_equal(0, RubyDate.jd(0) <=> RubyDate.civil(-4713, 11, 24, RubyDate::GREGORIAN))
     assert_equal(0, RubyDate.jd(213447717) <=> RubyDate.civil(579687, 11, 24))
-    assert_equal(0, RubyDate.jd(-213447717) <=> RubyDate.civil(-589113, 11, 24, Date::GREGORIAN))
+    assert_equal(0, RubyDate.jd(-213447717) <=> RubyDate.civil(-589113, 11, 24, RubyDate::GREGORIAN))
 
-    # assert_equal(0, RubyDate.jd(0) <=> DateTime.civil(-4713, 11, 24, 0, 0, 0, 0, Date::GREGORIAN))
+    # assert_equal(0, RubyDate.jd(0) <=> DateTime.civil(-4713, 11, 24, 0, 0, 0, 0, RubyDate::GREGORIAN))
     # assert_equal(0, RubyDate.jd(213447717) <=> DateTime.civil(579687, 11, 24))
-    # assert_equal(0, RubyDate.jd(-213447717) <=> DateTime.civil(-589113, 11, 24, 0, 0, 0, 0, Date::GREGORIAN))
+    # assert_equal(0, RubyDate.jd(-213447717) <=> DateTime.civil(-589113, 11, 24, 0, 0, 0, 0, RubyDate::GREGORIAN))
 
-    assert(RubyDate.jd(0) == RubyDate.civil(-4713, 11, 24, Date::GREGORIAN))
+    assert(RubyDate.jd(0) == RubyDate.civil(-4713, 11, 24, RubyDate::GREGORIAN))
     assert(RubyDate.jd(213447717) == RubyDate.civil(579687, 11, 24))
-    assert(RubyDate.jd(-213447717) == RubyDate.civil(-589113, 11, 24, Date::GREGORIAN))
+    assert(RubyDate.jd(-213447717) == RubyDate.civil(-589113, 11, 24, RubyDate::GREGORIAN))
 
-    # assert(RubyDate.jd(0) == DateTime.civil(-4713, 11, 24, 0, 0, 0, 0, Date::GREGORIAN))
+    # assert(RubyDate.jd(0) == DateTime.civil(-4713, 11, 24, 0, 0, 0, 0, RubyDate::GREGORIAN))
     # assert(RubyDate.jd(213447717) == DateTime.civil(579687, 11, 24))
-    # assert(RubyDate.jd(-213447717) == DateTime.civil(-589113, 11, 24, 0, 0, 0, 0, Date::GREGORIAN))
+    # assert(RubyDate.jd(-213447717) == DateTime.civil(-589113, 11, 24, 0, 0, 0, 0, RubyDate::GREGORIAN))
 
-    assert(RubyDate.jd(0) === RubyDate.civil(-4713, 11, 24, Date::GREGORIAN))
+    assert(RubyDate.jd(0) === RubyDate.civil(-4713, 11, 24, RubyDate::GREGORIAN))
     assert(RubyDate.jd(213447717) === RubyDate.civil(579687, 11, 24))
-    assert(RubyDate.jd(-213447717) === RubyDate.civil(-589113, 11, 24, Date::GREGORIAN))
+    assert(RubyDate.jd(-213447717) === RubyDate.civil(-589113, 11, 24, RubyDate::GREGORIAN))
 
-    # assert(RubyDate.jd(0) === DateTime.civil(-4713, 11, 24, 12, 0, 0, 0, Date::GREGORIAN))
+    # assert(RubyDate.jd(0) === DateTime.civil(-4713, 11, 24, 12, 0, 0, 0, RubyDate::GREGORIAN))
     # assert(RubyDate.jd(213447717) === DateTime.civil(579687, 11, 24, 12))
-    # assert(RubyDate.jd(-213447717) === DateTime.civil(-589113, 11, 24, 12, 0, 0, 0, Date::GREGORIAN))
+    # assert(RubyDate.jd(-213447717) === DateTime.civil(-589113, 11, 24, 12, 0, 0, 0, RubyDate::GREGORIAN))
 
     a = RubyDate.jd(0)
-    b = RubyDate.civil(-4713, 11, 24, Date::GREGORIAN)
+    b = RubyDate.civil(-4713, 11, 24, RubyDate::GREGORIAN)
     assert_equal(0, a <=> b)
 
-    a = RubyDate.civil(-4712, 1, 1, Date::JULIAN)
-    b = RubyDate.civil(-4713, 11, 24, Date::GREGORIAN)
+    a = RubyDate.civil(-4712, 1, 1, RubyDate::JULIAN)
+    b = RubyDate.civil(-4713, 11, 24, RubyDate::GREGORIAN)
     a.jd; b.jd
     assert_equal(0, a <=> b)
 
     a = RubyDate.jd(0)
-    b = RubyDate.civil(-4713, 11, 24, Date::GREGORIAN)
+    b = RubyDate.civil(-4713, 11, 24, RubyDate::GREGORIAN)
     assert(a == b)
 
-    a = RubyDate.civil(-4712, 1, 1, Date::JULIAN)
-    b = RubyDate.civil(-4713, 11, 24, Date::GREGORIAN)
+    a = RubyDate.civil(-4712, 1, 1, RubyDate::JULIAN)
+    b = RubyDate.civil(-4713, 11, 24, RubyDate::GREGORIAN)
     a.jd; b.jd
     assert(a == b)
 
     a = RubyDate.jd(0)
-    b = RubyDate.civil(-4713, 11, 24, Date::GREGORIAN)
+    b = RubyDate.civil(-4713, 11, 24, RubyDate::GREGORIAN)
     assert(a === b)
 
-    a = RubyDate.civil(-4712, 1, 1, Date::JULIAN)
-    b = RubyDate.civil(-4713, 11, 24, Date::GREGORIAN)
+    a = RubyDate.civil(-4712, 1, 1, RubyDate::JULIAN)
+    b = RubyDate.civil(-4713, 11, 24, RubyDate::GREGORIAN)
     a.jd; b.jd
     assert(a === b)
   end
@@ -1272,53 +1272,53 @@ class RubyDateTest < Test::Unit::TestCase
     s = "\x04\x03u:\x01\x04Date\x01\v\x04\x03[\x01\x02i\x03\xE8i%T"
     d = suppress_warning {Marshal.load(s)}
     assert_equal(Rational(4903887,2), d.ajd)
-    assert_equal(Date::GREGORIAN, d.start)
+    assert_equal(RubyDate::GREGORIAN, d.start)
   end
 
   def test_marshal16
     s = "\x04\x06u:\tDate\x0F\x04\x06[\ai\x03\xE8i%T"
     d = suppress_warning {Marshal.load(s)}
     assert_equal(Rational(4903887,2), d.ajd)
-    assert_equal(Date::GREGORIAN, d.start)
+    assert_equal(RubyDate::GREGORIAN, d.start)
   end
 
   def test_marshal18
-    s = "\x04\bu:\tDateP\x04\b[\bo:\rRational\a:\x0F@numeratori\x03\xCF\xD3J:\x11@denominatori\ai\x00o:\x13Date::Infinity\x06:\a@di\xFA"
+    s = "\x04\bu:\tDateP\x04\b[\bo:\rRational\a:\x0F@numeratori\x03\xCF\xD3J:\x11@denominatori\ai\x00o:\x13RubyDate::Infinity\x06:\a@di\xFA"
     d = Marshal.load(s)
     assert_equal(Rational(4903887,2), d.ajd)
-    assert_equal(Date::GREGORIAN, d.start)
+    assert_equal(RubyDate::GREGORIAN, d.start)
 
-    s = "\x04\bu:\rDateTime`\x04\b[\bo:\rRational\a:\x0F@numeratorl+\b\xC9\xB0\x81\xBD\x02\x00:\x11@denominatori\x02\xC0\x12o;\x00\a;\x06i\b;\ai\ro:\x13Date::Infinity\x06:\a@di\xFA"
+    s = "\x04\bu:\rDateTime`\x04\b[\bo:\rRational\a:\x0F@numeratorl+\b\xC9\xB0\x81\xBD\x02\x00:\x11@denominatori\x02\xC0\x12o;\x00\a;\x06i\b;\ai\ro:\x13RubyDate::Infinity\x06:\a@di\xFA"
     d = Marshal.load(s)
     assert_equal(Rational(11769327817,4800), d.ajd)
     assert_equal(Rational(9,24), d.offset)
-    assert_equal(Date::GREGORIAN, d.start)
+    assert_equal(RubyDate::GREGORIAN, d.start)
   end
 
   def test_marshal192
-    s = "\x04\bU:\tDate[\bU:\rRational[\ai\x03\xCF\xD3Ji\ai\x00o:\x13Date::Infinity\x06:\a@di\xFA"
+    s = "\x04\bU:\tDate[\bU:\rRational[\ai\x03\xCF\xD3Ji\ai\x00o:\x13RubyDate::Infinity\x06:\a@di\xFA"
     d = Marshal.load(s)
     assert_equal(Rational(4903887,2), d.ajd)
-    assert_equal(Date::GREGORIAN, d.start)
+    assert_equal(RubyDate::GREGORIAN, d.start)
 
-    s = "\x04\bU:\rDateTime[\bU:\rRational[\al+\b\xC9\xB0\x81\xBD\x02\x00i\x02\xC0\x12U;\x06[\ai\bi\ro:\x13Date::Infinity\x06:\a@di\xFA"
+    s = "\x04\bU:\rDateTime[\bU:\rRational[\al+\b\xC9\xB0\x81\xBD\x02\x00i\x02\xC0\x12U;\x06[\ai\bi\ro:\x13RubyDate::Infinity\x06:\a@di\xFA"
     d = Marshal.load(s)
     assert_equal(Rational(11769327817,4800), d.ajd)
     assert_equal(Rational(9,24), d.offset)
-    assert_equal(Date::GREGORIAN, d.start)
+    assert_equal(RubyDate::GREGORIAN, d.start)
   end
 
   def test_enc
-    Date::MONTHNAMES.each do |s|
+    RubyDate::MONTHNAMES.each do |s|
       assert_equal(Encoding::US_ASCII, s.encoding) if s
     end
-    Date::DAYNAMES.each do |s|
+    RubyDate::DAYNAMES.each do |s|
       assert_equal(Encoding::US_ASCII, s.encoding) if s
     end
-    Date::ABBR_MONTHNAMES.each do |s|
+    RubyDate::ABBR_MONTHNAMES.each do |s|
       assert_equal(Encoding::US_ASCII, s.encoding) if s
     end
-    Date::ABBR_DAYNAMES.each do |s|
+    RubyDate::ABBR_DAYNAMES.each do |s|
       assert_equal(Encoding::US_ASCII, s.encoding) if s
     end
 
