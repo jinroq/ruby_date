@@ -1130,6 +1130,10 @@ class RubyDate
 
     # Optimized: Julian Day Number -> Gregorian date
     def c_gregorian_jd_to_civil(jd)
+      # The argument jd of c_gregorian_jd_to_civil implemented in C is of type int,
+      # so it is converted to Integer.
+      jd = jd.to_i unless jd.is_a?(Integer)
+
       # Convert JDN to rata die (March 1, Year 0 epoch)
       r0 = jd - NS_EPOCH
 
@@ -1158,7 +1162,7 @@ class RubyDate
       j = (r2 >= NS_DAYS_BEFORE_NEW_YEAR) ? 1 : 0
 
       ry = y0 + j
-      rm = j != 0 ? q3 - 12 : q3
+      rm = j.nonzero? ? q3 - 12 : q3
       rd = r3 + 1
 
       [ry, rm, rd]
