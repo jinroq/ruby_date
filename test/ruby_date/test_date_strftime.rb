@@ -95,25 +95,25 @@ class RubyDateDateStrftimeTest < Test::Unit::TestCase
     d = RubyDate.new(2001,2,3)
     assert_equal('2001-02-03', d.strftime)
 
-    d = RubyDate.new(2001,2,3)
-    assert_equal('2001-02-03T00:00:00+00:00', d.strftime)
+    # d = DateTime.new(2001,2,3)
+    # assert_equal('2001-02-03T00:00:00+00:00', d.strftime)
 
-    assert_equal('', d.strftime(''))
-    assert_equal("\s"*3, d.strftime("\s"*3))
-    assert_equal("\tfoo\n\000\r", d.strftime("\tfoo\n\000\r"))
-    assert_equal("%\n", d.strftime("%\n")) # gnu
-    assert_equal('Saturday'*1024 + ',', d.strftime('%A'*1024 + ','))
-    assert_equal('%%', d.strftime('%%%'))
-    assert_equal('Anton von Webern', d.strftime('Anton von Webern'))
+    # assert_equal('', d.strftime(''))
+    # assert_equal("\s"*3, d.strftime("\s"*3))
+    # assert_equal("\tfoo\n\000\r", d.strftime("\tfoo\n\000\r"))
+    # assert_equal("%\n", d.strftime("%\n")) # gnu
+    # assert_equal('Saturday'*1024 + ',', d.strftime('%A'*1024 + ','))
+    # assert_equal('%%', d.strftime('%%%'))
+    # assert_equal('Anton von Webern', d.strftime('Anton von Webern'))
 
-    d = RubyDate.new(2001,2,3, 1,2,3)
-    assert_equal('2001-02-03T01:02:03+00:00', d.strftime)
-    assert_equal('AM', d.strftime('%p'))
-    assert_equal('am', d.strftime('%P'))
-    d = RubyDate.new(2001,2,3, 13,14,15)
-    assert_equal('2001-02-03T13:14:15+00:00', d.strftime)
-    assert_equal('PM', d.strftime('%p'))
-    assert_equal('pm', d.strftime('%P'))
+    # d = DateTime.new(2001,2,3, 1,2,3)
+    # assert_equal('2001-02-03T01:02:03+00:00', d.strftime)
+    # assert_equal('AM', d.strftime('%p'))
+    # assert_equal('am', d.strftime('%P'))
+    # d = DateTime.new(2001,2,3, 13,14,15)
+    # assert_equal('2001-02-03T13:14:15+00:00', d.strftime)
+    # assert_equal('PM', d.strftime('%p'))
+    # assert_equal('pm', d.strftime('%P'))
   end
 
   def test_strftime__3_1
@@ -137,85 +137,95 @@ class RubyDateDateStrftimeTest < Test::Unit::TestCase
   end
 
   def test_strftime__4
+    omit "DateTime is deprecated and not implemented in RubyDate"
+
     s = '2006-08-08T23:15:33.123456789'
     f = '%FT%T.%N'
-    d = RubyDate.parse(s)
+    d = DateTime.parse(s)
     assert_equal(s, d.strftime(f))
-    d = RubyDate.strptime(s, f)
+    d = DateTime.strptime(s, f)
     assert_equal(s, d.strftime(f))
 
     s = '2006-08-08T23:15:33.123456789'
     f = '%FT%T.%N'
-    d = RubyDate.parse(s + '123456789')
+    d = DateTime.parse(s + '123456789')
     assert_equal(s, d.strftime(f))
-    d = RubyDate.strptime(s + '123456789', f)
+    d = DateTime.strptime(s + '123456789', f)
     assert_equal(s, d.strftime(f))
 
     si = '2006-08-08T23:15:33.9'
     so = '2006-08-08T23:15:33.900000000'
     f = '%FT%T.%N'
-    d = RubyDate.parse(si)
+    d = DateTime.parse(si)
     assert_equal(so, d.strftime(f))
-    d = RubyDate.strptime(si, f)
+    d = DateTime.strptime(si, f)
     assert_equal(so, d.strftime(f))
 
     s = '2006-08-08T23:15:33.123'
     f = '%FT%T.%L'
-    d = RubyDate.parse(s)
+    d = DateTime.parse(s)
     assert_equal(s, d.strftime(f))
-    d = RubyDate.strptime(s, f)
+    d = DateTime.strptime(s, f)
     assert_equal(s, d.strftime(f))
 
     s = '2006-08-08T23:15:33.123'
     f = '%FT%T.%L'
-    d = RubyDate.parse(s + '123')
+    d = DateTime.parse(s + '123')
     assert_equal(s, d.strftime(f))
-    d = RubyDate.strptime(s + '123', f)
+    d = DateTime.strptime(s + '123', f)
     assert_equal(s, d.strftime(f))
 
     si = '2006-08-08T23:15:33.9'
     so = '2006-08-08T23:15:33.900'
     f = '%FT%T.%L'
-    d = RubyDate.parse(si)
+    d = DateTime.parse(si)
     assert_equal(so, d.strftime(f))
-    d = RubyDate.strptime(si, f)
+    d = DateTime.strptime(si, f)
     assert_equal(so, d.strftime(f))
   end
 
   def test_strftime__offset
+    omit "DateTime is deprecated and not implemented in RubyDate"
+
     s = '2006-08-08T23:15:33'
     (-24..24).collect{|x| '%+.2d' % x}.each do |hh|
       %w(00 30).each do |mm|
 	r = hh + mm
 	next if r.end_with?('2430')
-	d = RubyDate.parse(s + hh + mm)
+	d = DateTime.parse(s + hh + mm)
 	assert_equal(r, d.strftime('%z'))
       end
     end
     %w[+2430 -2430].each do |r|
       assert_warning(/invalid offset/) do
-        RubyDate.parse(s + r)
+        DateTime.parse(s + r)
       end
     end
   end
 
   def test_strftime_milli
+    omit "DateTime is deprecated and not implemented in RubyDate"
+
     s = '1970-01-01T00:00:00.123456789'
-    d = RubyDate.parse(s)
+    d = DateTime.parse(s)
     assert_equal('123', d.strftime('%Q'))
     s = '1970-01-02T02:03:04.123456789'
-    d = RubyDate.parse(s)
+    d = DateTime.parse(s)
     assert_equal('93784123', d.strftime('%Q'))
   end
 
   def test_strftime__minus
-    d = RubyDate.new(1969, 12, 31, 23, 59, 59)
+    omit "DateTime is deprecated and not implemented in RubyDate"
+
+    d = DateTime.new(1969, 12, 31, 23, 59, 59)
     assert_equal('-1', d.strftime('%s'))
     assert_equal('-1000', d.strftime('%Q'))
   end
 
   def test_strftime__gnuext # coreutils
-    d = RubyDate.new(2006,8,8,23,15,33,9.to_r/24)
+    omit "DateTime is deprecated and not implemented in RubyDate"
+
+    d = DateTime.new(2006,8,8,23,15,33,9.to_r/24)
 
     assert_equal('2006', d.strftime('%-Y'))
     assert_equal('2006', d.strftime('%-5Y'))
@@ -294,7 +304,7 @@ class RubyDateDateStrftimeTest < Test::Unit::TestCase
     assert_equal('   +9', d.strftime('%_5:::z'))
     assert_equal('+9', d.strftime('%-:::z'))
 
-    d = RubyDate.new(-200,8,8,23,15,33,9.to_r/24)
+    d = DateTime.new(-200,8,8,23,15,33,9.to_r/24)
 
     assert_equal('-0200', d.strftime('%Y'))
     assert_equal('-200', d.strftime('%-Y'))
@@ -304,7 +314,7 @@ class RubyDateDateStrftimeTest < Test::Unit::TestCase
     assert_equal(' -200', d.strftime('%_5Y'))
     assert_equal('-0200', d.strftime('%05Y'))
 
-    d = RubyDate.new(-2000,8,8,23,15,33,9.to_r/24)
+    d = DateTime.new(-2000,8,8,23,15,33,9.to_r/24)
 
     assert_equal('-2000', d.strftime('%Y'))
     assert_equal('-2000', d.strftime('%-Y'))
@@ -316,7 +326,9 @@ class RubyDateDateStrftimeTest < Test::Unit::TestCase
   end
 
   def test_strftime__gnuext_LN # coreutils
-    d = RubyDate.parse('2008-11-25T00:11:22.0123456789')
+    omit "DateTime is deprecated and not implemented in RubyDate"
+
+    d = DateTime.parse('2008-11-25T00:11:22.0123456789')
     assert_equal('012', d.strftime('%L'))
     assert_equal('012', d.strftime('%0L'))
     assert_equal('0', d.strftime('%1L'))
@@ -334,7 +346,9 @@ class RubyDateDateStrftimeTest < Test::Unit::TestCase
   end
 
   def test_strftime__gnuext_z # coreutils
-    d = RubyDate.parse('2006-08-08T23:15:33+09:08:07')
+    omit "DateTime is deprecated and not implemented in RubyDate"
+
+    d = DateTime.parse('2006-08-08T23:15:33+09:08:07')
     assert_equal('+0908', d.strftime('%z'))
     assert_equal('+09:08', d.strftime('%:z'))
     assert_equal('+09:08:07', d.strftime('%::z'))
@@ -342,7 +356,9 @@ class RubyDateDateStrftimeTest < Test::Unit::TestCase
   end
 
   def test_strftime__gnuext_complex
-    d = RubyDate.parse('2001-02-03T04:05:06+09:00')
+    omit "DateTime is deprecated and not implemented in RubyDate"
+
+    d = DateTime.parse('2001-02-03T04:05:06+09:00')
     assert_equal('Sat Feb  3 04:05:06 2001', d.strftime('%-100c'))
     assert_equal('Sat Feb  3 04:05:06 2001'.rjust(100), d.strftime('%100c'))
     assert_equal('Sat Feb  3 04:05:06 2001'.rjust(100), d.strftime('%_100c'))
@@ -370,34 +386,34 @@ class RubyDateDateStrftimeTest < Test::Unit::TestCase
     assert_equal('Sat, 03 Feb 2001 00:00:00 GMT', d.httpdate)
     assert_equal('H13.02.03', d.jisx0301)
 
-    d = RubyDate.new(2001,2,3)
+    # d = DateTime.new(2001,2,3)
 
-    assert_equal('Sat Feb  3 00:00:00 2001', d.ctime)
-    assert_equal(d.ctime, d.asctime)
+    # assert_equal('Sat Feb  3 00:00:00 2001', d.ctime)
+    # assert_equal(d.ctime, d.asctime)
 
-    assert_equal('2001-02-03T00:00:00+00:00', d.iso8601)
-    assert_equal(d.rfc3339, d.iso8601)
-    assert_equal(d.xmlschema, d.iso8601)
-    assert_equal('Sat, 3 Feb 2001 00:00:00 +0000', d.rfc2822)
-    assert_equal(d.rfc822, d.rfc2822)
-    assert_equal('Sat, 03 Feb 2001 00:00:00 GMT', d.httpdate)
-    assert_equal('H13.02.03T00:00:00+00:00', d.jisx0301)
+    # assert_equal('2001-02-03T00:00:00+00:00', d.iso8601)
+    # assert_equal(d.rfc3339, d.iso8601)
+    # assert_equal(d.xmlschema, d.iso8601)
+    # assert_equal('Sat, 3 Feb 2001 00:00:00 +0000', d.rfc2822)
+    # assert_equal(d.rfc822, d.rfc2822)
+    # assert_equal('Sat, 03 Feb 2001 00:00:00 GMT', d.httpdate)
+    # assert_equal('H13.02.03T00:00:00+00:00', d.jisx0301)
 
-    d2 = RubyDate.parse('2001-02-03T04:05:06.123456')
-    assert_equal('2001-02-03T04:05:06.123+00:00', d2.iso8601(3))
-    assert_equal('2001-02-03T04:05:06.123+00:00', d2.rfc3339(3))
-    assert_equal('H13.02.03T04:05:06.123+00:00', d2.jisx0301(3))
-    assert_equal('2001-02-03T04:05:06.123+00:00', d2.iso8601(3.5))
-    assert_equal('2001-02-03T04:05:06.123+00:00', d2.rfc3339(3.5))
-    assert_equal('H13.02.03T04:05:06.123+00:00', d2.jisx0301(3.5))
-    assert_equal('2001-02-03T04:05:06.123456000+00:00', d2.iso8601(9))
-    assert_equal('2001-02-03T04:05:06.123456000+00:00', d2.rfc3339(9))
-    assert_equal('H13.02.03T04:05:06.123456000+00:00', d2.jisx0301(9))
-    assert_equal('2001-02-03T04:05:06.123456000+00:00', d2.iso8601(9.9))
-    assert_equal('2001-02-03T04:05:06.123456000+00:00', d2.rfc3339(9.9))
-    assert_equal('H13.02.03T04:05:06.123456000+00:00', d2.jisx0301(9.9))
+    # d2 = DateTime.parse('2001-02-03T04:05:06.123456')
+    # assert_equal('2001-02-03T04:05:06.123+00:00', d2.iso8601(3))
+    # assert_equal('2001-02-03T04:05:06.123+00:00', d2.rfc3339(3))
+    # assert_equal('H13.02.03T04:05:06.123+00:00', d2.jisx0301(3))
+    # assert_equal('2001-02-03T04:05:06.123+00:00', d2.iso8601(3.5))
+    # assert_equal('2001-02-03T04:05:06.123+00:00', d2.rfc3339(3.5))
+    # assert_equal('H13.02.03T04:05:06.123+00:00', d2.jisx0301(3.5))
+    # assert_equal('2001-02-03T04:05:06.123456000+00:00', d2.iso8601(9))
+    # assert_equal('2001-02-03T04:05:06.123456000+00:00', d2.rfc3339(9))
+    # assert_equal('H13.02.03T04:05:06.123456000+00:00', d2.jisx0301(9))
+    # assert_equal('2001-02-03T04:05:06.123456000+00:00', d2.iso8601(9.9))
+    # assert_equal('2001-02-03T04:05:06.123456000+00:00', d2.rfc3339(9.9))
+    # assert_equal('H13.02.03T04:05:06.123456000+00:00', d2.jisx0301(9.9))
 
-    assert_equal('1800-01-01T00:00:00+00:00', RubyDate.new(1800).jisx0301)
+    # assert_equal('1800-01-01T00:00:00+00:00', DateTime.new(1800).jisx0301)
 
     assert_equal('1868-01-25', RubyDate.parse('1868-01-25').jisx0301)
     assert_equal('1872-12-31', RubyDate.parse('1872-12-31').jisx0301)
@@ -413,14 +429,14 @@ class RubyDateDateStrftimeTest < Test::Unit::TestCase
     assert_equal('H31.04.30', RubyDate.parse('2019-04-30').jisx0301)
     assert_equal('R01.05.01', RubyDate.parse('2019-05-01').jisx0301)
 
-    assert_equal(d2, RubyDate.iso8601('2001-02-03T04:05:06.123456+00:00', limit: 64))
-    assert_equal(d2, RubyDate.rfc3339('2001-02-03T04:05:06.123456+00:00', limit: 64))
-    assert_equal(d2, RubyDate.jisx0301('H13.02.03T04:05:06.123456+00:00', limit: 64))
+    # assert_equal(d2, DateTime.iso8601('2001-02-03T04:05:06.123456+00:00', limit: 64))
+    # assert_equal(d2, DateTime.rfc3339('2001-02-03T04:05:06.123456+00:00', limit: 64))
+    # assert_equal(d2, DateTime.jisx0301('H13.02.03T04:05:06.123456+00:00', limit: 64))
 
-    exceeds = /string length \(\d+\) exceeds/
-    assert_raise_with_message(ArgumentError, exceeds) {RubyDate.iso8601('2001-02-03T04:05:06.123456+00:00', limit: 1)}
-    assert_raise_with_message(ArgumentError, exceeds) {RubyDate.rfc3339('2001-02-03T04:05:06.123456+00:00', limit: 1)}
-    assert_raise_with_message(ArgumentError, exceeds) {RubyDate.jisx0301('H13.02.03T04:05:06.123456+00:00', limit: 1)}
+    # exceeds = /string length \(\d+\) exceeds/
+    # assert_raise_with_message(ArgumentError, exceeds) {DateTime.iso8601('2001-02-03T04:05:06.123456+00:00', limit: 1)}
+    # assert_raise_with_message(ArgumentError, exceeds) {DateTime.rfc3339('2001-02-03T04:05:06.123456+00:00', limit: 1)}
+    # assert_raise_with_message(ArgumentError, exceeds) {DateTime.jisx0301('H13.02.03T04:05:06.123456+00:00', limit: 1)}
 
     %w(M06.01.01
        M45.07.29
@@ -442,8 +458,8 @@ class RubyDateDateStrftimeTest < Test::Unit::TestCase
     assert_raise(ArgumentError, Errno::ERANGE) {
       RubyDate.new(2000,1,1).strftime("%2147483647c")
     }
-    assert_raise(ArgumentError, Errno::ERANGE) {
-      RubyDate.new(2000,1,1).strftime("%2147483647c")
-    }
+    # assert_raise(ArgumentError, Errno::ERANGE) {
+    #   DateTime.new(2000,1,1).strftime("%2147483647c")
+    # }
   end
 end
