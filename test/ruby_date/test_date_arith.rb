@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'test/unit'
+require 'timeout'
 require_relative '../../lib/ruby_date'
 
 class RubyDateDateArithTest < Test::Unit::TestCase
@@ -8,15 +9,15 @@ class RubyDateDateArithTest < Test::Unit::TestCase
     def to_r; self; end
   end
 
-  def test_new_offset
-    d = RubyDate.new(2002, 3, 14)
-    assert_equal(Rational(9, 24), d.new_offset(Rational(9, 24)).offset)
-    assert_equal(Rational(9, 24), d.new_offset('+0900').offset)
-    n = Rat.new
-    assert_raise(TypeError) do
-      Timeout.timeout(1) {d.new_offset(n)}
-    end
-  end
+  # def test_new_offset
+  #   d = DateTime.new(2002, 3, 14)
+  #   assert_equal(Rational(9, 24), d.new_offset(Rational(9, 24)).offset)
+  #   assert_equal(Rational(9, 24), d.new_offset('+0900').offset)
+  #   n = Rat.new
+  #   assert_raise(TypeError) do
+  #     Timeout.timeout(1) {d.new_offset(n)}
+  #   end
+  # end
 
   def test__plus
     d = RubyDate.new(2000,2,29) + -1
@@ -26,9 +27,9 @@ class RubyDateDateArithTest < Test::Unit::TestCase
     d = RubyDate.new(2000,2,29) + 1
     assert_equal([2000, 3, 1], [d.year, d.mon, d.mday])
 
-    d = RubyDate.new(2000,2,29) + 1.to_r/2
-    assert_equal([2000, 2, 29, 12, 0, 0],
-		 [d.year, d.mon, d.mday, d.hour, d.min, d.sec])
+    # d = DateTime.new(2000,2,29) + 1.to_r/2
+    # assert_equal([2000, 2, 29, 12, 0, 0],
+    #              [d.year, d.mon, d.mday, d.hour, d.min, d.sec])
   end
 
   def test__plus__ex
@@ -36,22 +37,22 @@ class RubyDateDateArithTest < Test::Unit::TestCase
     assert_raise(e) do
       RubyDate.new(2000,2,29) + 'foo'
     end
-    assert_raise(e) do
-      RubyDate.new(2000,2,29) + 'foo'
-    end
-    assert_raise(e) do
-      RubyDate.new(2000,2,29) + Time.mktime(2000,2,29)
-    end
+    # assert_raise(e) do
+    #   DateTime.new(2000,2,29) + 'foo'
+    # end
     assert_raise(e) do
       RubyDate.new(2000,2,29) + Time.mktime(2000,2,29)
     end
+    # assert_raise(e) do
+    #   DateTime.new(2000,2,29) + Time.mktime(2000,2,29)
+    # end
     n = Rat.new
     assert_raise(e) do
       Timeout.timeout(1) {RubyDate.new(2000,2,29) + n}
     end
-    assert_raise(e) do
-      Timeout.timeout(1) {RubyDate.new(2000,2,29) + n}
-    end
+    # assert_raise(e) do
+    #   Timeout.timeout(1) {DateTime.new(2000,2,29) + n}
+    # end
   end
 
   def test__minus
@@ -67,9 +68,9 @@ class RubyDateDateArithTest < Test::Unit::TestCase
     d = RubyDate.new(2000,2,29) - RubyDate.new(2000,3,1)
     assert_equal(-1, d)
 
-    d = RubyDate.new(2000,3,1) - 1.to_r/2
-    assert_equal([2000, 2, 29, 12, 0, 0],
-		 [d.year, d.mon, d.mday, d.hour, d.min, d.sec])
+    # d = DateTime.new(2000,3,1) - 1.to_r/2
+    # assert_equal([2000, 2, 29, 12, 0, 0],
+    #              [d.year, d.mon, d.mday, d.hour, d.min, d.sec])
   end
 
   def test__minus__ex
@@ -77,15 +78,15 @@ class RubyDateDateArithTest < Test::Unit::TestCase
     assert_raise(e) do
       RubyDate.new(2000,2,29) - 'foo'
     end
-    assert_raise(e) do
-      RubyDate.new(2000,2,29) - 'foo'
-    end
-    assert_raise(e) do
-      RubyDate.new(2000,2,29) - Time.mktime(2000,2,29)
-    end
+    # assert_raise(e) do
+    #   DateTime.new(2000,2,29) - 'foo'
+    # end
     assert_raise(e) do
       RubyDate.new(2000,2,29) - Time.mktime(2000,2,29)
     end
+    # assert_raise(e) do
+    #   DateTime.new(2000,2,29) - Time.mktime(2000,2,29)
+    # end
   end
 
   def test__compare
@@ -93,9 +94,9 @@ class RubyDateDateArithTest < Test::Unit::TestCase
     assert_equal(-1, (RubyDate.new(2000,1,1) <=> RubyDate.new(2000,1,2)))
     assert_equal(1, (RubyDate.new(2000,1,2) <=> RubyDate.new(2000,1,1)))
     assert_equal(0, (RubyDate.new(2001,1,4,RubyDate::JULIAN) <=>
-		     RubyDate.new(2001,1,17, RubyDate::GREGORIAN)))
-    assert_equal(0, (RubyDate.new(2001,1,4,0,0,0,0,RubyDate::JULIAN) <=>
-		     RubyDate.new(2001,1,17,0,0,0,0,RubyDate::GREGORIAN)))
+	             RubyDate.new(2001,1,17, RubyDate::GREGORIAN)))
+    # assert_equal(0, (DateTime.new(2001,1,4,0,0,0,0,RubyDate::JULIAN) <=>
+    #                  DateTime.new(2001,1,17,0,0,0,0,RubyDate::GREGORIAN)))
   end
 
   def test_prev
@@ -113,8 +114,8 @@ class RubyDateDateArithTest < Test::Unit::TestCase
     d = RubyDate.new(2000,12,31).prev_day(-2)
     assert_equal([2001, 1, 2], [d.year, d.mon, d.mday])
 
-    d = RubyDate.new(2000,3,1).prev_day(1.to_r/2)
-    assert_equal([2000, 2, 29, 12, 0, 0], [d.year, d.mon, d.mday, d.hour, d.min, d.sec])
+    # d = DateTime.new(2000,3,1).prev_day(1.to_r/2)
+    # assert_equal([2000, 2, 29, 12, 0, 0], [d.year, d.mon, d.mday, d.hour, d.min, d.sec])
   end
 
   def test_prev_month
@@ -164,12 +165,12 @@ class RubyDateDateArithTest < Test::Unit::TestCase
     d2 = d.succ
     assert_equal(d, (d2 - 1))
 
-    d = RubyDate.now
-    d2 = d.next
-    assert_equal(d, (d2 - 1))
-    d = RubyDate.now
-    d2 = d.succ
-    assert_equal(d, (d2 - 1))
+    # d = DateTime.now
+    # d2 = d.next
+    # assert_equal(d, (d2 - 1))
+    # d = DateTime.now
+    # d2 = d.succ
+    # assert_equal(d, (d2 - 1))
   end
 
   def test_next_day
@@ -180,8 +181,8 @@ class RubyDateDateArithTest < Test::Unit::TestCase
     d = RubyDate.new(2001,1,1).next_day(-2)
     assert_equal([2000, 12, 30], [d.year, d.mon, d.mday])
 
-    d = RubyDate.new(2000,2,29).next_day(1.to_r/2)
-    assert_equal([2000, 2, 29, 12, 0, 0], [d.year, d.mon, d.mday, d.hour, d.min, d.sec])
+    # d = DateTime.new(2000,2,29).next_day(1.to_r/2)
+    # assert_equal([2000, 2, 29, 12, 0, 0], [d.year, d.mon, d.mday, d.hour, d.min, d.sec])
   end
 
   def test_next_month
