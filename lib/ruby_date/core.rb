@@ -2444,6 +2444,17 @@ class RubyDate
   alias_method :xmlschema, :iso8601
 
   # call-seq:
+  #   rfc3339 -> string
+  #
+  # Equivalent to #strftime with argument <tt>'%FT%T%:z'</tt>;
+  # see {Formats for Dates and Times}[rdoc-ref:language/strftime_formatting.rdoc]:
+  #
+  #   Date.new(2001, 2, 3).rfc3339 # => "2001-02-03T00:00:00+00:00"
+  def rfc3339
+    strftime('%Y-%m-%dT%H:%M:%S%:z')
+  end
+
+  # call-seq:
   #   infinite? -> false
   #
   # Returns +false+
