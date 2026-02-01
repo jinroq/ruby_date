@@ -3,7 +3,8 @@
 require 'rake/testtask'
 
 Rake::TestTask.new(:test) do |t|
-  t.libs << "test"
+  t.libs << "test/lib"
+  t.ruby_opts << "-rhelper"
   t.test_files = FileList['test/ruby_date/test_*.rb']
   t.verbose = true
 end

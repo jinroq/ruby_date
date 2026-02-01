@@ -473,6 +473,23 @@ class RubyDate
       obj
     end
 
+    # call-seq:
+    #   Date._httpdate(string, limit: 128) -> hash
+    #
+    # Returns a hash of values parsed from +string+, which should be a valid
+    # {HTTP date format}[rdoc-ref:language/strftime_formatting.rdoc@HTTP+Format]:
+    #
+    #   d = Date.new(2001, 2, 3)
+    #   s = d.httpdate # => "Sat, 03 Feb 2001 00:00:00 GMT"
+    #   Date._httpdate(s)
+    #   # => {:wday=>6, :mday=>3, :mon=>2, :year=>2001, :hour=>0, :min=>0, :sec=>0, :zone=>"GMT", :offset=>0}
+    #
+    # Related: Date.httpdate (returns a \Date object).
+    def _httpdate(string, limit: 128)
+      str = string.nil? ? nil : check_limit(string, limit)
+      date__httpdate(str)
+    end
+
     private
 
     # Optimized: Gregorian date -> Julian Day Number
@@ -1456,6 +1473,22 @@ class RubyDate
 
     def ns_jd_in_range(jd)
       jd >= NS_JD_MIN && jd <= NS_JD_MAX
+    end
+
+    def check_limit(str, limit)
+      unless str.is_a?(String)
+        begin
+          str = str.to_str
+        rescue NoMethodError
+          raise TypeError, "no implicit conversion of #{str.class} into String"
+        end
+      end
+
+      if limit && str.length > limit
+        raise ArgumentError, "string length (#{str.length}) exceeds the limit #{limit}"
+      end
+
+      str
     end
   end
 

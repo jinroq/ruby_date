@@ -16,6 +16,12 @@ class RubyDate
   DAYNAMES = %w[Sunday Monday Tuesday Wednesday Thursday Friday Saturday].freeze
   ABBR_DAYNAMES = %w[Sun Mon Tue Wed Thu Fri Sat].freeze
 
+  # Pattern constants for regex
+  ABBR_DAYS_PATTERN = '(sun|mon|tue|wed|thu|fri|sat)'
+  DAYS_PATTERN = '(sunday|monday|tuesday|wednesday|thursday|friday|saturday)'
+  ABBR_MONTHS_PATTERN = '(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)'
+  private_constant :ABBR_DAYS_PATTERN, :DAYS_PATTERN, :ABBR_MONTHS_PATTERN
+
   ITALY     = 2299161 # 1582-10-15
   ENGLAND   = 2361222 # 1752-09-14
   JULIAN    = Float::INFINITY

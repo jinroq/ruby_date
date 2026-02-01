@@ -101,5 +101,121 @@ class RubyDate
 
       hash
     end
+
+    private
+
+    # Parse HTTP date format
+    def date__httpdate(str)
+      hash = {}
+
+      # Return empty hash for nil or empty string
+      return hash if str.nil? || str.empty?
+
+      # Try type 1: "Sat, 03 Feb 2001 00:00:00 GMT"
+      return hash if httpdate_type1(str, hash)
+
+      # Try type 2: "Saturday, 03-Feb-01 00:00:00 GMT"
+      return hash if httpdate_type2(str, hash)
+
+      # Try type 3: "Sat Feb  3 00:00:00 2001"
+      return hash if httpdate_type3(str, hash)
+
+      hash
+    end
+
+    # HTTP date type 1: "Sat, 03 Feb 2001 00:00:00 GMT"
+    def httpdate_type1(str, hash)
+      pattern = /\A\s*#{ABBR_DAYS_PATTERN}\s*,\s+
+                (\d{2})\s+
+                #{ABBR_MONTHS_PATTERN}\s+
+                (-?\d{4})\s+
+                (\d{2}):(\d{2}):(\d{2})\s+
+                (gmt)\s*\z/ix
+
+      match = pattern.match(str)
+      return false unless match
+
+      hash[:wday] = day_num(match[1])
+      hash[:mday] = match[2].to_i
+      hash[:mon] = mon_num(match[3])
+      hash[:year] = match[4].to_i
+      hash[:hour] = match[5].to_i
+      hash[:min] = match[6].to_i
+      hash[:sec] = match[7].to_i
+      hash[:zone] = match[8]
+      hash[:offset] = 0
+
+      true
+    end
+
+    # HTTP date type 2: "Saturday, 03-Feb-01 00:00:00 GMT"
+    def httpdate_type2(str, hash)
+      pattern = /\A\s*#{DAYS_PATTERN}\s*,\s+
+                (\d{2})\s*-\s*
+                #{ABBR_MONTHS_PATTERN}\s*-\s*
+                (\d{2})\s+
+                (\d{2}):(\d{2}):(\d{2})\s+
+                (gmt)\s*\z/ix
+
+      match = pattern.match(str)
+      return false unless match
+
+      hash[:wday] = day_num(match[1])
+      hash[:mday] = match[2].to_i
+      hash[:mon] = mon_num(match[3])
+
+      # Year completion for 2-digit year
+      year = match[4].to_i
+      year = comp_year69(year) if year >= 0 && year <= 99
+      hash[:year] = year
+
+      hash[:hour] = match[5].to_i
+      hash[:min] = match[6].to_i
+      hash[:sec] = match[7].to_i
+      hash[:zone] = match[8]
+      hash[:offset] = 0
+
+      true
+    end
+
+    # HTTP date type 3: "Sat Feb  3 00:00:00 2001"
+    def httpdate_type3(str, hash)
+      pattern = /\A\s*#{ABBR_DAYS_PATTERN}\s+
+                #{ABBR_MONTHS_PATTERN}\s+
+                (\d{1,2})\s+
+                (\d{2}):(\d{2}):(\d{2})\s+
+                (\d{4})\s*\z/ix
+
+      match = pattern.match(str)
+      return false unless match
+
+      hash[:wday] = day_num(match[1])
+      hash[:mon] = mon_num(match[2])
+      hash[:mday] = match[3].to_i
+      hash[:hour] = match[4].to_i
+      hash[:min] = match[5].to_i
+      hash[:sec] = match[6].to_i
+      hash[:year] = match[7].to_i
+
+      true
+    end
+
+    # Helper: Convert day name to number (0=Sunday, 6=Saturday)
+    def day_num(day_name)
+      abbr_days = %w[sun mon tue wed thu fri sat]
+      abbr_days.index(day_name[0, 3].downcase) || 0
+    end
+
+    # Helper: Convert month name to number (1=January, 12=December)
+    def mon_num(month_name)
+      abbr_months = %w[jan feb mar apr may jun jul aug sep oct nov dec]
+      (abbr_months.index(month_name[0, 3].downcase) || 0) + 1
+    end
+
+    # Helper: Complete 2-digit year (69-99 -> 1900s, 00-68 -> 2000s)
+    def comp_year69(year)
+      year >= 69 ? year + 1900 : year + 2000
+    end
+
   end
 end

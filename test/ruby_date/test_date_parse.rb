@@ -421,8 +421,8 @@ class RubyDateDateParseTest < Test::Unit::TestCase
       h = RubyDate._parse(*x)
       a = h.values_at(:year,:mon,:mday,:hour,:min,:sec,:zone,:offset,:wday)
       if y[1] == -1
-	a[1] = -1
-	a[2] = h[:yday]
+        a[1] = -1
+        a[2] = h[:yday]
       end
       l = format('<failed at line %d>', l)
       assert_equal(y, a, l)
@@ -468,8 +468,8 @@ class RubyDateDateParseTest < Test::Unit::TestCase
       h = RubyDate._parse(*x)
       a = h.values_at(:year,:mon,:mday,:hour,:min,:sec,:zone,:offset,:wday)
       if y[1] == -1
-	a[1] = -1
-	a[2] = h[:yday]
+        a[1] = -1
+        a[2] = h[:yday]
       end
       assert_equal(y, a, format('<failed at line %d>', l))
     end
@@ -553,41 +553,45 @@ class RubyDateDateParseTest < Test::Unit::TestCase
     assert_equal(RubyDate.new, RubyDate.parse)
     assert_equal(RubyDate.new(2002,3,14), RubyDate.parse('2002-03-14'))
 
-    assert_equal(RubyDate.new(2002,3,14,11,22,33, 0),
-		 RubyDate.parse('2002-03-14T11:22:33Z'))
-    assert_equal(RubyDate.new(2002,3,14,11,22,33, 9.to_r/24),
-		 RubyDate.parse('2002-03-14T11:22:33+09:00'))
-    assert_equal(RubyDate.new(2002,3,14,11,22,33, -9.to_r/24),
-		 RubyDate.parse('2002-03-14T11:22:33-09:00'))
-    assert_equal(RubyDate.new(2002,3,14,11,22,33, -9.to_r/24) + 123456789.to_r/1000000000/86400,
-		 RubyDate.parse('2002-03-14T11:22:33.123456789-09:00'))
+    # assert_equal(DateTime.new(2002,3,14,11,22,33, 0),
+    #              DateTime.parse('2002-03-14T11:22:33Z'))
+    # assert_equal(DateTime.new(2002,3,14,11,22,33, 9.to_r/24),
+    #              DateTime.parse('2002-03-14T11:22:33+09:00'))
+    # assert_equal(DateTime.new(2002,3,14,11,22,33, -9.to_r/24),
+    #              DateTime.parse('2002-03-14T11:22:33-09:00'))
+    # assert_equal(DateTime.new(2002,3,14,11,22,33, -9.to_r/24) + 123456789.to_r/1000000000/86400,
+    #              DateTime.parse('2002-03-14T11:22:33.123456789-09:00'))
   end
 
   def test_parse__2
-    d1 = RubyDate.parse('2004-03-13T22:45:59.5')
-    d2 = RubyDate.parse('2004-03-13T22:45:59')
+    omit "DateTime is deprecated and not implemented in RubyDate"
+
+    d1 = DateTime.parse('2004-03-13T22:45:59.5')
+    d2 = DateTime.parse('2004-03-13T22:45:59')
     assert_equal(d2 + 5.to_r/10**1/86400, d1)
-    d1 = RubyDate.parse('2004-03-13T22:45:59.05')
-    d2 = RubyDate.parse('2004-03-13T22:45:59')
+    d1 = DateTime.parse('2004-03-13T22:45:59.05')
+    d2 = DateTime.parse('2004-03-13T22:45:59')
     assert_equal(d2 + 5.to_r/10**2/86400, d1)
-    d1 = RubyDate.parse('2004-03-13T22:45:59.005')
-    d2 = RubyDate.parse('2004-03-13T22:45:59')
+    d1 = DateTime.parse('2004-03-13T22:45:59.005')
+    d2 = DateTime.parse('2004-03-13T22:45:59')
     assert_equal(d2 + 5.to_r/10**3/86400, d1)
-    d1 = RubyDate.parse('2004-03-13T22:45:59.0123')
-    d2 = RubyDate.parse('2004-03-13T22:45:59')
+    d1 = DateTime.parse('2004-03-13T22:45:59.0123')
+    d2 = DateTime.parse('2004-03-13T22:45:59')
     assert_equal(d2 + 123.to_r/10**4/86400, d1)
-    d1 = RubyDate.parse('2004-03-13T22:45:59.5')
+    d1 = DateTime.parse('2004-03-13T22:45:59.5')
     d1 += 1.to_r/2/86400
-    d2 = RubyDate.parse('2004-03-13T22:46:00')
+    d2 = DateTime.parse('2004-03-13T22:46:00')
     assert_equal(d2, d1)
   end
 
   def test__parse_odd_offset
-    h = RubyDate._parse('2001-02-03T04:05:06+1')
+    omit "DateTime is deprecated and not implemented in RubyDate"
+
+    h = DateTime._parse('2001-02-03T04:05:06+1')
     assert_equal(3600, h[:offset])
-    h = RubyDate._parse('2001-02-03T04:05:06+123')
+    h = DateTime._parse('2001-02-03T04:05:06+123')
     assert_equal(4980, h[:offset])
-    h = RubyDate._parse('2001-02-03T04:05:06+12345')
+    h = DateTime._parse('2001-02-03T04:05:06+12345')
     assert_equal(5025, h[:offset])
   end
 
@@ -606,71 +610,87 @@ class RubyDateDateParseTest < Test::Unit::TestCase
     assert_not_include(h, :year)
   end
 
-  require 'time'
-
-  def test_parse__time
-    methods = [:to_s, :asctime, :iso8601, :rfc2822, :httpdate, :xmlschema]
-
-    t = Time.utc(2001,2,3,4,5,6)
-    methods.each do |m|
-      d = RubyDate.parse(t.__send__(m))
-      assert_equal([2001, 2, 3, 4, 5, 6],
-		   [d.year, d.mon, d.mday, d.hour, d.min, d.sec],
-		   [m, t.__send__(m)].inspect)
-    end
-
-    t = Time.mktime(2001,2,3,4,5,6)
-    methods.each do |m|
-      next if m == :httpdate
-      d = RubyDate.parse(t.__send__(m))
-      assert_equal([2001, 2, 3, 4, 5, 6],
-		   [d.year, d.mon, d.mday, d.hour, d.min, d.sec],
-		   [m, t.__send__(m)].inspect)
-    end
-  end
+  ################################################################################
+  # Because time depends on date_core, test is temporarily omitted.
+  # --------------------
+  # require 'time'
+  #
+  # def test_parse__time
+  #   methods = [:to_s, :asctime, :iso8601, :rfc2822, :httpdate, :xmlschema]
+  #
+  #   t = Time.utc(2001,2,3,4,5,6)
+  #   methods.each do |m|
+  #     # d = DateTime.parse(t.__send__(m))
+  #     # assert_equal([2001, 2, 3, 4, 5, 6],
+  #     #              [d.year, d.mon, d.mday, d.hour, d.min, d.sec],
+  #     #              [m, t.__send__(m)].inspect)
+  #     d = RubyDate.parse(t.__send__(m))
+  #     assert_equal([2001, 2, 3],
+  #                  [d.year, d.mon, d.mday],
+  #                  [m, t.__send__(m)].inspect)
+  #   end
+  #
+  #   t = Time.mktime(2001,2,3,4,5,6)
+  #   methods.each do |m|
+  #     next if m == :httpdate
+  #     # d = DateTime.parse(t.__send__(m))
+  #     # assert_equal([2001, 2, 3, 4, 5, 6],
+  #     #              [d.year, d.mon, d.mday, d.hour, d.min, d.sec],
+  #     #              [m, t.__send__(m)].inspect)
+  #     d = RubyDate.parse(t.__send__(m))
+  #     assert_equal([2001, 2, 3],
+  #                  [d.year, d.mon, d.mday],
+  #                  [m, t.__send__(m)].inspect)
+  #   end
+  # end
+  ################################################################################
 
   def test_parse__comp
-    n = RubyDate.now
+    omit "DateTime is deprecated and not implemented in RubyDate"
 
-    d = RubyDate.parse('073')
+    n = DateTime.now
+
+    d = DateTime.parse('073')
     assert_equal([n.year, 73, 0, 0, 0],
-		 [d.year, d.yday, d.hour, d.min, d.sec])
-    d = RubyDate.parse('13')
+                 [d.year, d.yday, d.hour, d.min, d.sec])
+    d = DateTime.parse('13')
     assert_equal([n.year, n.mon, 13, 0, 0, 0],
-		 [d.year, d.mon, d.mday, d.hour, d.min, d.sec])
+                 [d.year, d.mon, d.mday, d.hour, d.min, d.sec])
 
-    d = RubyDate.parse('Mar 13')
+    d = DateTime.parse('Mar 13')
     assert_equal([n.year, 3, 13, 0, 0, 0],
-		 [d.year, d.mon, d.mday, d.hour, d.min, d.sec])
-    d = RubyDate.parse('Mar 2004')
+                 [d.year, d.mon, d.mday, d.hour, d.min, d.sec])
+    d = DateTime.parse('Mar 2004')
     assert_equal([2004, 3, 1, 0, 0, 0],
-		 [d.year, d.mon, d.mday, d.hour, d.min, d.sec])
-    d = RubyDate.parse('23:55')
+                 [d.year, d.mon, d.mday, d.hour, d.min, d.sec])
+    d = DateTime.parse('23:55')
     assert_equal([n.year, n.mon, n.mday, 23, 55, 0],
-		 [d.year, d.mon, d.mday, d.hour, d.min, d.sec])
-    d = RubyDate.parse('23:55:30')
+                 [d.year, d.mon, d.mday, d.hour, d.min, d.sec])
+    d = DateTime.parse('23:55:30')
     assert_equal([n.year, n.mon, n.mday, 23, 55, 30],
-		 [d.year, d.mon, d.mday, d.hour, d.min, d.sec])
+                 [d.year, d.mon, d.mday, d.hour, d.min, d.sec])
 
-    d = RubyDate.parse('Sun 23:55')
+    d = DateTime.parse('Sun 23:55')
     d2 = d - d.wday
     assert_equal([d2.year, d2.mon, d2.mday, 23, 55, 0],
-		 [d.year, d.mon, d.mday, d.hour, d.min, d.sec])
-    d = RubyDate.parse('Aug 23:55')
+                 [d.year, d.mon, d.mday, d.hour, d.min, d.sec])
+    d = DateTime.parse('Aug 23:55')
     assert_equal([n.year, 8, 1, 23, 55, 0],
-		 [d.year, d.mon, d.mday, d.hour, d.min, d.sec])
+                 [d.year, d.mon, d.mday, d.hour, d.min, d.sec])
   end
 
   def test_parse__d_to_s
     d = RubyDate.new(2002,3,14)
     assert_equal(d, RubyDate.parse(d.to_s))
 
-    d = RubyDate.new(2002,3,14,11,22,33, 9.to_r/24)
-    assert_equal(d, RubyDate.parse(d.to_s))
+    # d = DateTime.new(2002,3,14,11,22,33, 9.to_r/24)
+    # assert_equal(d, DateTime.parse(d.to_s))
   end
 
   def test_parse_utf8
-    h = RubyDate._parse("Sun\u{3000}Aug 16 01:02:03 \u{65e5}\u{672c} 2009")
+    omit "DateTime is deprecated and not implemented in RubyDate"
+
+    h = DateTime._parse("Sun\u{3000}Aug 16 01:02:03 \u{65e5}\u{672c} 2009")
     assert_equal(2009, h[:year])
     assert_equal(8, h[:mon])
     assert_equal(16, h[:mday])
@@ -685,21 +705,21 @@ class RubyDateDateParseTest < Test::Unit::TestCase
     assert_raise(RubyDate::Error) do
       RubyDate.parse('')
     end
-    assert_raise(RubyDate::Error) do
-      RubyDate.parse('')
-    end
+    # assert_raise(RubyDate::Error) do
+    #   DateTime.parse('')
+    # end
     assert_raise(RubyDate::Error) do
       RubyDate.parse('2001-02-29')
     end
-    assert_raise(RubyDate::Error) do
-      RubyDate.parse('2001-02-29T23:59:60')
-    end
-    assert_nothing_raised(RubyDate::Error) do
-      RubyDate.parse('2001-03-01T23:59:60')
-    end
-    assert_raise(RubyDate::Error) do
-      RubyDate.parse('2001-03-01T23:59:61')
-    end
+    # assert_raise(RubyDate::Error) do
+    #   DateTime.parse('2001-02-29T23:59:60')
+    # end
+    # assert_nothing_raised(RubyDate::Error) do
+    #   DateTime.parse('2001-03-01T23:59:60')
+    # end
+    # assert_raise(RubyDate::Error) do
+    #   DateTime.parse('2001-03-01T23:59:61')
+    # end
     assert_raise(RubyDate::Error) do
       RubyDate.parse('23:55')
     end
@@ -710,162 +730,162 @@ class RubyDateDateParseTest < Test::Unit::TestCase
       assert e.is_a? RubyDate::Error
     end
 
-    begin
-      RubyDate.parse('')
-    rescue ArgumentError => e
-      assert e.is_a? RubyDate::Error
-    end
+    # begin
+    #   DateTime.parse('')
+    # rescue ArgumentError => e
+    #   assert e.is_a? RubyDate::Error
+    # end
   end
 
   def test__iso8601
     h = RubyDate._iso8601('01-02-03T04:05:06Z')
     assert_equal([2001, 2, 3, 4, 5, 6, 0],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._iso8601('2001-02-03T04:05:06Z')
     assert_equal([2001, 2, 3, 4, 5, 6, 0],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._iso8601('--02-03T04:05:06Z')
     assert_equal([nil, 2, 3, 4, 5, 6, 0],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._iso8601('---03T04:05:06Z')
     assert_equal([nil, nil, 3, 4, 5, 6, 0],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
 
     h = RubyDate._iso8601('2001-02-03T04:05')
     assert_equal([2001, 2, 3, 4, 5, nil, nil],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._iso8601('2001-02-03T04:05:06')
     assert_equal([2001, 2, 3, 4, 5, 6, nil],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._iso8601('2001-02-03T04:05:06,07')
     assert_equal([2001, 2, 3, 4, 5, 6, nil],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._iso8601('2001-02-03T04:05:06Z')
     assert_equal([2001, 2, 3, 4, 5, 6, 0],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._iso8601('2001-02-03T04:05:06.07+01:00')
     assert_equal([2001, 2, 3, 4, 5, 6, 3600],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._iso8601('2001-02')
     assert_equal([2001, 2],
-		 h.values_at(:year, :mon))
+                 h.values_at(:year, :mon))
 
     h = RubyDate._iso8601('010203T040506Z')
     assert_equal([2001, 2, 3, 4, 5, 6, 0],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._iso8601('20010203T040506Z')
     assert_equal([2001, 2, 3, 4, 5, 6, 0],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._iso8601('--0203T040506Z')
     assert_equal([nil, 2, 3, 4, 5, 6, 0],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._iso8601('---03T040506Z')
     assert_equal([nil, nil, 3, 4, 5, 6, 0],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
 
     h = RubyDate._iso8601('010203T0405')
     assert_equal([2001, 2, 3, 4, 5, nil, nil],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._iso8601('20010203T0405')
     assert_equal([2001, 2, 3, 4, 5, nil, nil],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._iso8601('20010203T040506')
     assert_equal([2001, 2, 3, 4, 5, 6, nil],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._iso8601('20010203T040506,07')
     assert_equal([2001, 2, 3, 4, 5, 6, nil],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._iso8601('20010203T040506Z')
     assert_equal([2001, 2, 3, 4, 5, 6, 0],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._iso8601('20010203T040506.07+0100')
     assert_equal([2001, 2, 3, 4, 5, 6, 3600],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
 
     h = RubyDate._iso8601('200102030405')
     assert_equal([2001, 2, 3, 4, 5, nil, nil],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._iso8601('20010203040506')
     assert_equal([2001, 2, 3, 4, 5, 6, nil],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._iso8601('20010203040506,07')
     assert_equal([2001, 2, 3, 4, 5, 6, nil],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._iso8601('20010203040506Z')
     assert_equal([2001, 2, 3, 4, 5, 6, 0],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._iso8601('20010203040506.07+0100')
     assert_equal([2001, 2, 3, 4, 5, 6, 3600],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
 
     h = RubyDate._iso8601('01-023T04:05:06Z')
     assert_equal([2001, 23, 4, 5, 6, 0],
-		 h.values_at(:year, :yday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :yday, :hour, :min, :sec, :offset))
     h = RubyDate._iso8601('2001-023T04:05:06Z')
     assert_equal([2001, 23, 4, 5, 6, 0],
-		 h.values_at(:year, :yday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :yday, :hour, :min, :sec, :offset))
     h = RubyDate._iso8601('-023T04:05:06Z')
     assert_equal([nil, 23, 4, 5, 6, 0],
-		 h.values_at(:year, :yday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :yday, :hour, :min, :sec, :offset))
 
     h = RubyDate._iso8601('01023T040506Z')
     assert_equal([2001, 23, 4, 5, 6, 0],
-		 h.values_at(:year, :yday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :yday, :hour, :min, :sec, :offset))
     h = RubyDate._iso8601('2001023T040506Z')
     assert_equal([2001, 23, 4, 5, 6, 0],
-		 h.values_at(:year, :yday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :yday, :hour, :min, :sec, :offset))
     h = RubyDate._iso8601('-023T040506Z')
     assert_equal([nil, 23, 4, 5, 6, 0],
-		 h.values_at(:year, :yday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :yday, :hour, :min, :sec, :offset))
 
     h = RubyDate._iso8601('01-w02-3T04:05:06Z')
     assert_equal([2001, 2, 3, 4, 5, 6, 0],
-		 h.values_at(:cwyear, :cweek, :cwday, :hour, :min, :sec, :offset))
+                 h.values_at(:cwyear, :cweek, :cwday, :hour, :min, :sec, :offset))
     h = RubyDate._iso8601('2001-w02-3T04:05:06Z')
     assert_equal([2001, 2, 3, 4, 5, 6, 0],
-		 h.values_at(:cwyear, :cweek, :cwday, :hour, :min, :sec, :offset))
+                 h.values_at(:cwyear, :cweek, :cwday, :hour, :min, :sec, :offset))
     h = RubyDate._iso8601('-w02-3T04:05:06Z')
     assert_equal([nil, 2, 3, 4, 5, 6, 0],
-		 h.values_at(:cwyear, :cweek, :cwday, :hour, :min, :sec, :offset))
+                 h.values_at(:cwyear, :cweek, :cwday, :hour, :min, :sec, :offset))
     h = RubyDate._iso8601('-w-3T04:05:06Z')
     assert_equal([nil, nil, 3, 4, 5, 6, 0],
-		 h.values_at(:cwyear, :cweek, :cwday, :hour, :min, :sec, :offset))
+                 h.values_at(:cwyear, :cweek, :cwday, :hour, :min, :sec, :offset))
 
     h = RubyDate._iso8601('01w023T040506Z')
     assert_equal([2001, 2, 3, 4, 5, 6, 0],
-		 h.values_at(:cwyear, :cweek, :cwday, :hour, :min, :sec, :offset))
+                 h.values_at(:cwyear, :cweek, :cwday, :hour, :min, :sec, :offset))
     h = RubyDate._iso8601('2001w023T040506Z')
     assert_equal([2001, 2, 3, 4, 5, 6, 0],
-		 h.values_at(:cwyear, :cweek, :cwday, :hour, :min, :sec, :offset))
+                 h.values_at(:cwyear, :cweek, :cwday, :hour, :min, :sec, :offset))
     h = RubyDate._iso8601('-w023T040506Z')
     assert_equal([nil, 2, 3, 4, 5, 6, 0],
-		 h.values_at(:cwyear, :cweek, :cwday, :hour, :min, :sec, :offset))
+                 h.values_at(:cwyear, :cweek, :cwday, :hour, :min, :sec, :offset))
     h = RubyDate._iso8601('-w-3T040506Z')
     assert_equal([nil, nil, 3, 4, 5, 6, 0],
-		 h.values_at(:cwyear, :cweek, :cwday, :hour, :min, :sec, :offset))
+                 h.values_at(:cwyear, :cweek, :cwday, :hour, :min, :sec, :offset))
 
     h = RubyDate._iso8601('04:05')
     assert_equal([nil, nil, nil, 4, 5, nil, nil],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._iso8601('04:05:06')
     assert_equal([nil, nil, nil, 4, 5, 6, nil],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._iso8601('04:05:06,07')
     assert_equal([nil, nil, nil, 4, 5, 6, nil],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._iso8601('04:05:06Z')
     assert_equal([nil, nil, nil, 4, 5, 6, 0],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._iso8601('04:05:06.07+01:00')
     assert_equal([nil, nil, nil, 4, 5, 6, 3600],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
 
     h = RubyDate._iso8601('040506,07')
     assert_equal([nil, nil, nil, 4, 5, 6, nil],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._iso8601('040506.07+0100')
     assert_equal([nil, nil, nil, 4, 5, 6, 3600],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
 
     h = RubyDate._iso8601('')
     assert_equal({}, h)
@@ -879,13 +899,13 @@ class RubyDateDateParseTest < Test::Unit::TestCase
   def test__rfc3339
     h = RubyDate._rfc3339('2001-02-03T04:05:06Z')
     assert_equal([2001, 2, 3, 4, 5, 6, 0],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._rfc3339('2001-02-03 04:05:06Z')
     assert_equal([2001, 2, 3, 4, 5, 6, 0],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._rfc3339('2001-02-03T04:05:06.07+01:00')
     assert_equal([2001, 2, 3, 4, 5, 6, 3600],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
 
     h = RubyDate._rfc3339('')
     assert_equal({}, h)
@@ -899,80 +919,80 @@ class RubyDateDateParseTest < Test::Unit::TestCase
   def test__xmlschema
     h = RubyDate._xmlschema('2001-02-03')
     assert_equal([2001, 2, 3, nil, nil, nil, nil],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._xmlschema('2001-02-03Z')
     assert_equal([2001, 2, 3, nil, nil, nil, 0],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._xmlschema('2001-02-03+01:00')
     assert_equal([2001, 2, 3, nil, nil, nil, 3600],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
 
     h = RubyDate._xmlschema('2001-02-03T04:05:06')
     assert_equal([2001, 2, 3, 4, 5, 6, nil],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._xmlschema('2001-02-03T04:05:06.07')
     assert_equal([2001, 2, 3, 4, 5, 6, nil],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._xmlschema('2001-02-03T04:05:06.07Z')
     assert_equal([2001, 2, 3, 4, 5, 6, 0],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._xmlschema('2001-02-03T04:05:06.07+01:00')
     assert_equal([2001, 2, 3, 4, 5, 6, 3600],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
 
     h = RubyDate._xmlschema('04:05:06')
     assert_equal([nil, nil, nil, 4, 5, 6, nil],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._xmlschema('04:05:06Z')
     assert_equal([nil, nil, nil, 4, 5, 6, 0],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._xmlschema('04:05:06+01:00')
     assert_equal([nil, nil, nil, 4, 5, 6, 3600],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
 
     h = RubyDate._xmlschema('2001-02')
     assert_equal([2001, 2, nil, nil, nil, nil, nil],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._xmlschema('2001-02Z')
     assert_equal([2001, 2, nil, nil, nil, nil, 0],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._xmlschema('2001-02+01:00')
     assert_equal([2001, 2, nil, nil, nil, nil, 3600],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._xmlschema('2001-02-01:00')
     assert_equal([2001, 2, nil, nil, nil, nil, -3600],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
 
     h = RubyDate._xmlschema('2001')
     assert_equal([2001, nil, nil, nil, nil, nil, nil],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._xmlschema('2001Z')
     assert_equal([2001, nil, nil, nil, nil, nil, 0],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._xmlschema('2001+01:00')
     assert_equal([2001, nil, nil, nil, nil, nil, 3600],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._xmlschema('2001-01:00')
     assert_equal([2001, nil, nil, nil, nil, nil, -3600],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
 
     h = RubyDate._xmlschema('--02')
     assert_equal([nil, 2, nil, nil, nil, nil, nil],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._xmlschema('--02Z')
     assert_equal([nil, 2, nil, nil, nil, nil, 0],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._xmlschema('--02+01:00')
     assert_equal([nil, 2, nil, nil, nil, nil, 3600],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
 
     h = RubyDate._xmlschema('92001-02-03T04:05:06.07+01:00')
     assert_equal([92001, 2, 3, 4, 5, 6, 3600],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
 
     h = RubyDate._xmlschema('-92001-02-03T04:05:06.07+01:00')
     assert_equal([-92001, 2, 3, 4, 5, 6, 3600],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
 
     h = RubyDate._xmlschema('')
     assert_equal({}, h)
@@ -986,26 +1006,26 @@ class RubyDateDateParseTest < Test::Unit::TestCase
   def test__rfc2822
     h = RubyDate._rfc2822('Sat, 3 Feb 2001 04:05:06 UT')
     assert_equal([2001, 2, 3, 4, 5, 6, 0],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._rfc2822('Sat, 3 Feb 2001 04:05:06 EST')
     assert_equal([2001, 2, 3, 4, 5, 6, -5*3600],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._rfc2822('Sat, 3 Feb 2001 04:05:06 +0000')
     assert_equal([2001, 2, 3, 4, 5, 6, 0],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._rfc2822('Sat, 3 Feb 2001 04:05:06 +0100')
     assert_equal([2001, 2, 3, 4, 5, 6, 3600],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
 
     h = RubyDate._rfc2822('Sat, 03 Feb 50 04:05:06 +0100')
     assert_equal([1950, 2, 3, 4, 5, 6, 3600],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._rfc2822('Sat, 03 Feb 49 04:05:06 +0100')
     assert_equal([2049, 2, 3, 4, 5, 6, 3600],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._rfc2822('Sat, 03 Feb 100 04:05:06 +0100')
     assert_equal([2000, 2, 3, 4, 5, 6, 3600],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
 
     h1 = RubyDate._rfc2822('Sat, 3 Feb 2001 04:05:06 UT')
     h2 = RubyDate._rfc822('Sat, 3 Feb 2001 04:05:06 UT')
@@ -1023,18 +1043,18 @@ class RubyDateDateParseTest < Test::Unit::TestCase
   def test__httpdate
     h = RubyDate._httpdate('Sat, 03 Feb 2001 04:05:06 GMT')
     assert_equal([2001, 2, 3, 4, 5, 6, 0],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
 
     h = RubyDate._httpdate('Saturday, 03-Feb-01 04:05:06 GMT')
     assert_equal([2001, 2, 3, 4, 5, 6, 0],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
 
     h = RubyDate._httpdate('Sat Feb  3 04:05:06 2001')
     assert_equal([2001, 2, 3, 4, 5, 6, nil],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._httpdate('Sat Feb 03 04:05:06 2001')
     assert_equal([2001, 2, 3, 4, 5, 6, nil],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
 
     h = RubyDate._httpdate('')
     assert_equal({}, h)
@@ -1048,74 +1068,74 @@ class RubyDateDateParseTest < Test::Unit::TestCase
   def test__jisx0301
     h = RubyDate._jisx0301('13.02.03')
     assert_equal([2001, 2, 3, nil, nil, nil, nil],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._jisx0301('H13.02.03')
     assert_equal([2001, 2, 3, nil, nil, nil, nil],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._jisx0301('S63.02.03')
     assert_equal([1988, 2, 3, nil, nil, nil, nil],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._jisx0301('H31.04.30')
     assert_equal([2019, 4, 30, nil, nil, nil, nil],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._jisx0301('H31.05.01')
     assert_equal([2019, 5, 1, nil, nil, nil, nil],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._jisx0301('R01.05.01')
     assert_equal([2019, 5, 1, nil, nil, nil, nil],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
 
     h = RubyDate._jisx0301('H13.02.03T04:05:06')
     assert_equal([2001, 2, 3, 4, 5, 6, nil],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._jisx0301('H13.02.03T04:05:06,07')
     assert_equal([2001, 2, 3, 4, 5, 6, nil],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._jisx0301('H13.02.03T04:05:06Z')
     assert_equal([2001, 2, 3, 4, 5, 6, 0],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._jisx0301('H13.02.03T04:05:06.07+0100')
     assert_equal([2001, 2, 3, 4, 5, 6, 3600],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
 
     h = RubyDate._jisx0301('H31.04.30T04:05:06')
     assert_equal([2019, 4, 30, 4, 5, 6, nil],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._jisx0301('H31.04.30T04:05:06,07')
     assert_equal([2019, 4, 30, 4, 5, 6, nil],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._jisx0301('H31.04.30T04:05:06Z')
     assert_equal([2019, 4, 30, 4, 5, 6, 0],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._jisx0301('H31.04.30T04:05:06.07+0100')
     assert_equal([2019, 4, 30, 4, 5, 6, 3600],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
 
     h = RubyDate._jisx0301('H31.05.01T04:05:06')
     assert_equal([2019, 5, 1, 4, 5, 6, nil],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._jisx0301('H31.05.01T04:05:06,07')
     assert_equal([2019, 5, 1, 4, 5, 6, nil],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._jisx0301('H31.05.01T04:05:06Z')
     assert_equal([2019, 5, 1, 4, 5, 6, 0],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._jisx0301('H31.05.01T04:05:06.07+0100')
     assert_equal([2019, 5, 1, 4, 5, 6, 3600],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
 
     h = RubyDate._jisx0301('R01.05.01T04:05:06')
     assert_equal([2019, 5, 1, 4, 5, 6, nil],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._jisx0301('R01.05.01T04:05:06,07')
     assert_equal([2019, 5, 1, 4, 5, 6, nil],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._jisx0301('R01.05.01T04:05:06Z')
     assert_equal([2019, 5, 1, 4, 5, 6, 0],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
     h = RubyDate._jisx0301('R01.05.01T04:05:06.07+0100')
     assert_equal([2019, 5, 1, 4, 5, 6, 3600],
-		 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
+                 h.values_at(:year, :mon, :mday, :hour, :min, :sec, :offset))
 
     h = RubyDate._jisx0301('')
     assert_equal({}, h)
@@ -1128,48 +1148,48 @@ class RubyDateDateParseTest < Test::Unit::TestCase
 
   def test_iso8601
     assert_instance_of(RubyDate, RubyDate.iso8601)
-    assert_instance_of(RubyDate, RubyDate.iso8601)
+    # assert_instance_of(DateTime, DateTime.iso8601)
 
     d = RubyDate.iso8601('2001-02-03', RubyDate::ITALY + 10)
     assert_equal(RubyDate.new(2001,2,3), d)
     assert_equal(RubyDate::ITALY + 10, d.start)
 
-    d = RubyDate.iso8601('2001-02-03T04:05:06+07:00', RubyDate::ITALY + 10)
-    assert_equal(RubyDate.new(2001,2,3,4,5,6,'+07:00'), d)
-    assert_equal(RubyDate::ITALY + 10, d.start)
+    # d = DateTime.iso8601('2001-02-03T04:05:06+07:00', RubyDate::ITALY + 10)
+    # assert_equal(DateTime.new(2001,2,3,4,5,6,'+07:00'), d)
+    # assert_equal(RubyDate::ITALY + 10, d.start)
   end
 
   def test_rfc3339
     assert_instance_of(RubyDate, RubyDate.rfc3339)
-    assert_instance_of(RubyDate, RubyDate.rfc3339)
+    assert_instance_of(DateTime, DateTime.rfc3339)
 
     d = RubyDate.rfc3339('2001-02-03T04:05:06+07:00', RubyDate::ITALY + 10)
     assert_equal(RubyDate.new(2001,2,3), d)
     assert_equal(RubyDate::ITALY + 10, d.start)
 
-    d = RubyDate.rfc3339('2001-02-03T04:05:06+07:00', RubyDate::ITALY + 10)
-    assert_equal(RubyDate.new(2001,2,3,4,5,6,'+07:00'), d)
-    assert_equal(RubyDate::ITALY + 10, d.start)
+    # d = DateTime.rfc3339('2001-02-03T04:05:06+07:00', RubyDate::ITALY + 10)
+    # assert_equal(DateTime.new(2001,2,3,4,5,6,'+07:00'), d)
+    # assert_equal(RubyDate::ITALY + 10, d.start)
   end
 
   def test_xmlschema
     assert_instance_of(RubyDate, RubyDate.xmlschema)
-    assert_instance_of(RubyDate, RubyDate.xmlschema)
+    # assert_instance_of(DateTime, DateTime.xmlschema)
 
     d = RubyDate.xmlschema('2001-02-03', RubyDate::ITALY + 10)
     assert_equal(RubyDate.new(2001,2,3), d)
     assert_equal(RubyDate::ITALY + 10, d.start)
 
-    d = RubyDate.xmlschema('2001-02-03T04:05:06+07:00', RubyDate::ITALY + 10)
-    assert_equal(RubyDate.new(2001,2,3,4,5,6,'+07:00'), d)
-    assert_equal(RubyDate::ITALY + 10, d.start)
+    # d = DateTime.xmlschema('2001-02-03T04:05:06+07:00', RubyDate::ITALY + 10)
+    # assert_equal(DateTime.new(2001,2,3,4,5,6,'+07:00'), d)
+    # assert_equal(RubyDate::ITALY + 10, d.start)
   end
 
   def test_rfc2822
     assert_instance_of(RubyDate, RubyDate.rfc2822)
-    assert_instance_of(RubyDate, RubyDate.rfc2822)
+    assert_instance_of(DateTime, DateTime.rfc2822)
     assert_instance_of(RubyDate, RubyDate.rfc822)
-    assert_instance_of(RubyDate, RubyDate.rfc822)
+    assert_instance_of(DateTime, DateTime.rfc822)
 
     d = RubyDate.rfc2822('Sat, 3 Feb 2001 04:05:06 +0700', RubyDate::ITALY + 10)
     assert_equal(RubyDate.new(2001,2,3), d)
@@ -1178,30 +1198,30 @@ class RubyDateDateParseTest < Test::Unit::TestCase
     assert_equal(RubyDate.new(2001,2,3), d)
     assert_equal(RubyDate::ITALY + 10, d.start)
 
-    d = RubyDate.rfc2822('Sat, 3 Feb 2001 04:05:06 +0700', RubyDate::ITALY + 10)
-    assert_equal(RubyDate.new(2001,2,3,4,5,6,'+07:00'), d)
-    assert_equal(RubyDate::ITALY + 10, d.start)
-    d = RubyDate.rfc2822('3 Feb 2001 04:05:06 +0700', RubyDate::ITALY + 10)
-    assert_equal(RubyDate.new(2001,2,3,4,5,6,'+07:00'), d)
-    assert_equal(RubyDate::ITALY + 10, d.start)
+    # d = DateTime.rfc2822('Sat, 3 Feb 2001 04:05:06 +0700', RubyDate::ITALY + 10)
+    # assert_equal(DateTime.new(2001,2,3,4,5,6,'+07:00'), d)
+    # assert_equal(RubyDate::ITALY + 10, d.start)
+    # d = DateTime.rfc2822('3 Feb 2001 04:05:06 +0700', RubyDate::ITALY + 10)
+    # assert_equal(DateTime.new(2001,2,3,4,5,6,'+07:00'), d)
+    # assert_equal(RubyDate::ITALY + 10, d.start)
   end
 
   def test_httpdate
     assert_instance_of(RubyDate, RubyDate.httpdate)
-    assert_instance_of(RubyDate, RubyDate.httpdate)
+    assert_instance_of(DateTime, DateTime.httpdate)
 
     d = RubyDate.httpdate('Sat, 03 Feb 2001 04:05:06 GMT', RubyDate::ITALY + 10)
     assert_equal(RubyDate.new(2001,2,3), d)
     assert_equal(RubyDate::ITALY + 10, d.start)
 
-    d = RubyDate.httpdate('Sat, 03 Feb 2001 04:05:06 GMT', RubyDate::ITALY + 10)
-    assert_equal(RubyDate.new(2001,2,3,4,5,6,'+00:00'), d)
-    assert_equal(RubyDate::ITALY + 10, d.start)
+    # d = DateTime.httpdate('Sat, 03 Feb 2001 04:05:06 GMT', RubyDate::ITALY + 10)
+    # assert_equal(DateTime.new(2001,2,3,4,5,6,'+00:00'), d)
+    # assert_equal(RubyDate::ITALY + 10, d.start)
   end
 
   def test_jisx0301
     assert_instance_of(RubyDate, RubyDate.jisx0301)
-    assert_instance_of(RubyDate, RubyDate.jisx0301)
+    assert_instance_of(DateTime, DateTime.jisx0301)
 
     d = RubyDate.jisx0301('H13.02.03', RubyDate::ITALY + 10)
     assert_equal(RubyDate.new(2001,2,3), d)
@@ -1219,21 +1239,21 @@ class RubyDateDateParseTest < Test::Unit::TestCase
     assert_equal(RubyDate.new(2019,5,1), d)
     assert_equal(RubyDate::ITALY + 10, d.start)
 
-    d = RubyDate.jisx0301('H13.02.03T04:05:06+07:00', RubyDate::ITALY + 10)
-    assert_equal(RubyDate.new(2001,2,3,4,5,6,'+07:00'), d)
-    assert_equal(RubyDate::ITALY + 10, d.start)
+    # d = DateTime.jisx0301('H13.02.03T04:05:06+07:00', RubyDate::ITALY + 10)
+    # assert_equal(DateTime.new(2001,2,3,4,5,6,'+07:00'), d)
+    # assert_equal(RubyDate::ITALY + 10, d.start)
 
-    d = RubyDate.jisx0301('H31.04.30T04:05:06+07:00', RubyDate::ITALY + 10)
-    assert_equal(RubyDate.new(2019,4,30,4,5,6,'+07:00'), d)
-    assert_equal(RubyDate::ITALY + 10, d.start)
+    # d = DateTime.jisx0301('H31.04.30T04:05:06+07:00', RubyDate::ITALY + 10)
+    # assert_equal(DateTime.new(2019,4,30,4,5,6,'+07:00'), d)
+    # assert_equal(RubyDate::ITALY + 10, d.start)
 
-    d = RubyDate.jisx0301('H31.05.01T04:05:06+07:00', RubyDate::ITALY + 10)
-    assert_equal(RubyDate.new(2019,5,1,4,5,6,'+07:00'), d)
-    assert_equal(RubyDate::ITALY + 10, d.start)
+    # d = DateTime.jisx0301('H31.05.01T04:05:06+07:00', RubyDate::ITALY + 10)
+    # assert_equal(DateTime.new(2019,5,1,4,5,6,'+07:00'), d)
+    # assert_equal(RubyDate::ITALY + 10, d.start)
 
-    d = RubyDate.jisx0301('R01.05.01T04:05:06+07:00', RubyDate::ITALY + 10)
-    assert_equal(RubyDate.new(2019,5,1,4,5,6,'+07:00'), d)
-    assert_equal(RubyDate::ITALY + 10, d.start)
+    # d = DateTime.jisx0301('R01.05.01T04:05:06+07:00', RubyDate::ITALY + 10)
+    # assert_equal(DateTime.new(2019,5,1,4,5,6,'+07:00'), d)
+    # assert_equal(RubyDate::ITALY + 10, d.start)
   end
 
   def test_given_string
@@ -1297,13 +1317,13 @@ class RubyDateDateParseTest < Test::Unit::TestCase
     assert_raise(ArgumentError) { RubyDate.rfc822("1" * 1000) }
     assert_raise(ArgumentError) { RubyDate.jisx0301("1" * 1000) }
 
-    assert_raise(ArgumentError) { RubyDate.parse("1" * 1000) }
-    assert_raise(ArgumentError) { RubyDate.iso8601("1" * 1000) }
-    assert_raise(ArgumentError) { RubyDate.rfc3339("1" * 1000) }
-    assert_raise(ArgumentError) { RubyDate.xmlschema("1" * 1000) }
-    assert_raise(ArgumentError) { RubyDate.rfc2822("1" * 1000) }
-    assert_raise(ArgumentError) { RubyDate.rfc822("1" * 1000) }
-    assert_raise(ArgumentError) { RubyDate.jisx0301("1" * 1000) }
+    # assert_raise(ArgumentError) { DateTime.parse("1" * 1000) }
+    # assert_raise(ArgumentError) { DateTime.iso8601("1" * 1000) }
+    # assert_raise(ArgumentError) { DateTime.rfc3339("1" * 1000) }
+    # assert_raise(ArgumentError) { DateTime.xmlschema("1" * 1000) }
+    # assert_raise(ArgumentError) { DateTime.rfc2822("1" * 1000) }
+    # assert_raise(ArgumentError) { DateTime.rfc822("1" * 1000) }
+    # assert_raise(ArgumentError) { DateTime.jisx0301("1" * 1000) }
 
     assert_raise(ArgumentError) { RubyDate._parse("Jan " + "9" * 1000000) }
   end
