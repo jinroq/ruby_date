@@ -123,6 +123,28 @@ class RubyDate
       hash
     end
 
+    # Parse ISO 8601 format
+    def date__iso8601(str)
+      hash = {}
+
+      # Return empty hash for nil or empty string
+      return hash if str.nil? || str.empty?
+
+      # Try extended datetime format: 2001-02-03T04:05:06
+      return hash if iso8601_ext_datetime(str, hash)
+
+      # Try basic datetime format: 20010203T040506
+      return hash if iso8601_bas_datetime(str, hash)
+
+      # Try extended time format: 04:05:06
+      return hash if iso8601_ext_time(str, hash)
+
+      # Try basic time format: 040506
+      return hash if iso8601_bas_time(str, hash)
+
+      hash
+    end
+
     # HTTP date type 1: "Sat, 03 Feb 2001 00:00:00 GMT"
     def httpdate_type1(str, hash)
       pattern = /\A\s*#{ABBR_DAYS_PATTERN}\s*,\s+
@@ -217,5 +239,358 @@ class RubyDate
       year >= 69 ? year + 1900 : year + 2000
     end
 
+    # ISO 8601 extended datetime: 2001-02-03T04:05:06+09:00
+    def iso8601_ext_datetime(str, hash)
+      pattern = /\A\s*
+        (?:
+          ([-+]?\d{2,}|-)-(\d{2})?(?:-(\d{2}))?|      # YYYY-MM-DD or --MM-DD
+          ([-+]?\d{2,})?-(\d{3})|                     # YYYY-DDD
+          (\d{4}|\d{2})?-w(\d{2})-(\d)|               # YYYY-Www-D
+          -w-(\d)                                     # -W-D
+        )
+        (?:t
+          (\d{2}):(\d{2})(?::(\d{2})(?:[,.](\d+))?)?  # HH:MM:SS.fraction
+          (z|[-+]\d{2}(?::?\d{2})?)?                  # timezone
+        )?
+      \s*\z/ix
+
+      match = pattern.match(str)
+      return false unless match
+
+      # Calendar date (YYYY-MM-DD)
+      if match[1]
+        unless match[1] == '-'
+          year = match[1].to_i
+          # Complete 2-digit year
+          year = comp_year69(year) if match[1].length < 4
+          hash[:year] = year
+        end
+        hash[:mon] = match[2].to_i if match[2]
+        hash[:mday] = match[3].to_i if match[3]
+      # Ordinal date (YYYY-DDD)
+      elsif match[5]
+        if match[4]
+          year = match[4].to_i
+          year = comp_year69(year) if match[4].length < 4
+          hash[:year] = year
+        end
+        hash[:yday] = match[5].to_i
+      # Week date (YYYY-Www-D)
+      elsif match[8]
+        if match[6]
+          year = match[6].to_i
+          year = comp_year69(year) if match[6].length < 4
+          hash[:cwyear] = year
+        end
+        hash[:cweek] = match[7].to_i
+        hash[:cwday] = match[8].to_i
+      # Week day only (-W-D)
+      elsif match[9]
+        hash[:cwday] = match[9].to_i
+      end
+
+      # Time
+      if match[10]
+        hash[:hour] = match[10].to_i
+        hash[:min] = match[11].to_i
+        hash[:sec] = match[12].to_i if match[12]
+        hash[:sec_fraction] = parse_fraction(match[13]) if match[13]
+      end
+
+      # Timezone
+      if match[14]
+        hash[:zone] = match[14]
+        hash[:offset] = parse_zone_offset(match[14])
+      end
+
+      true
+    end
+
+    # ISO 8601 basic datetime: 20010203T040506
+    def iso8601_bas_datetime(str, hash)
+      # Try full basic datetime: YYYYMMDD or YYMMDD
+      pattern = /\A\s*
+        ([-+]?(?:\d{4}|\d{2})|--)  # Year (YYYY, YY, --, or signed)
+        (\d{2}|-)                  # Month (MM or -)
+        (\d{2})                    # Day (DD)
+        (?:t?
+          (\d{2})(\d{2})           # Hour and minute (HHMM)
+          (?:(\d{2})               # Second (SS)
+            (?:[,.](\d+))?         # Fraction
+          )?
+          (z|[-+]\d{2}(?:\d{2})?)? # Timezone
+        )?
+      \s*\z/ix
+
+      match = pattern.match(str)
+      if match
+        # Calendar date
+        unless match[1] == '--'
+          year = match[1].to_i
+          year = comp_year69(year) if match[1].length == 2 && match[1] !~ /^[-+]/
+          hash[:year] = year
+        end
+        hash[:mon] = match[2].to_i unless match[2] == '-'
+        hash[:mday] = match[3].to_i
+
+        # Time
+        if match[4]
+          hash[:hour] = match[4].to_i
+          hash[:min] = match[5].to_i
+          hash[:sec] = match[6].to_i if match[6]
+          hash[:sec_fraction] = parse_fraction(match[7]) if match[7]
+        end
+
+        # Timezone
+        if match[8]
+          hash[:zone] = match[8]
+          hash[:offset] = parse_zone_offset(match[8])
+        end
+
+        return true
+      end
+
+      # Try ordinal date: YYYYDDD or YYDDD
+      pattern = /\A\s*
+        ([-+]?(?:\d{4}|\d{2}))      # Year
+        (\d{3})                     # Day of year
+        (?:t?
+          (\d{2})(\d{2})            # Hour and minute
+          (?:(\d{2})                # Second
+            (?:[,.](\d+))?          # Fraction
+          )?
+          (z|[-+]\d{2}(?:\d{2})?)?  # Timezone
+        )?
+      \s*\z/ix
+
+      match = pattern.match(str)
+      if match
+        year = match[1].to_i
+        year = comp_year69(year) if match[1].length == 2 && match[1] !~ /^[-+]/
+        hash[:year] = year
+        hash[:yday] = match[2].to_i
+
+        # Time
+        if match[3]
+          hash[:hour] = match[3].to_i
+          hash[:min] = match[4].to_i
+          hash[:sec] = match[5].to_i if match[5]
+          hash[:sec_fraction] = parse_fraction(match[6]) if match[6]
+        end
+
+        # Timezone
+        if match[7]
+          hash[:zone] = match[7]
+          hash[:offset] = parse_zone_offset(match[7])
+        end
+
+        return true
+      end
+
+      # Try -DDD (ordinal without year)
+      pattern = /\A\s*
+        -(\d{3})                 # Day of year
+        (?:t?
+          (\d{2})(\d{2})         # Hour and minute
+          (?:(\d{2})             # Second
+            (?:[,.](\d+))?       # Fraction
+          )?
+          (z|[-+]\d{2}(?:\d{2})?)?  # Timezone
+        )?
+      \s*\z/ix
+
+      match = pattern.match(str)
+      if match
+        hash[:yday] = match[1].to_i
+
+        # Time
+        if match[2]
+          hash[:hour] = match[2].to_i
+          hash[:min] = match[3].to_i
+          hash[:sec] = match[4].to_i if match[4]
+          hash[:sec_fraction] = parse_fraction(match[5]) if match[5]
+        end
+
+        # Timezone
+        if match[6]
+          hash[:zone] = match[6]
+          hash[:offset] = parse_zone_offset(match[6])
+        end
+
+        return true
+      end
+
+      # Try week date: YYYYWwwD or YYWwwD
+      pattern = /\A\s*
+        (\d{4}|\d{2})            # Year
+        w(\d{2})                 # Week
+        (\d)                     # Day of week
+        (?:t?
+          (\d{2})(\d{2})         # Hour and minute
+          (?:(\d{2})             # Second
+            (?:[,.](\d+))?       # Fraction
+          )?
+          (z|[-+]\d{2}(?:\d{2})?)?  # Timezone
+        )?
+      \s*\z/ix
+
+      match = pattern.match(str)
+      if match
+        year = match[1].to_i
+        year = comp_year69(year) if match[1].length == 2
+        hash[:cwyear] = year
+        hash[:cweek] = match[2].to_i
+        hash[:cwday] = match[3].to_i
+
+        # Time
+        if match[4]
+          hash[:hour] = match[4].to_i
+          hash[:min] = match[5].to_i
+          hash[:sec] = match[6].to_i if match[6]
+          hash[:sec_fraction] = parse_fraction(match[7]) if match[7]
+        end
+
+        # Timezone
+        if match[8]
+          hash[:zone] = match[8]
+          hash[:offset] = parse_zone_offset(match[8])
+        end
+
+        return true
+      end
+
+      # Try -WwwD (week date without year)
+      pattern = /\A\s*
+        -w(\d{2})                # Week
+        (\d)                     # Day of week
+        (?:t?
+          (\d{2})(\d{2})         # Hour and minute
+          (?:(\d{2})             # Second
+            (?:[,.](\d+))?       # Fraction
+          )?
+          (z|[-+]\d{2}(?:\d{2})?)?  # Timezone
+        )?
+      \s*\z/ix
+
+      match = pattern.match(str)
+      if match
+        hash[:cweek] = match[1].to_i
+        hash[:cwday] = match[2].to_i
+
+        # Time
+        if match[3]
+          hash[:hour] = match[3].to_i
+          hash[:min] = match[4].to_i
+          hash[:sec] = match[5].to_i if match[5]
+          hash[:sec_fraction] = parse_fraction(match[6]) if match[6]
+        end
+
+        # Timezone
+        if match[7]
+          hash[:zone] = match[7]
+          hash[:offset] = parse_zone_offset(match[7])
+        end
+
+        return true
+      end
+
+      # Try -W-D (day of week only)
+      pattern = /\A\s*
+        -w-(\d)                  # Day of week
+        (?:t?
+          (\d{2})(\d{2})         # Hour and minute
+          (?:(\d{2})             # Second
+            (?:[,.](\d+))?       # Fraction
+          )?
+          (z|[-+]\d{2}(?:\d{2})?)?  # Timezone
+        )?
+      \s*\z/ix
+
+      match = pattern.match(str)
+      if match
+        hash[:cwday] = match[1].to_i
+
+        # Time
+        if match[2]
+          hash[:hour] = match[2].to_i
+          hash[:min] = match[3].to_i
+          hash[:sec] = match[4].to_i if match[4]
+          hash[:sec_fraction] = parse_fraction(match[5]) if match[5]
+        end
+
+        # Timezone
+        if match[6]
+          hash[:zone] = match[6]
+          hash[:offset] = parse_zone_offset(match[6])
+        end
+
+        return true
+      end
+
+      false
+    end
+
+    # ISO 8601 extended time: 04:05:06+09:00
+    def iso8601_ext_time(str, hash)
+      # Pattern: HH:MM:SS.fraction or HH:MM:SS,fraction
+      pattern = /\A\s*(\d{2}):(\d{2})(?::(\d{2})(?:[,.](\d+))?)?(z|[-+]\d{2}(?::?\d{2})?)?\s*\z/ix
+
+      match = pattern.match(str)
+      return false unless match
+
+      hash[:hour] = match[1].to_i
+      hash[:min] = match[2].to_i
+      hash[:sec] = match[3].to_i if match[3]
+      hash[:sec_fraction] = parse_fraction(match[4]) if match[4]
+
+      if match[5]
+        hash[:zone] = match[5]
+        hash[:offset] = parse_zone_offset(match[5])
+      end
+
+      true
+    end
+
+    # ISO 8601 basic time: 040506
+    def iso8601_bas_time(str, hash)
+      # Pattern: HHMMSS.fraction or HHMMSS,fraction
+      pattern = /\A\s*(\d{2})(\d{2})(?:(\d{2})(?:[,.](\d+))?)?(z|[-+]\d{2}(?:\d{2})?)?\s*\z/ix
+
+      match = pattern.match(str)
+      return false unless match
+
+      hash[:hour] = match[1].to_i
+      hash[:min] = match[2].to_i
+      hash[:sec] = match[3].to_i if match[3]
+      hash[:sec_fraction] = parse_fraction(match[4]) if match[4]
+
+      if match[5]
+        hash[:zone] = match[5]
+        hash[:offset] = parse_zone_offset(match[5])
+      end
+
+      true
+    end
+
+    # Parse fractional seconds
+    def parse_fraction(frac_str)
+      return nil unless frac_str
+      Rational(frac_str.to_i, 10 ** frac_str.length)
+    end
+
+    # Parse timezone offset (Z, +09:00, -0500, etc.)
+    def parse_zone_offset(zone_str)
+      return 0 if zone_str.upcase == 'Z'
+
+      # Match +HH:MM, +HHMM, +HH
+      if zone_str =~ /^([-+])(\d{2}):?(\d{2})?$/
+        sign = $1 == '-' ? -1 : 1
+        hours = $2.to_i
+        minutes = $3 ? $3.to_i : 0
+        sign * (hours * 3600 + minutes * 60)
+      else
+        0
+      end
+    end
   end
 end

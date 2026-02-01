@@ -490,6 +490,24 @@ class RubyDate
       date__httpdate(str)
     end
 
+    # call-seq:
+    #   Date._iso8601(string, limit: 128) -> hash
+    #
+    # Returns a hash of values parsed from +string+, which should contain
+    # an {ISO 8601 formatted date}[rdoc-ref:language/strftime_formatting.rdoc@ISO+8601+Format+Specifications]:
+    #
+    #   d = Date.new(2001, 2, 3)
+    #   s = d.iso8601    # => "2001-02-03"
+    #   Date._iso8601(s) # => {:mday=>3, :year=>2001, :mon=>2}
+    #
+    # See argument {limit}[rdoc-ref:Date@Argument+limit].
+    #
+    # Related: Date.iso8601 (returns a \Date object).
+    def _iso8601(string, limit: 128)
+      str = string.nil? ? nil : check_limit(string, limit)
+      date__iso8601(str)
+    end
+
     private
 
     # Optimized: Gregorian date -> Julian Day Number
