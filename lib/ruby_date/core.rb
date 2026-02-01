@@ -2526,9 +2526,9 @@ class RubyDate
     # If @sg is infinity
     if @sg.infinite?
       if @sg < 0
-        return "#<Date: -Inf-XX-XX ((0j,0s,0n),+0s,Inf)>"
+        return "#<RubyDate: -Inf-XX-XX ((0j,0s,0n),+0s,Inf)>"
       else
-        return "#<Date: +Inf-XX-XX ((0j,0s,0n),+0s,-Inf)>"
+        return "#<RubyDate: +Inf-XX-XX ((0j,0s,0n),+0s,-Inf)>"
       end
     end
 
@@ -2536,7 +2536,7 @@ class RubyDate
     jd_val = @jd || 0
     sg_val = @sg.infinite? ? (@sg < 0 ? "Inf" : "-Inf") : @sg.to_i
 
-    "#<Date: #{date_str} ((#{jd_val}j,0s,0n),+0s,#{sg_val}j)>"
+    "#<RubyDate: #{date_str} ((#{jd_val}j,0s,0n),+0s,#{sg_val}j)>"
   end
 
   def valid_civil?(y, m, d)
@@ -3342,6 +3342,58 @@ class RubyDate
 
     sf = m_sf
     r = r + ns_to_day(sf) if sf != 0
+
+    r
+  end
+
+  def m_wnumx(f)
+    _, rw, _ = c_jd_to_weeknum(m_local_jd, f, m_virtual_sg)
+
+    rw
+  end
+
+  def c_jd_to_weeknum(jd, f, sg)
+    ry, _, _ = self.class.send(:c_jd_to_civil, jd, sg)
+    rjd, _ = self.class.send(:c_find_fdoy, ry, sg)
+
+    rjd += 6
+
+    mod_val = euclidean_mod((rjd - f) + 1, 7)
+    j = jd - (rjd - mod_val) + 7
+
+    rw = euclidean_div(j, 7)
+    rd = euclidean_mod(j, 7)
+
+    [ry, rw, rd]
+  end
+
+  # Euclidean division (equivalent to the DIV macro in C)
+  def euclidean_div(a, b)
+    q = a / b
+    r = a % b
+    # In Ruby, a remainder of a negative number is negative, so adjust it accordingly.
+    if r < 0
+      if b > 0
+        q -= 1
+      else
+        q += 1
+      end
+    end
+
+    q
+  end
+
+  # Euclidean modulo (equivalent to the MOD macro in C)
+  def euclidean_mod(a, b)
+    r = a % b
+    # In Ruby, a remainder of a negative number is negative, so adjust it accordingly.
+    if r < 0
+      if b > 0
+        r += b
+      else
+        r -= b
+      end
+    end
 
     r
   end
