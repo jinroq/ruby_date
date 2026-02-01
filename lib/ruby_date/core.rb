@@ -2431,6 +2431,19 @@ class RubyDate
   alias_method :ctime, :asctime
 
   # call-seq:
+  #   iso8601    ->  string
+  #
+  # Equivalent to #strftime with argument <tt>'%Y-%m-%d'</tt>
+  # (or its {shorthand form}[rdoc-ref:language/strftime_formatting.rdoc@Shorthand+Conversion+Specifiers]
+  # <tt>'%F'</tt>);
+  #
+  #   Date.new(2001, 2, 3).iso8601 # => "2001-02-03"
+  def iso8601
+    strftime('%Y-%m-%d')
+  end
+  alias_method :xmlschema, :iso8601
+
+  # call-seq:
   #   infinite? -> false
   #
   # Returns +false+
