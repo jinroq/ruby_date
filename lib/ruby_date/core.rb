@@ -2480,6 +2480,22 @@ class RubyDate
   end
 
   # call-seq:
+  #   jisx0301 -> string
+  #
+  # Returns a string representation of the date in +self+
+  # in JIS X 0301 format.
+  #
+  #   Date.new(2001, 2, 3).jisx0301 # => "H13.02.03"
+  #
+  def jisx0301
+    jd = m_real_local_jd
+    y = m_real_year
+
+    fmt = jisx0301_date_format(jd, y)
+    strftime(fmt)
+  end
+
+  # call-seq:
   #   infinite? -> false
   #
   # Returns +false+
@@ -3461,6 +3477,47 @@ class RubyDate
     end
 
     r
+  end
+
+  def jisx0301_date_format(jd, year)
+    # If jd is not a Fixnum (Integer in Ruby), use ISO format
+    return '%Y-%m-%d' unless jd.is_a?(Integer)
+
+    # Determine the era based on Julian Day Number
+    if jd < 2405160
+      # Before Meiji era (before 1868-01-25)
+      '%Y-%m-%d'
+    elsif jd < 2419614
+      # Meiji era (M) 1868-01-25 to 1912-07-29
+      era_char = 'M'
+      era_start = 1867
+      format_era(era_char, year, era_start)
+    elsif jd < 2424875
+      # Taisho era (T) 1912-07-30 to 1926-12-24
+      era_char = 'T'
+      era_start = 1911
+      format_era(era_char, year, era_start)
+    elsif jd < 2447535
+      # Showa era (S) 1926-12-25 to 1989-01-07
+      era_char = 'S'
+      era_start = 1925
+      format_era(era_char, year, era_start)
+    elsif jd < 2458605
+      # Heisei era (H) 1989-01-08 to 2019-04-30
+      era_char = 'H'
+      era_start = 1988
+      format_era(era_char, year, era_start)
+    else
+      # Reiwa era (R) 2019-05-01 onwards
+      era_char = 'R'
+      era_start = 2018
+      format_era(era_char, year, era_start)
+    end
+  end
+
+  def format_era(era_char, year, era_start)
+    era_year = year - era_start
+    "#{era_char}%02d.%%m.%%d" % era_year
   end
 end
 
