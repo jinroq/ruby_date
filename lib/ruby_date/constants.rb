@@ -129,4 +129,8 @@ class RubyDate
 
   JULIAN_EPOCH_DATE = "-4712-01-01"
   private_constant :JULIAN_EPOCH_DATE
+
+  JISX0301_ERA_INITIALS = 'mtshr'
+  JISX0301_DEFAULT_ERA = 'H'  # obsolete
+  private_constant :JISX0301_ERA_INITIALS, :JISX0301_DEFAULT_ERA
 end

@@ -145,6 +145,20 @@ class RubyDate
       hash
     end
 
+    # Parse JIS X 0301 format
+    def date__jisx0301(str)
+      hash = {}
+
+      # Return empty hash for nil or empty string
+      return hash if str.nil? || str.empty?
+
+      # Try JIS X 0301 format first
+      return hash if jisx0301(str, hash)
+
+      # Fallback to ISO 8601 format
+      date__iso8601(str)
+    end
+
     # HTTP date type 1: "Sat, 03 Feb 2001 00:00:00 GMT"
     def httpdate_type1(str, hash)
       pattern = /\A\s*#{ABBR_DAYS_PATTERN}\s*,\s+
@@ -590,6 +604,68 @@ class RubyDate
         sign * (hours * 3600 + minutes * 60)
       else
         0
+      end
+    end
+
+    # JIS X 0301 format: H13.02.03 or H13.02.03T04:05:06
+    def jisx0301(str, hash)
+      # Pattern: [Era]YY.MM.DD[T]HH:MM:SS[.fraction][timezone]
+      # Era initials: M, T, S, H, R (or none for ISO 8601 fallback)
+      pattern = /\A\s*
+        ([#{JISX0301_ERA_INITIALS}])?  # Era (optional)
+        (\d{2})\.(\d{2})\.(\d{2})      # YY.MM.DD
+        (?:t                            # Time separator (optional)
+          (?:
+            (\d{2}):(\d{2})             # HH:MM
+            (?::(\d{2})                 # :SS (optional)
+              (?:[,.](\d*))?            # .fraction (optional)
+            )?
+            (z|[-+]\d{2}(?::?\d{2})?)?  # timezone (optional)
+          )?
+        )?
+      \s*\z/ix
+
+      match = pattern.match(str)
+      return false unless match
+
+      # Parse era and year
+      era_char = match[1] ? match[1].upcase : JISX0301_DEFAULT_ERA
+      era_year = match[2].to_i
+
+      # Convert era year to gregorian year
+      era_start = gengo(era_char)
+      hash[:year] = era_start + era_year
+
+      # Parse month and day
+      hash[:mon] = match[3].to_i
+      hash[:mday] = match[4].to_i
+
+      # Parse time (if present)
+      if match[5]
+        hash[:hour] = match[5].to_i
+        hash[:min] = match[6].to_i if match[6]
+        hash[:sec] = match[7].to_i if match[7]
+        hash[:sec_fraction] = parse_fraction(match[8]) if match[8]
+      end
+
+      # Parse timezone (if present)
+      if match[9]
+        hash[:zone] = match[9]
+        hash[:offset] = parse_zone_offset(match[9])
+      end
+
+      true
+    end
+
+    # Convert era character to year offset
+    def gengo(era_char)
+      case era_char.upcase
+      when 'M' then 1867  # Meiji
+      when 'T' then 1911  # Taisho
+      when 'S' then 1925  # Showa
+      when 'H' then 1988  # Heisei
+      when 'R' then 2018  # Reiwa
+      else 0
       end
     end
   end

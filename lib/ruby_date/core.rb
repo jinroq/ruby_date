@@ -508,6 +508,24 @@ class RubyDate
       date__iso8601(str)
     end
 
+    # call-seq:
+    #   Date._jisx0301(string, limit: 128) -> hash
+    #
+    # Returns a hash of values parsed from +string+, which should be a valid
+    # {JIS X 0301 date format}[rdoc-ref:language/strftime_formatting.rdoc@JIS+X+0301+Format]:
+    #
+    #   d = Date.new(2001, 2, 3)
+    #   s = d.jisx0301    # => "H13.02.03"
+    #   Date._jisx0301(s) # => {:year=>2001, :mon=>2, :mday=>3}
+    #
+    # See argument {limit}[rdoc-ref:Date@Argument+limit].
+    #
+    # Related: Date.jisx0301 (returns a \Date object).
+    def _jisx0301(string, limit: 128)
+      str = string.nil? ? nil : check_limit(string, limit)
+      date__jisx0301(str)
+    end
+
     private
 
     # Optimized: Gregorian date -> Julian Day Number
