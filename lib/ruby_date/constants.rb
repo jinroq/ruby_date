@@ -120,4 +120,7 @@ class RubyDate
   NS_JD_MIN = -364_000_000
   NS_JD_MAX = 538_000_000
   private_constant :NS_JD_MIN, :NS_JD_MAX
+
+  JULIAN_EPOCH_DATE = "-4712-01-01"
+  private_constant :JULIAN_EPOCH_DATE
 end
