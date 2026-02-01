@@ -2415,6 +2415,22 @@ class RubyDate
   end
 
   # call-seq:
+  #   asctime -> string
+  #
+  # Equivalent to #strftime with argument <tt>'%a %b %e %T %Y'</tt>
+  # (or its {shorthand form}[rdoc-ref:language/strftime_formatting.rdoc@Shorthand+Conversion+Specifiers]
+  # <tt>'%c'</tt>):
+  #
+  #   Date.new(2001, 2, 3).asctime # => "Sat Feb  3 00:00:00 2001"
+  #
+  # See {asctime}[https://linux.die.net/man/3/asctime].
+  #
+  def asctime
+    strftime('%a %b %e %H:%M:%S %Y')
+  end
+  alias_method :ctime, :asctime
+
+  # call-seq:
   #   infinite? -> false
   #
   # Returns +false+
