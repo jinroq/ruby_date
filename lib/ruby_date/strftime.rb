@@ -267,7 +267,7 @@ class RubyDate
   # Handles format specifiers.
   def format_spec(spec, flags = '', width = '')
     # Get basic formatting results.
-    base_result = get_base_format(spec)
+    base_result = get_base_format(spec, flags)
 
     # Apply width specifier.
     if !width.empty?
@@ -279,7 +279,7 @@ class RubyDate
   end
 
   # format specifiers
-  def get_base_format(spec)
+  def get_base_format(spec, flags = '')
     case spec
     when 'Y' # 4-digit year
       sprintf('%04d', tmx_year)
@@ -294,27 +294,60 @@ class RubyDate
     when 'b', 'h' # Abbreviated month name
       (ABBR_MONTHNAMES[tmx_mon] || '?')[0, 3]
     when 'd' # Day (01-31)
-      sprintf('%02d', tmx_mday)
+      if flags.include?('-')
+        # Left-justified (no padding)
+        tmx_mday.to_s
+      elsif flags.include?('_')
+        # Space-padded
+        sprintf('%2d', tmx_mday)
+      else
+        # Zero-padded (default)
+        sprintf('%02d', tmx_mday)
+      end
     when 'e' # Day (1-31) blank filled
       sprintf('%2d', tmx_mday)
     when 'j' # Day of the year (001-366)
       sprintf('%03d', tmx_yday)
     when 'H' # Hour (00-23)
-      sprintf('%02d', tmx_hour)
+      if flags.include?('-')
+        tmx_hour.to_s
+      elsif flags.include?('_')
+        sprintf('%2d', tmx_hour)
+      else
+        sprintf('%02d', tmx_hour)
+      end
     when 'k' # Hour (0-23) blank-padded
       sprintf('%2d', tmx_hour)
     when 'I' # Hour (01-12)
       h = tmx_hour % 12
       h = 12 if h.zero?
-      sprintf('%02d', h)
+      if flags.include?('-')
+        h.to_s
+      elsif flags.include?('_')
+        sprintf('%2d', h)
+      else
+        sprintf('%02d', h)
+      end
     when 'l' # Hour (1-12) blank filled
       h = tmx_hour % 12
       h = 12 if h.zero?
       sprintf('%2d', h)
     when 'M' # Minutes (00-59)
-      sprintf('%02d', tmx_min)
+      if flags.include?('-')
+        tmx_min.to_s
+      elsif flags.include?('_')
+        sprintf('%2d', tmx_min)
+      else
+        sprintf('%02d', tmx_min)
+      end
     when 'S' # Seconds (00-59)
-      sprintf('%02d', tmx_sec)
+      if flags.include?('-')
+        tmx_sec.to_s
+      elsif flags.include?('_')
+        sprintf('%2d', tmx_sec)
+      else
+        sprintf('%02d', tmx_sec)
+      end
     when 'L' # Milliseconds (000-999)
       sprintf('%03d', (tmx_sec_fraction * 1000).floor)
     when 'N' # Nanoseconds (000000000-999999999)

@@ -2455,6 +2455,18 @@ class RubyDate
   end
 
   # call-seq:
+  #   rfc2822 -> string
+  #
+  # Equivalent to #strftime with argument <tt>'%a, %-d %b %Y %T %z'</tt>;
+  # see {Formats for Dates and Times}[rdoc-ref:language/strftime_formatting.rdoc]:
+  #
+  #   Date.new(2001, 2, 3).rfc2822 # => "Sat, 3 Feb 2001 00:00:00 +0000"
+  def rfc2822
+    strftime('%a, %-d %b %Y %T %z')
+  end
+  alias_method :rfc822, :rfc2822
+
+  # call-seq:
   #   infinite? -> false
   #
   # Returns +false+
