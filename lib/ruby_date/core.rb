@@ -2467,6 +2467,19 @@ class RubyDate
   alias_method :rfc822, :rfc2822
 
   # call-seq:
+  #   httpdate -> string
+  #
+  # Equivalent to #strftime with argument <tt>'%a, %d %b %Y %T GMT'</tt>;
+  # see {Formats for Dates and Times}[rdoc-ref:language/strftime_formatting.rdoc]:
+  #
+  #   Date.new(2001, 2, 3).httpdate # => "Sat, 03 Feb 2001 00:00:00 GMT"
+  #
+  def httpdate
+    # For Date objects, offset is always 0, so we can directly call strftime
+    strftime('%a, %d %b %Y %T GMT')
+  end
+
+  # call-seq:
   #   infinite? -> false
   #
   # Returns +false+
