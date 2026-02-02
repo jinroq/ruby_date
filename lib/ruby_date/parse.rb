@@ -86,8 +86,8 @@ class RubyDate
       # Return empty hash for nil or empty string
       return hash if str.nil? || str.empty?
 
-      # Clean up the string - normalize whitespace
-      str = str.gsub(/[\t\n\v\f\r]+/, ' ').strip
+      # Clean up the string - normalize whitespace and remove null bytes
+      str = str.gsub(/[\t\n\v\f\r\0]+/, ' ').strip
 
       # Return empty hash for blank string after cleanup
       return hash if str.empty?
@@ -151,8 +151,8 @@ class RubyDate
         return hash
       end
 
-      # ISO 8601 basic date with extended time: 19990523T23:55:21Z
-      if str =~ /(\d{8})T(\d{2}):(\d{2}):(\d{2})(?:[,.](\d+))?(z|[-+]\d{2}:?\d{2})?/i
+      # ISO 8601 extended datetime: 1999-05-23T23:55:21Z or 2000-01-31 13:20:00-5
+      if str =~ /([-+]?\d{2,})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2}):(\d{2})(?:[,.](\d+))?(z|[-+]\d{1,2}(?::?\d{2})?)?/i
         date_part = $1
         hour_str = $2
         min_str = $3
@@ -183,8 +183,8 @@ class RubyDate
         return hash
       end
 
-      # ISO 8601 extended datetime: 1999-05-23T23:55:21Z or 1999-05-23 23:55:21+09:00
-      if str =~ /(-?\d{4,})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2}):(\d{2})(?:[,.](\d+))?(z|[-+]\d{2}:?\d{2})?/i
+      # ISO 8601 extended datetime: 1999-05-23T23:55:21Z or 02-04-12 (2-digit year allowed)
+      if str =~ /([-+]?\d{2,})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2}):(\d{2})(?:[,.](\d+))?(z|[-+]\d{2}:?\d{2})?/i
         year_str = $1
         mon_str = $2
         mday_str = $3
@@ -247,8 +247,135 @@ class RubyDate
         return hash
       end
 
-      # ISO 8601 date only: 1999-08-28
-      if str =~ /(-?\d{4})-(\d{2})-(\d{2})\s*$/
+      #return hash if parse_ddd(str, hash)
+
+      # ISO 8601 pure basic datetime: 990523T235521 (YYMMDDTHHMMSS, 6 digits + 6 digits)
+      if str =~ /^(\d{6})T(\d{6})(?:[,.](\d+))?(z|[-+]\d{2}:?\d{2})?$/i
+        date_part = $1
+        time_part = $2
+        frac_str = $3
+        zone_str = $4
+
+        year_str = date_part[0, 2]
+        mon_str = date_part[2, 2]
+        mday_str = date_part[4, 2]
+
+        hour_str = time_part[0, 2]
+        min_str = time_part[2, 2]
+        sec_str = time_part[4, 2]
+
+        hash[:year] = year_str.to_i
+        hash[:mon] = mon_str.to_i
+        hash[:mday] = mday_str.to_i
+        hash[:hour] = hour_str.to_i
+        hash[:min] = min_str.to_i
+        hash[:sec] = sec_str.to_i
+
+        if zone_str && !zone_str.empty?
+          zone = zone_str.strip
+          hash[:zone] = zone
+          hash[:offset] = parse_zone_offset(zone)
+        end
+
+        hash[:_year_str] = year_str
+        apply_comp(hash)
+
+        return hash
+      end
+
+      # ISO 8601 basic: MMDDTHHMM (no year, no seconds, with optional timezone)
+      if str =~ /^(\d{4})T(\d{4})(z|[-+]\d{2}:?\d{2})?$/i
+        date_part = $1
+        time_part = $2
+        zone_str = $3
+
+        hash[:mon] = date_part[0, 2].to_i
+        hash[:mday] = date_part[2, 2].to_i
+        hash[:hour] = time_part[0, 2].to_i
+        hash[:min] = time_part[2, 2].to_i
+
+        if zone_str && !zone_str.empty?
+          zone = zone_str.strip
+          hash[:zone] = zone
+          hash[:offset] = parse_zone_offset(zone)
+        end
+
+        return hash
+      end
+
+      # ISO 8601 basic: DD HHMM (day and time only)
+      if str =~ /^(\d{2})\s+(\d{4})$/
+        hash[:mday] = $1.to_i
+        hash[:hour] = $2[0, 2].to_i
+        hash[:min] = $2[2, 2].to_i
+
+        return hash
+      end
+
+      # ISO 8601 basic: MMDD HHMM (no year, no seconds)
+      if str =~ /^(\d{4})\s+(\d{4})$/
+        date_part = $1
+        time_part = $2
+
+        hash[:mon] = date_part[0, 2].to_i
+        hash[:mday] = date_part[2, 2].to_i
+        hash[:hour] = time_part[0, 2].to_i
+        hash[:min] = time_part[2, 2].to_i
+
+        return hash
+      end
+
+      # ISO 8601 basic datetime with space: 19990523 235521 or 990523 235521
+      if str =~ /^(\d{6,8})\s+(\d{6})$/
+        date_part = $1
+        time_part = $2
+
+        if date_part.length == 8
+          # YYYYMMDD HHMMSS
+          year_str = date_part[0, 4]
+          mon_str = date_part[4, 2]
+          mday_str = date_part[6, 2]
+        else
+          # YYMMDD HHMMSS
+          year_str = date_part[0, 2]
+          mon_str = date_part[2, 2]
+          mday_str = date_part[4, 2]
+        end
+
+        hour_str = time_part[0, 2]
+        min_str = time_part[2, 2]
+        sec_str = time_part[4, 2]
+
+        hash[:year] = year_str.to_i
+        hash[:mon] = mon_str.to_i
+        hash[:mday] = mday_str.to_i
+        hash[:hour] = hour_str.to_i
+        hash[:min] = min_str.to_i
+        hash[:sec] = sec_str.to_i
+
+        hash[:_year_str] = year_str
+        apply_comp(hash)
+
+        return hash
+      end
+
+      # ISO 8601 basic: day only (DD) - 2 digits
+      if str =~ /^(\d{2})\s*$/ && str.length == 2
+        hash[:mday] = $1.to_i
+
+        return hash
+      end
+
+      # ISO 8601 basic date: MMDD (4 digits, no year)
+      if str =~ /^(\d{2})(\d{2})\s*$/ && str.length == 4
+        hash[:mon] = $1.to_i
+        hash[:mday] = $2.to_i
+
+        return hash
+      end
+
+      # ISO 8601 basic date: YYMMDD (6 digits) or YYYYMMDD (8+ digits) - date only
+      if (str.length == 6 || str.length == 8) && str =~ /^([-+]?\d{2,})(\d{2})(\d{2})\s*$/
         year_str = $1
         mon_str = $2
         mday_str = $3
@@ -262,8 +389,61 @@ class RubyDate
         return hash
       end
 
+      # ISO 8601 date only: 1999-08-28 or +011985-04-12 or 02-04-12 (2-digit year allowed)
+      if str =~ /([-+]?\d{2,})-(\d{2})-(\d{2})\s*$/
+        year_str = $1
+        mon_str = $2
+        mday_str = $3
+
+        hash[:year] = year_str.to_i
+        hash[:mon] = mon_str.to_i
+        hash[:mday] = mday_str.to_i
+        hash[:_year_str] = year_str
+        apply_comp(hash)
+
+        return hash
+      end
+
+      # Dot-separated date with time: 1999.05.23 23:55:21
+      if str =~ /^(\d{2,4})\.(\d{2})\.(\d{2})\s+(\d{2}):(\d{2}):(\d{2})$/
+        year_str = $1
+        mon_str = $2
+        mday_str = $3
+        hour_str = $4
+        min_str = $5
+        sec_str = $6
+
+        hash[:year] = year_str.to_i
+        hash[:mon] = mon_str.to_i
+        hash[:mday] = mday_str.to_i
+        hash[:hour] = hour_str.to_i
+        hash[:min] = min_str.to_i
+        hash[:sec] = sec_str.to_i
+
+        hash[:_year_str] = year_str
+        apply_comp(hash)
+
+        return hash
+      end
+
+      # Dot-separated date only: 1999.05.23
+      if str =~ /^(\d{2,4})\.(\d{2})\.(\d{2})\s*$/
+        year_str = $1
+        mon_str = $2
+        mday_str = $3
+
+        hash[:year] = year_str.to_i
+        hash[:mon] = mon_str.to_i
+        hash[:mday] = mday_str.to_i
+
+        hash[:_year_str] = year_str
+        apply_comp(hash)
+
+        return hash
+      end
+
       # RFC 2822: Sat, 28 Aug 1999 02:55:50 +0900
-      if str =~ /(sun|mon|tue|wed|thu|fri|sat),?\s+(\d{1,2})\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+(-?\d{2,})\s+(\d{2}):(\d{2})(?::(\d{2}))?\s*(z|[-+]\d{4}|[a-z]{2,})?/i
+      if str =~ /(sun|mon|tue|wed|thu|fri|sat),?\s*(\d{1,2})\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+(-?\d{2,})\s+(\d{2}):(\d{2})(?::(\d{2}))?(?:\s+([a-z]+(?:\s+[a-z]+)*|z|[-+]\d{2,4}))?/i
         wday_str = $1
         mday_str = $2
         mon_str = $3
@@ -290,6 +470,115 @@ class RubyDate
 
         apply_comp(hash)
 
+        return hash
+      end
+
+      # RFC 850 (obsoleted by RFC 1036): Tuesday, 02-Mar-99 11:20:32 GMT
+      if str =~ /(sunday|monday|tuesday|wednesday|thursday|friday|saturday),?\s+(\d{1,2})-(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)-(\d{2,4})\s+(\d{2}):(\d{2})(?::(\d{2}))?\s+([a-z]+(?:\s+[a-z]+)*|z|[-+]\d{2,4})?/i
+        wday_str = $1
+        mday_str = $2
+        mon_str = $3
+        year_str = $4
+        hour_str = $5
+        min_str = $6
+        sec_str = $7
+        zone_str = $8
+
+        hash[:wday] = day_num(wday_str)
+        hash[:mday] = mday_str.to_i
+        hash[:mon] = mon_num(mon_str)
+        hash[:_year_str] = year_str
+        hash[:year] = year_str.to_i
+        hash[:hour] = hour_str.to_i
+        hash[:min] = min_str.to_i
+        hash[:sec] = sec_str.to_i if sec_str
+
+        if zone_str && !zone_str.empty?
+          zone = zone_str.strip
+          hash[:zone] = zone
+          hash[:offset] = parse_zone_offset(zone)
+        end
+
+        apply_comp(hash)
+        return hash
+      end
+
+      # Reversed ISO 8601 (European format): DD-MM-YYYY or DD-MM-YY
+      if str =~ /^(\d{1,2})-(\d{1,2})-('?-?\d{2,})(?:\s+(\d{2}):(\d{2}):(\d{2}))?$/
+        mday_str = $1
+        mon_str = $2
+        year_str = $3
+        hour_str = $4
+        min_str = $5
+        sec_str = $6
+
+        hash[:mday] = mday_str.to_i
+        hash[:mon] = mon_str.to_i
+
+        # Handle year with optional apostrophe and sign
+        is_negative = year_str.start_with?('-')
+        year_str = year_str.sub(/^'/, '')
+        year_str = year_str.sub(/^-/, '')
+
+        year = year_str.to_i
+        year = -year if is_negative
+
+        hash[:year] = year
+        hash[:_year_str] = year_str
+
+        if hour_str
+          hash[:hour] = hour_str.to_i
+          hash[:min] = min_str.to_i
+          hash[:sec] = sec_str.to_i
+        end
+
+        apply_comp(hash)
+        return hash
+      end
+
+      # JIS X 0301 format: M11.05.23 or H31.04.30T23:55:21+09:00
+      if str =~ /^([MTSHR])(\d{2})\.(\d{2})\.(\d{2})(?:[T\s](\d{2}):(\d{2}):(\d{2})(?:[,.](\d+))?)?\s*(z|[-+]\d{2}:?\d{2})?$/i
+        era_char = $1.upcase
+        era_year = $2.to_i
+        mon = $3.to_i
+        mday = $4.to_i
+        hour = $5
+        min = $6
+        sec = $7
+        frac = $8
+        zone = $9
+
+        # Convert era year to gregorian year
+        era_start = case era_char
+                    when 'M' then 1867  # Meiji
+                    when 'T' then 1911  # Taisho
+                    when 'S' then 1925  # Showa
+                    when 'H' then 1988  # Heisei
+                    when 'R' then 2018  # Reiwa
+                    else 0
+                    end
+
+        hash[:year] = era_start + era_year
+        hash[:mon] = mon
+        hash[:mday] = mday
+
+        if hour
+          hash[:hour] = hour.to_i
+          hash[:min] = min.to_i
+          hash[:sec] = sec.to_i
+          hash[:sec_fraction] = Rational(frac.to_i, 10 ** frac.length) if frac
+        end
+
+        if zone && !zone.empty?
+          hash[:zone] = zone
+          hash[:offset] = parse_zone_offset(zone)
+        end
+
+        return hash
+      end
+
+      if parse_ddd(str, hash)
+        apply_comp(hash)
         return hash
       end
 
@@ -794,16 +1083,49 @@ class RubyDate
 
       zone = zone_str.strip
 
+      # Handle [+9] or [-9] or [9 ] format (brackets around offset)
+      if zone =~ /^\[(.*)\]$/
+        zone = $1.strip
+      end
+
       # Handle Z (UTC)
       return 0 if zone.upcase == 'Z'
 
-      # Handle numeric offsets: +0900, -0500, +09:00, etc.
-      if zone =~ /^([-+])(\d{2})(:?(\d{2}))?(:?(\d{2}))?$/
+      # Handle unsigned numeric offset: 9, 09 (assume positive)
+      if zone =~ /^(\d{1,2})$/
+        hours = $1.to_i
+        return hours * 3600
+      end
+
+      # Handle simple numeric offsets with sign: +9, -9, +09, -05, etc.
+      if zone =~ /^([-+])(\d{1,2})$/
         sign = $1 == '-' ? -1 : 1
         hours = $2.to_i
-        minutes = $4 ? $4.to_i : 0
-        seconds = $6 ? $6.to_i : 0
-        return sign * (hours * 3600 + minutes * 60 + seconds)
+        return sign * (hours * 3600)
+      end
+
+      # Handle +09:00, -05:30 format (with colon)
+      if zone =~ /^([-+])(\d{2}):(\d{2})$/
+        sign = $1 == '-' ? -1 : 1
+        hours = $2.to_i
+        minutes = $3.to_i
+        return sign * (hours * 3600 + minutes * 60)
+      end
+
+      # Handle +0900, -0500 format (4 digits, no colon)
+      if zone =~ /^([-+])(\d{4})$/
+        sign = $1 == '-' ? -1 : 1
+        hours = $2[0, 2].to_i
+        minutes = $2[2, 2].to_i
+        return sign * (hours * 3600 + minutes * 60)
+      end
+
+      # Handle +0900 format (4 digits without colon)
+      if zone =~ /^([-+])(\d{4})$/
+        sign = $1 == '-' ? -1 : 1
+        hours = $2[0, 2].to_i
+        minutes = $2[2, 2].to_i
+        return sign * (hours * 3600 + minutes * 60)
       end
 
       # Handle fractional hours: +9.5, -5.5
@@ -926,6 +1248,158 @@ class RubyDate
 
       hash.delete(:_comp)
       hash.delete(:_year_str)
+    end
+
+    def parse_ddd(str, hash)
+      # Pattern: (sign)(2-14 digits)(options: t? + 2-6 digit time + fractional seconds)(options: time zone)
+      pattern = /^([-+]?)(\d{2,14})(?:\s*t?\s*(\d{2,6})?(?:[,.](\d*))?)?\s*(z|[-+]\d{1,4}|\[[-+]?\d[^\]]*\])?$/i
+
+      m = str.match(pattern)
+      return false unless m
+
+      sign = m[1]        # sign (-, +, or empty)
+      digits = m[2]      # date part numbers
+      time_digits = m[3] # time portion number (may be nil)
+      fraction = m[4]    # fractional seconds
+      zone = m[5]        # timezone
+
+      l = digits.length
+
+      case l
+      when 2
+        if time_digits.nil? && !fraction.nil?
+          hash[:sec] = digits[-2, 2].to_i
+        else
+          hash[:mday] = digits[0, 2].to_i
+        end
+      when 4
+        if time_digits.nil? && !fraction.nil?
+          hash[:sec] = digits[-2, 2].to_i
+          hash[:min] = digits[-4, 2].to_i
+        else
+          hash[:mon] = digits[0, 2].to_i
+          hash[:mday] = digits[2, 2].to_i
+        end
+      when 6
+        if time_digits.nil? && !fraction.nil?
+          hash[:sec] = digits[-2, 2].to_i
+          hash[:min] = digits[-4, 2].to_i
+          hash[:hour] = digits[-6, 2].to_i
+        else
+          y = digits[0, 2].to_i
+          y = -y if sign == '-'
+          hash[:year] = y
+          hash[:mon] = digits[2, 2].to_i
+          hash[:mday] = digits[4, 2].to_i
+          hash[:_year_str] = digits[0, 2]
+        end
+      when 8, 10, 12, 14
+        if time_digits.nil? && !fraction.nil?
+          # Interpreted as a time
+          hash[:sec] = digits[-2, 2].to_i
+          hash[:min] = digits[-4, 2].to_i
+          hash[:hour] = digits[-6, 2].to_i
+          hash[:mday] = digits[-8, 2].to_i
+          hash[:mon] = digits[-10, 2].to_i if l >= 10
+          if l == 12
+            y = digits[-12, 2].to_i
+            y = -y if sign == '-'
+            hash[:year] = y
+            hash[:_year_str] = digits[-12, 2]
+          elsif l == 14
+            y = digits[-14, 4].to_i
+            y = -y if sign == '-'
+            hash[:year] = y
+            hash[:_comp] = false
+          end
+        else
+          # Interpret as a date
+          y = digits[0, 4].to_i
+          y = -y if sign == '-'
+          hash[:year] = y
+          hash[:mon] = digits[4, 2].to_i
+          hash[:mday] = digits[6, 2].to_i
+          hash[:hour] = digits[8, 2].to_i if l >= 10
+          hash[:min] = digits[10, 2].to_i if l >= 12
+          hash[:sec] = digits[12, 2].to_i if l >= 14
+          hash[:_comp] = false
+        end
+      when 3
+        if time_digits.nil? && !fraction.nil?
+          hash[:sec] = digits[-2, 2].to_i
+          hash[:min] = digits[-3, 1].to_i
+        else
+          hash[:yday] = digits[0, 3].to_i
+        end
+      when 5
+        if time_digits.nil? && !fraction.nil?
+          hash[:sec] = digits[-2, 2].to_i
+          hash[:min] = digits[-4, 2].to_i
+          hash[:hour] = digits[-5, 1].to_i
+        else
+          y = digits[0, 2].to_i
+          y = -y if sign == '-'
+          hash[:year] = y
+          hash[:yday] = digits[2, 3].to_i
+          hash[:_year_str] = digits[0, 2]
+        end
+      when 7
+        if time_digits.nil? && !fraction.nil?
+          hash[:sec] = digits[-2, 2].to_i
+          hash[:min] = digits[-4, 2].to_i
+          hash[:hour] = digits[-6, 2].to_i
+          hash[:mday] = digits[-7, 1].to_i
+        else
+          y = digits[0, 4].to_i
+          y = -y if sign == '-'
+          hash[:year] = y
+          hash[:yday] = digits[4, 3].to_i
+        end
+      end
+      # Processing the time portion
+      if time_digits && !time_digits.empty?
+        tl = time_digits.length
+        if !fraction.nil?
+          # Interpreted as a time
+          case tl
+          when 2, 4, 6
+            hash[:sec] = time_digits[-2, 2].to_i
+            hash[:min] = time_digits[-4, 2].to_i if tl >= 4
+            hash[:hour] = time_digits[-6, 2].to_i if tl >= 6
+          end
+        else
+          # Interpreted as a time
+          case tl
+          when 2, 4, 6
+            hash[:hour] = time_digits[0, 2].to_i
+            hash[:min] = time_digits[2, 2].to_i if tl >= 4
+            hash[:sec] = time_digits[4, 2].to_i if tl >= 6
+          end
+        end
+      end
+
+      # Handling fractional seconds
+      if fraction && !fraction.empty?
+        hash[:sec_fraction] = Rational(fraction.to_i, 10 ** fraction.length)
+      end
+
+      # Handling timezone
+      if zone && !zone.empty?
+        clean_zone = zone.gsub(/[\[\]]/, '')
+
+        # Handle [-5:EST] format: offset:timezone_name
+        if clean_zone =~ /^([-+]?\d+(?:\.\d+)?):(.+)$/
+          offset_part = $1
+          zone_name = $2
+          hash[:zone] = zone_name
+          hash[:offset] = parse_zone_offset("[#{offset_part}]")  # Parse the numeric part
+        else
+          hash[:zone] = clean_zone
+          hash[:offset] = parse_zone_offset(zone)
+        end
+      end
+
+      true
     end
   end
 end
