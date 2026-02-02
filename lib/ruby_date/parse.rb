@@ -1294,14 +1294,14 @@ class RubyDate
       # Handle unsigned numeric offset: 9, 09 (assume positive)
       if zone =~ /^(\d{1,2})$/
         hours = $1.to_i
-        return hours * 3600
+        return hours * HOUR_IN_SECONDS
       end
 
       # Handle simple numeric offsets with sign: +9, -9, +09, -05, etc.
       if zone =~ /^([-+])(\d{1,2})$/
         sign = $1 == '-' ? -1 : 1
         hours = $2.to_i
-        return sign * (hours * 3600)
+        return sign * (hours * HOUR_IN_SECONDS)
       end
 
       # Handle +09:00, -05:30 format (with colon)
@@ -1309,7 +1309,7 @@ class RubyDate
         sign = $1 == '-' ? -1 : 1
         hours = $2.to_i
         minutes = $3.to_i
-        return sign * (hours * 3600 + minutes * 60)
+        return sign * (hours * HOUR_IN_SECONDS + minutes * MINUTE_IN_SECONDS)
       end
 
       # Handle +0900, -0500 format (4 digits, no colon)
@@ -1317,7 +1317,7 @@ class RubyDate
         sign = $1 == '-' ? -1 : 1
         hours = $2[0, 2].to_i
         minutes = $2[2, 2].to_i
-        return sign * (hours * 3600 + minutes * 60)
+        return sign * (hours * HOUR_IN_SECONDS + minutes * MINUTE_IN_SECONDS)
       end
 
       # Handle +0900 format (4 digits without colon)
@@ -1325,7 +1325,7 @@ class RubyDate
         sign = $1 == '-' ? -1 : 1
         hours = $2[0, 2].to_i
         minutes = $2[2, 2].to_i
-        return sign * (hours * 3600 + minutes * 60)
+        return sign * (hours * HOUR_IN_SECONDS + minutes * MINUTE_IN_SECONDS)
       end
 
       # Handle fractional hours: +9.5, -5.5
@@ -1333,7 +1333,7 @@ class RubyDate
         sign = $1 == '-' ? -1 : 1
         hours = $2.to_i
         fraction = "0.#{$3}".to_f
-        return sign * ((hours + fraction) * 3600).to_i
+        return sign * ((hours + fraction) * HOUR_IN_SECONDS).to_i
       end
 
       # Handle GMT+9, GMT-5, etc.
@@ -1342,31 +1342,31 @@ class RubyDate
         hours = $2.to_i
         minutes = $3 ? $3.to_i : 0
         seconds = $4 ? $4.to_i : 0
-        return sign * (hours * 3600 + minutes * 60 + seconds)
+        return sign * (hours * HOUR_IN_SECONDS + minutes * MINUTE_IN_SECONDS + seconds)
       end
 
       # Known timezone abbreviations
       zone_offsets = {
-        'JST' => 9 * 3600,
+        'JST' => 9 * HOUR_IN_SECONDS,
         'GMT' => 0,
         'UTC' => 0,
         'UT' => 0,
-        'EST' => -5 * 3600,
-        'EDT' => -4 * 3600,
-        'CST' => -6 * 3600,
-        'CDT' => -5 * 3600,
-        'MST' => -7 * 3600,
-        'MDT' => -6 * 3600,
-        'PST' => -8 * 3600,
-        'PDT' => -7 * 3600,
-        'AEST' => 10 * 3600,
-        'MET DST' => 2 * 3600,
+        'EST' => -5 * HOUR_IN_SECONDS,
+        'EDT' => -4 * HOUR_IN_SECONDS,
+        'CST' => -6 * HOUR_IN_SECONDS,
+        'CDT' => -5 * HOUR_IN_SECONDS,
+        'MST' => -7 * HOUR_IN_SECONDS,
+        'MDT' => -6 * HOUR_IN_SECONDS,
+        'PST' => -8 * HOUR_IN_SECONDS,
+        'PDT' => -7 * HOUR_IN_SECONDS,
+        'AEST' => 10 * HOUR_IN_SECONDS,
+        'MET DST' => 2 * HOUR_IN_SECONDS,
         'GMT STANDARD TIME' => 0,
-        'MOUNTAIN STANDARD TIME' => -7 * 3600,
-        'MOUNTAIN DAYLIGHT TIME' => -6 * 3600,
-        'MEXICO STANDARD TIME' => -6 * 3600,
-        'E. AUSTRALIA STANDARD TIME' => 10 * 3600,
-        'W. CENTRAL AFRICA STANDARD TIME' => 1 * 3600,
+        'MOUNTAIN STANDARD TIME' => -7 * HOUR_IN_SECONDS,
+        'MOUNTAIN DAYLIGHT TIME' => -6 * HOUR_IN_SECONDS,
+        'MEXICO STANDARD TIME' => -6 * HOUR_IN_SECONDS,
+        'E. AUSTRALIA STANDARD TIME' => 10 * HOUR_IN_SECONDS,
+        'W. CENTRAL AFRICA STANDARD TIME' => 1 * HOUR_IN_SECONDS,
       }
 
       # Handle military timezones (single letters A-Z except J)
@@ -1388,7 +1388,7 @@ class RubyDate
           return nil
         end
 
-        return offset * 3600
+        return offset * HOUR_IN_SECONDS
       end
 
       # Normalize zone string for lookup
