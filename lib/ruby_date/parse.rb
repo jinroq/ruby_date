@@ -1,5 +1,8 @@
 # frozen_string_literal: true
 
+require_relative "patterns"
+require_relative "zonetab"
+
 # Implementation of ruby/date/ext/date/date_parse.c
 class RubyDate
   class << self
@@ -921,6 +924,216 @@ class RubyDate
       true
     end
 
+    # parse_day in date_parse.c.
+    def parse_day(str, hash)
+      unless str =~ /\b(sunday|monday|tuesday|wednesday|thursday|friday|saturday|tues|wednes|thurs|thur|sun|mon|tue|wed|thu|fri|sat)\.?/i
+        return false
+      end
+
+      hash[:wday] = day_num($1)
+
+      true
+    end
+
+    # parse_time in date_parse.c.
+    def parse_time(str, hash)
+      return false unless str =~ TIME_PAT
+
+      time_str = $1
+      zone_str = $2
+
+      parse_time_detail(time_str, hash)
+
+      if zone_str && !zone_str.empty?
+        hash[:zone]   = zone_str
+        hash[:offset] = date_zone_to_diff(zone_str)
+      end
+
+      true
+    end
+
+    # Parse $1 (time string) further and set hash to hour/min/sec/sec_fraction.
+    #
+    # Internal pattern:
+    #   $1 hour
+    #   $2 min (colon format)
+    #   $3 sec (colon format)
+    #   $4 frac ([,.]\d*)
+    #   $5 min (h format)
+    #   $6 sec (h format)
+    #   $7 am/pm (a or p)
+    def parse_time_detail(time_str, hash)
+      return unless time_str =~ TIME_DETAIL_PAT
+
+      hour      = $1.to_i
+      min_colon = $2
+      sec_colon = $3
+      frac      = $4   # "[,.] number string" or nil
+      min_h     = $5
+      sec_h     = $6
+      ampm      = $7
+
+      if min_colon
+        # Branch A: HH:MM[:SS[.frac]]
+        hash[:hour] = hour
+        hash[:min]  = min_colon.to_i
+        if sec_colon
+          hash[:sec] = sec_colon.to_i
+          if frac && frac.length > 1
+            # Since frac is a "[,.] number string", the first character (delimiter) is omitted.
+            frac_digits = frac[1..]
+            hash[:sec_fraction] = Rational(frac_digits.to_i, 10 ** frac_digits.length)
+          end
+        end
+      elsif min_h
+        # Branch B: HHh[MMm[SSs]](with min)
+        hash[:hour] = hour
+        hash[:min]  = min_h.to_i
+        hash[:sec]  = sec_h.to_i if sec_h
+      elsif time_str.match?(/h/i)
+        # Branch B: Only HHh (no min/sec)
+        hash[:hour] = hour
+      elsif ampm
+        # Branch C: Only AM/PM => Set only hour (converted to AM/PM below)
+        hash[:hour] = hour
+      end
+
+      # AM/PM conversion
+      if ampm
+        h = hash[:hour] || hour
+        if ampm.downcase == 'p' && h != 12
+          hash[:hour] = h + 12
+        elsif ampm.downcase == 'a' && h == 12
+          hash[:hour] = 0
+        end
+      end
+    end
+
+    # parse_era in date_parse.c.
+    def parse_era(str, hash)
+      if str =~ ERA1_PAT
+        hash[:bc] = false
+        return true
+      end
+
+      if str =~ ERA2_PAT
+        hash[:bc] = $1.downcase.delete('.') != 'ce'
+        return true
+      end
+
+      false
+    end
+
+    # parse_eu in date_parse.c.
+    def parse_eu(str, hash)
+      return false unless str =~ PARSE_EU_PAT
+
+      mday_str = $1
+      mon_str  = $2
+      era_str  = $3
+      year_str = $4
+
+      # Determine bc flag from era.
+      # AD/A.D./CE/C.E. => false, BC/B.C./BCE/B.C.E. => true
+      bc = if era_str
+             era_str.downcase.delete('.') !~ /\A(ad|ce)\z/
+           else
+             false
+           end
+
+      # Normalize y/m/d and set to hash in s3e.
+      # 'mon' is converted to an Integer using 'mon_num' and then passed.
+      s3e(hash, year_str, mon_num(mon_str), mday_str, bc)
+
+      true
+    end
+
+    # parse_us in date_parse.c.
+    def parse_us(str, hash)
+      return false unless str =~ PARSE_US_PAT
+
+      mon_str  = $1
+      mday_str = $2
+      era_str  = $3
+      year_str = $4
+
+      # Determine bc flag from era (same logic as parse_eu).
+      bc = if era_str
+             era_str.downcase.delete('.') !~ /\A(ad|ce)\z/
+           else
+             false
+           end
+
+      # Normalize y/m/d and set to hash using s3e.
+      # Difference from parse_eu: mon=$1, mday=$2 (only the $ numbers are swapped).
+      s3e(hash, year_str, mon_num(mon_str), mday_str, bc)
+
+      true
+    end
+
+    # parse_iso in date_parse.c
+    def parse_iso(str, hash)
+      return false unless str =~ PARSE_ISO_PAT
+
+      # s3e で y/m/d の正規化と hash へのセットを行う
+      # bc は常に false（ISO フォーマットに紀元記号はない）
+      s3e(hash, $1, $2, $3, false)
+
+      true
+    end
+
+    # parse_jis in date_parse.c
+    def parse_jis(str, hash)
+      return false unless str =~ PARSE_JIS_PAT
+
+      era  = $1.upcase
+      year = $2.to_i
+      mon  = $3.to_i
+      mday = $4.to_i
+
+      # Convert the era symbol and year number to Gregorian calendar
+      # and set it to hash.
+      hash[:year] = jis_era_to_gregorian(era, year)
+      hash[:mon]  = mon
+      hash[:mday] = mday
+
+      true
+    end
+
+    # parse_vms in date_parse.c
+    def parse_vms(str, hash)
+      return true if parse_vms11(str, hash)
+      return true if parse_vms12(str, hash)
+
+      false
+    end
+
+    def parse_vms11(str, hash)
+      return false unless str =~ PARSE_VMS11_PAT
+
+      mday_str = $1
+      mon_str  = $2
+      year_str = $3
+
+      # Normalize y/m/d and set to hash in s3e.
+      s3e(hash, year_str, mon_num(mon_str), mday_str, false)
+
+      true
+    end
+
+    def parse_vms12(str, hash)
+      return false unless str =~ PARSE_VMS12_PAT
+
+      mon_str  = $1
+      mday_str = $2
+      year_str = $3
+
+      # Normalize y/m/d and set to hash in s3e.
+      s3e(hash, year_str, mon_num(mon_str), mday_str, false)
+
+      true
+    end
+
     # Helper: Convert day name to number (0=Sunday, 6=Saturday)
     def day_num(day_name)
       abbr_days = %w[sun mon tue wed thu fri sat]
@@ -1470,6 +1683,379 @@ class RubyDate
 
       hash.delete(:_comp)
       hash.delete(:_year_str)
+    end
+
+    # s3e in date_parse.c.
+    # y, m, and d are Strings or nil. m can also be an Integer (convert with to_s).
+    # bc is a Boolean.
+    #
+    # This method normalizes the year, mon, and mday from the combination of y, m, and
+    # d and writes them to a hash.
+    # The sorting logic operates in the following order of priority:
+    #
+    #   Phase 1: Argument rotation and promotion
+    #     - y and m are available, but d is nil => Rotate because it is a pair (mon, mday)
+    #     - y is nil and d is long (>2 digits) or starts with an apostrophe => Promote d to y
+    #     - If y has a leading character other than a digit, extract only the numeric portion, and if there is a remainder, add it to d
+    #
+    #   Phase 2: Sort m and d
+    #     - m starts with an apostrophe or its length is >2 => US->BE sort (y,m,d)=(m,d,y)
+    #     - d starts with an apostrophe or its length is >2 => Swap (y,d)
+    #
+    #   Phase 3: Write to hash
+    #     - Extract the sign and digits from y and set them to year
+    #       If signed or the number of digits is >2, write _comp = false
+    #     - Extract the number from m and set it to mon
+    #     - Extract the number from d and set it to mday
+    #     - If bc is true, write _bc = true
+    def s3e(hash, y, m, d, bc)
+      # Candidates for _comp. If nil, do not write.
+      c = nil
+
+      # If m is not a string, use to_s (parse_eu/parse_us passes the Integer returned by mon_num)
+      m = m.to_s unless m.nil? || m.is_a?(String)
+
+      # ----------------------------------------------------------
+      # Phase 1: Argument reordering
+      # ----------------------------------------------------------
+
+      # If we have y and m, but d is nil, it's actually a (mon, mday) pair, so we rotate it.
+      #   (y, m, d) = (nil, y, m)
+      if !y.nil? && !m.nil? && d.nil?
+        y, m, d = nil, y, m
+      end
+
+      # If y is nil and d exists, if d is long or begins with an apostrophe, it is promoted to y
+      if y.nil?
+        if !d.nil? && d.length > 2
+          y = d
+          d = nil
+        end
+        if !d.nil? && d.length > 0 && d[0] == "'"
+          y = d
+          d = nil
+        end
+      end
+
+      # If y has a leading character other than a sign or a number, skip it and
+      # extract only the numeric part. If there are any characters remaining after
+      # the extracted numeric string, swap y and d, and set the numeric part to d.
+      unless y.nil?
+        pos = 0
+        pos += 1 while pos < y.length && !issign?(y[pos]) && !y[pos].match?(/\d/)
+
+        unless pos >= y.length  # no_date
+          bp = pos
+          pos += 1 if pos < y.length && issign?(y[pos])
+          span = digit_span(y[pos..])
+          ep = pos + span
+
+          if ep < y.length
+            # There is a letter after the number string => exchange (y, d)
+            y, d = d, y[bp...ep]
+          end
+        end
+      end
+
+      # ----------------------------------------------------------
+      # Phase 2: Rearrange m and d
+      # ----------------------------------------------------------
+
+      # m starts with an apostrophe or length > 2 => US => BE sort
+      #   (y, m, d) = (m, d, y)
+      if !m.nil? && (m[0] == "'" || m.length > 2)
+        y, m, d = m, d, y
+      end
+
+      # d begins with an apostrophe or length > 2 => exchange (y, d)
+      if !d.nil? && (d[0] == "'" || d.length > 2)
+        y, d = d, y
+      end
+
+      # ----------------------------------------------------------
+      # Phase 3: Write to hash
+      # ----------------------------------------------------------
+
+      # year: Extract the sign and digit from y and set
+      unless y.nil?
+        pos = 0
+        pos += 1 while pos < y.length && !issign?(y[pos]) && !y[pos].match?(/\d/)
+
+        unless pos >= y.length  # no_year
+          bp = pos
+          sign = false
+          if pos < y.length && issign?(y[pos])
+            sign = true
+            pos += 1
+          end
+
+          c = false if sign                       # Signed => _comp = false
+          span = digit_span(y[pos..])
+          c = false if span > 2                   # Number of digits > 2 => _comp = false
+
+          num_str = y[bp, (pos - bp) + span]      # sign + number part
+          hash[:year] = num_str.to_i
+        end
+      end
+
+      hash[:_bc] = true if bc
+
+      # mon: Extract and set a number from m
+      unless m.nil?
+        pos = 0
+        pos += 1 while pos < m.length && !m[pos].match?(/\d/)
+
+        unless pos >= m.length  # no_month
+          span = digit_span(m[pos..])
+          hash[:mon] = m[pos, span].to_i
+        end
+      end
+
+      # mday: Extract and set numbers from d
+      unless d.nil?
+        pos = 0
+        pos += 1 while pos < d.length && !d[pos].match?(/\d/)
+
+        unless pos >= d.length  # no_mday
+          span = digit_span(d[pos..])
+          hash[:mday] = d[pos, span].to_i
+        end
+      end
+
+      # _comp is written only if it is explicitly false
+      hash[:_comp] = false unless c.nil?
+    end
+
+    # issign macro in date_parse.c.
+    def issign?(c)
+      c == '-' || c == '+'
+    end
+
+    # digit_span in date_parse.c.
+    # Returns the length of the first consecutive digit in the string 's'.
+    def digit_span(s)
+      i = 0
+      i += 1 while i < s.length && s[i].match?(/\d/)
+
+      i
+    end
+
+    # date_zone_to_diff in date_parse.c.
+    # Returns the number of seconds since UTC from a time zone name or offset string.
+    # Returns nil if no match occurs.
+    #
+    # Supported input types:
+    #   1. Zone names: "EST", "JST", "Eastern", "Central Pacific", ...
+    #   2. Suffixes: "Eastern standard time", "EST dst", ...
+    #        "standard time" => As is
+    #        "daylight time" / "dst" => Set offset to +3600
+    #   3. Numeric offset: "+09:00", "-0530", "+9", "GMT+09:00", ...
+    #   4. Fractional time offset: "+9.5" (=+09:30), "+5.50" (=+05:30), ...
+    def date_zone_to_diff(str)
+      return nil if str.nil? || str.empty?
+
+      s = str.dup
+      dst = false
+
+      # Suffix removal: "time", "standard", "daylight", "dst"
+      w = str_end_with_word(s, "time")
+      if w > 0
+        wtime = w
+        s = s[0, s.length - w]
+
+        w2 = str_end_with_word(s, "standard")
+        if w2 > 0
+          s = s[0, s.length - w2]
+        else
+          w2 = str_end_with_word(s, "daylight")
+          if w2 > 0
+            s = s[0, s.length - w2]
+            dst = true
+          else
+            # "time" alone is not enough, so return
+            s = str.dup
+          end
+        end
+      else
+        w = str_end_with_word(s, "dst")
+        if w > 0
+          s = s[0, s.length - w]
+          dst = true
+        end
+      end
+
+      # --- zonetab search ---
+      # Normalize consecutive spaces into a single space before searching
+      zn = shrink_space(s)
+      z_offset = ZONE_TABLE[zn.downcase]
+
+      if z_offset
+        z_offset += 3600 if dst
+        return z_offset
+      end
+
+      # --- Parse numeric offsets ---
+      # Remove "GMT" and "UTC" prefixes
+      if zn.length > 3 && zn[0, 3].downcase =~ /\A(gmt|utc)\z/
+        zn = zn[3..]
+      end
+
+      # If there is no sign, it is not treated as a numeric offset
+      return nil if zn.empty? || (zn[0] != '+' && zn[0] != '-')
+
+      sign  = zn[0] == '-' ? -1 : 1
+      zn    = zn[1..]
+      return nil if zn.empty?
+
+      # ':' separator: HH:MM or HH:MM:SS
+      if zn.include?(':')
+        return parse_colon_offset(zn, sign)
+      end
+
+      # '.' or ',' separator: HH.fraction
+      if zn.include?('.') || zn.include?(',')
+        return parse_fractional_offset(zn, sign)
+      end
+
+      # Others: HH or HHMM or HHMMSS
+      parse_compact_offset(zn, sign)
+    end
+
+    # str_end_with_word in date_parse.c.
+    # If the string 's' ends with "<word>" (a word plus a space),
+    # Returns the length of that "<word>" (including leading spaces).
+    # Otherwise, returns 0.
+    def str_end_with_word(s, word)
+      n = word.length
+      return 0 if s.length <= n
+
+      # The last n characters match word (ignoring case)
+      return 0 unless s[-n..].casecmp?(word)
+
+      # Is there a space just before it?
+      return 0 unless s[-(n + 1)].match?(/\s/)
+
+      # Include consecutive spaces
+      count = n + 1
+      count += 1 while count < s.length && s[-(count + 1)].match?(/\s/)
+
+      count
+    end
+
+    # shrink_space in date_parse.c.
+    # Combines consecutive spaces into a single space.
+    # If the length is the same as the original (normalization unnecessary),
+    # return it as is.
+    def shrink_space(s)
+      result = []
+      prev_space = false
+      s.each_char do |ch|
+        if ch.match?(/\s/)
+          result << ' ' unless prev_space
+          prev_space = true
+        else
+          result << ch
+          prev_space = false
+        end
+      end
+      result.join
+    end
+
+    # parse_colon_offset
+    # Parse "+HH:MM" or "+HH:MM:SS" and return the number of seconds.
+    # Range checking: hour 0-23, min 0-59, sec 0-59
+    def parse_colon_offset(zn, sign)
+      parts = zn.split(':')
+      hour = parts[0].to_i
+      return nil if hour < 0 || hour > 23
+
+      min = parts.length > 1 ? parts[1].to_i : 0
+      return nil if min < 0 || min > 59
+
+      sec = parts.length > 2 ? parts[2].to_i : 0
+      return nil if sec < 0 || sec > 59
+
+      sign * (sec + min * 60 + hour * 3600)
+    end
+
+    # Parse "+HH.fraction" or "+HH,fraction" and return the number of seconds.
+    #
+    # C logic:
+    #   Read the fraction string up to 7 digits.
+    #   sec = (read value) * 36
+    #   If n <= 2:
+    #     If n == 1, sec *= 10 (treat HH.n as HH.n0)
+    #     Return value = sec + hour * 3600 (Integer)
+    #   If n > 2:
+    #     Return value = Rational(sec, 10**(n-2)) + hour * 3600
+    #     Convert to an Integer if the denominator is 1.
+    #
+    # Reason for the 36 factor:
+    #   1 hour = 3600 seconds. Each decimal point is 1/10. Time = 360 seconds.
+    #   However, since the implementation handles it in two-digit units, multiply
+    #   by 36 before dividing by 10^2.
+    #   (3600 / 100 = 36)
+    def parse_fractional_offset(zn, sign)
+      sep = zn.include?('.') ? '.' : ','
+      hh_str, frac_str = zn.split(sep, 2)
+      hour = hh_str.to_i
+      return nil if hour < 0 || hour > 23
+
+      # Up to 7 digits (C: "no over precision for offset")
+      max_digits = 7
+      frac_str = frac_str[0, max_digits]
+      n = frac_str.length
+      return sign * (hour * 3600) if n == 0
+
+      sec = frac_str.to_i * 36  # Convert to seconds by factor 36
+
+      if sign == -1
+        hour = -hour
+        sec  = -sec
+      end
+
+      if n <= 2
+        sec *= 10 if n == 1   # HH.n => HH.n0
+        sec + hour * 3600
+      else
+        # Rational for precise calculations
+        denom  = 10 ** (n - 2)
+        offset = Rational(sec, denom) + (hour * 3600)
+        offset.denominator == 1 ? offset.to_i : offset
+      end
+    end
+
+    # parse_compact_offset
+    # Parse consecutive numeric offsets without colons.
+    #   HH     (2 digits or less)
+    #   HHM    (3 digits: 1 digit for hour, 2 digits for min)
+    #   HHMM   (4 digits)
+    #   HHMMM  (5 digits: 2 digits for hour, 2 digits for min, 1 digit for sec) ... Rare in practical use
+    #   HHMMSS (6 digits)
+    #
+    # C adjusts the leading padding width with "2 - l % 2".
+    # Ruby does the same calculation with length.
+    def parse_compact_offset(zn, sign)
+      l = zn.length
+
+      # Only HH
+      return sign * zn.to_i * 3600 if l <= 2
+
+      # l > 2: Same as C "2 - l % 2" index adjustment
+      #   l=3 => pad=1 => hour=zn[0,1], min=zn[1,2]
+      #   l=4 => pad=0 => hour=zn[0,2], min=zn[2,2]
+      #   l=5 => pad=1 => hour=zn[0,1], min=zn[1,2], sec=zn[3,2]
+      #   l=6 => pad=0 => hour=zn[0,2], min=zn[2,2], sec=zn[4,2]
+      pad  = 2 - l % 2   # 0 or 1
+      hour = zn[0, pad.zero? ? 2 : 1].to_i
+      min  = l >= 3 ? zn[pad, 2].to_i : 0
+      sec  = l >= 5 ? zn[pad + 2, 2].to_i : 0
+
+      sign * (sec + min * 60 + hour * 3600)
+    end
+
+    def have_invalid_char_p(s)
+      s.each_char.any? { |c| (c.ord < 32 || c.ord == 127) && !c.match?(/\s/) }
     end
   end
 end

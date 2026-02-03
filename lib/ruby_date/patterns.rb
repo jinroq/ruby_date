@@ -1,0 +1,196 @@
+# frozen_string_literal: true
+
+class RubyDate
+  # TIME_PAT
+  # Regular expression pattern for C's parse_time.
+  # $1: Entire time portion
+  # $2: Time zone portion (optional)
+  #
+  # (?-i:[[:alpha:]]) in the zone portion means "case-sensitive, alphabetic characters only." In Ruby, you can achieve the same effect by writing
+  # [A-Za-z] inside (?-i:...).
+  TIME_PAT = /
+    (                                   # $1: whole time
+      \d+\s*                            #   hour (required)
+      (?:
+        (?:                             #   Branch A: colon-separated
+          :\s*\d+                       #     :min
+          (?:                           #
+            \s*:\s*\d+(?:[,.]\d*)?      #       :sec[.frac]
+          )?                            #
+        |                               #   Branch B: h\/m\/s separated
+          h(?:\s*\d+m?                  #     h[min[m]
+            (?:\s*\d+s?)?               #           [sec[s]]]
+          )?                            #
+        )                               #
+        (?:                             #   AM\/PM suffix (optional)
+          \s*[ap](?:m\b|\.m\.)          #
+        )?                              #
+      |                                 #   Branch C: Only AM\/PM
+        [ap](?:m\b|\.m\.)               #
+      )                                 #
+    )                                   #
+    (?:                                 # Time Zone (optional)
+      \s*                               #
+      (                                 # $2: Across time zones
+        (?:gmt|utc?)?[-+]\d+            #   Numeric Offset
+        (?:[,.:]\d+(?::\d+)?)?          #     Optional decimals\/minutes\/seconds
+      |                                 #
+        [A-Za-z.\s]+                    #   "Eastern standard time" etc.
+        (?:standard|daylight)\stime\b   #
+      |                                 #
+        [A-Za-z]+(?:\sdst)?\b           #   "EST" / "EST dst" etc.
+      )                                 #
+    )?                                  #
+  /xi
+
+  private_constant :TIME_PAT
+
+  # Parse $1 (the time string) further and set hash to hour/min/sec/sec_fraction.
+  #
+  # Internal pattern:
+  #   $1 hour
+  #   $2 min   (colon format)
+  #   $3 sec   (colon format)
+  #   $4 frac  ([,.]\d*)
+  #   $5 min   (h format)
+  #   $6 sec   (h format)
+  #   $7 am/pm (a or p)
+  TIME_DETAIL_PAT = /
+    \A(\d+)\s*                          # $1 hour
+    (?:
+      :\s*(\d+)                         # $2 min (colon)
+      (?:\s*:\s*(\d+)([,.]\d*)?)?       # $3 sec, $4 frac (colon)
+    |
+      h(?:\s*(\d+)m?                    # $5 min (h)
+        (?:\s*(\d+)s?)?                 # $6 sec (h)
+      )?                                #
+    )?
+    (?:\s*([ap])(?:m\b|\.m\.))?         # $7 am/pm
+  /xi
+
+  private_constant :TIME_DETAIL_PAT
+
+  # era1: AD, A.D.
+  # BEGIN_ERA = \b
+  # END_ERA  = (?!(?<!\.)[a-z])
+  #   Does not match if the next character is lowercase and is not immediately preceded by a "."
+  #   = Prevents accidental matches in the middle of a word.
+  ERA1_PAT = /\b(a(?:d\b|\.d\.))(?!(?<!\.)[a-z])/i
+  private_constant :ERA1_PAT
+
+  # era2: CE, C.E., BC, B.C., BCE, B.C.E.
+  ERA2_PAT = /\b(c(?:e\b|\.e\.)|b(?:ce\b|\.c\.e\.)|b(?:c\b|\.c\.))(?!(?<!\.)[a-z])/i
+  private_constant :ERA2_PAT
+
+  # Pattern structure:
+  #   $1: mday (optional leading apostrophe with '?)
+  #       [^-\d\s]* to remove ordinal suffixes, commas, and dots
+  #   $2: mon (full name or abbreviation, case insensitive)
+  #       [^-\d\s']* to remove delimiters after the month name
+  #   $3: era (options: AD/A.D./CE/C.E./BC/B.C./BCE/B.C.E.)
+  #   $4: year (optional: optional ordinal suffix with '?-?\d+)
+  PARSE_EU_PAT = /
+    ('?\d+)                             # $1 mday
+    [^-\d\s]*                           #     Separator after mday (ordinal number, comma, etc.)
+    \s*                                 #
+    (january|february|march|april|may|june|   # $2 mon
+     july|august|september|october|november|december|
+     jan|feb|mar|apr|jun|jul|aug|sep|oct|nov|dec)
+    [^-\d\s']*                          #     Separator after mon
+    (?:                                 #   Year section (optional)
+      \s*                               #
+      (?:                               #     Era symbol (optional)
+        \b                              #       BEGIN_ERA
+        (c(?:e|\.e\.)|b(?:ce|\.c\.e\.)| #       $3 era
+         a(?:d|\.d\.)|b(?:c|\.c\.))     #
+        (?!(?<!\.)[a-z])                #       END_ERA
+      )?                                #
+      \s*                               #
+      ('?-?\d+(?:(?:st|nd|rd|th)\b)?)   #       $4 year
+    )?                                  #
+  /xi
+
+  private_constant :PARSE_EU_PAT
+
+  # Pattern construction:
+  #   $1: mon (full name or abbreviation)
+  #       [^-\d\s']* absorbs the separator after the month name
+  #   $2: mday ('? for optional leading apostrophe)
+  #       [^-\d\s']* absorbs the ordinal suffix and separator
+  #   $3: era (options: AD/A.D./CE/C.E./BC/B.C./BCE/B.C.E.)
+  #   $4: year (options: '?-?\d+)
+  #
+  # C's "\s*+,?" is a possessive quantifier, but Ruby does not have possessive.
+  # \s*,? works equivalently (same amount of backtracking).
+  PARSE_US_PAT = /
+    \b                                  #   Word Boundaries
+    (january|february|march|april|may|june|   # $1 mon
+     july|august|september|october|november|december|
+     jan|feb|mar|apr|jun|jul|aug|sep|oct|nov|dec)
+    [^-\d\s']*                          #     Separator after mon
+    \s*                                 #
+    ('?\d+)                             # $2 mday
+    [^-\d\s']*                          #     Separator after mday (ordinal number, etc.)
+    (?:                                 #   Year section (optional)
+      \s*,?                             #     Comma (optional)
+      \s*                               #
+      (?:                               #     Era symbol (optional)
+        \b                              #       BEGIN_ERA
+        (c(?:e|\.e\.)|b(?:ce|\.c\.e\.)| #       $3 era
+         a(?:d|\.d\.)|b(?:c|\.c\.))     #
+        (?!(?<!\.)[a-z])                #       END_ERA
+      )?                                #
+      \s*                               #
+      ('?-?\d+)                         #       $4 year
+    )?                                  #
+  /xi
+
+  private_constant :PARSE_US_PAT
+
+  # Pattern structure:
+  #   $1: year ('?[-+]?\d+ apostrophe/sign optional)
+  #   $2: mon (\d+)
+  #   $3: mday ('?-?\d+ apostrophe/minus optional)
+  PARSE_ISO_PAT = /('?[-+]?\d+)-(\d+)-('?-?\d+)/
+  private_constant :PARSE_ISO_PAT
+
+  # Pattern structure:
+  #   $1: Era symbol (single character: [mtshr], /i ignores case)
+  #   $2: Year (year number within the era)
+  #   $3: Month
+  #   $4: Day
+  PARSE_JIS_PAT = /\b([#{JISX0301_ERA_INITIALS}])(\d+)\.(\d+)\.(\d+)/i
+  private_constant :PARSE_JIS_PAT
+
+  # Pattern structure:
+  #   $1: mday ('?-?\d+)
+  #   $2: mon (month abbreviation or full name)
+  #       [^-/.]* to remove the separator after the month name (excluding "-", "/", and ".")
+  #   $3: year ('?-?\d+)
+  PARSE_VMS11_PAT = /
+    ('?-?\d+)                           # $1 mday
+    -(january|february|march|april|may|june|   # $2 mon
+      july|august|september|october|november|december|
+      jan|feb|mar|apr|jun|jul|aug|sep|oct|nov|dec)
+    [^-/.]*                             #    Separator after mon (excluding "-/.")
+    -('?-?\d+)                          # $3 year
+  /xi
+  private_constant :PARSE_VMS11_PAT
+
+  # Pattern structure:
+  #   $1: mon (month abbreviation or full name)
+  #       [^-/.]* to remove delimiters after the month name (excluding "-", "/", and ".")
+  #   $2: mday ('?-?\d+)
+  #   $3: year ('?-?\d+ optional)
+  PARSE_VMS12_PAT = /
+    \b                                  #   Word Boundaries
+    (january|february|march|april|may|june|   # $1 mon
+      july|august|september|october|november|december|
+      jan|feb|mar|apr|jun|jul|aug|sep|oct|nov|dec)
+    [^-/.]*                             #    Separator after mon (excluding "-/.")
+    -('?-?\d+)                          # $2 mday
+    (?:-('?-?\d+))?                     # $3 year (optional)
+  /xi
+  private_constant :PARSE_VMS12_PAT
+
+end
