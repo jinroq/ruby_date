@@ -1075,8 +1075,8 @@ class RubyDate
     def parse_iso(str, hash)
       return false unless str =~ PARSE_ISO_PAT
 
-      # s3e で y/m/d の正規化と hash へのセットを行う
-      # bc は常に false（ISO フォーマットに紀元記号はない）
+      # Normalize y/m/d and set to hash in s3e.
+      # bc is always false (there is no era symbol in ISO format).
       s3e(hash, $1, $2, $3, false)
 
       true
