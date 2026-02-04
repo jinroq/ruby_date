@@ -155,6 +155,47 @@ class RubyDate
   private_constant :PARSE_ISO_PAT
 
   # Pattern structure:
+  #   $1: cwyear (2 or 4 digits, optional)
+  #   $2: cweek  (2 digits, required)
+  #   $3: cwday  (1 digit, optional)
+  PARSE_ISO21_PAT = /\b(\d{2}|\d{4})?-?w(\d{2})(?:-?(\d))?\b/i
+  private_constant :PARSE_ISO21_PAT
+
+  # Pattern structure:
+  #   $1: cwday (1 digit)
+  PARSE_ISO22_PAT = /-w-(\d)\b/i
+  private_constant :PARSE_ISO22_PAT
+
+  # Pattern structure:
+  #   $1: mon  (2 digits, optional)
+  #   $2: mday (2 digits, required)
+  PARSE_ISO23_PAT = /--(\d{2})?-(\d{2})\b/
+  private_constant :PARSE_ISO23_PAT
+
+  # Pattern structure:
+  #   $1: mon  (2 digits, required)
+  #   $2: mday (2 digits, optional)
+  PARSE_ISO24_PAT = /--(\d{2})(\d{2})?\b/
+  private_constant :PARSE_ISO24_PAT
+
+  # Pattern structure:
+  #   $1: year (2 or 4 digits, required)
+  #   $2: yday (3 digits, required)
+  #
+  # Exclusion pattern: [,.]YYYY-DDD is a year-day with a decimal point, not a date
+  PARSE_ISO25_PAT0 = /[,.](\d{2}|\d{4})-\d{3}\b/
+  PARSE_ISO25_PAT  = /\b(\d{2}|\d{4})-(\d{3})\b/
+  private_constant :PARSE_ISO25_PAT0, :PARSE_ISO25_PAT
+
+  # Pattern structure:
+  #   $1: yday (3 digits, required)
+  #
+  # Exclusion pattern: \d-DDD is year-day, processed by a separate parser
+  PARSE_ISO26_PAT0 = /\d-\d{3}\b/
+  PARSE_ISO26_PAT  = /\b-(\d{3})\b/
+  private_constant :PARSE_ISO26_PAT0, :PARSE_ISO26_PAT
+
+  # Pattern structure:
   #   $1: Era symbol (single character: [mtshr], /i ignores case)
   #   $2: Year (year number within the era)
   #   $3: Month
@@ -212,4 +253,52 @@ class RubyDate
   PARSE_DOT_PAT = /('?-?\d+)\.\s*('?\d+)\.\s*('?-?\d+)/
   private_constant :PARSE_DOT_PAT
 
+  # Pattern structure:
+  #   Requires a leading ' (apostrophe)
+  #   $1: Number string (one or more digits)
+  #   Use \b to check for word boundaries (numbers not followed by word characters)
+  PARSE_YEAR_PAT = /'(\d+)\b/
+  private_constant :PARSE_YEAR_PAT
+
+  # Pattern construction:
+  #   \b checks for word boundaries
+  #   $1: Month abbreviation (jan-dec, case insensitive)
+  #   \S* absorbs trailing non-whitespace characters
+  PARSE_MON_PAT = /\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\S*/i
+  private_constant :PARSE_MON_PAT
+
+  # Pattern structure:
+  #   $1: Numeric string (one or more digits)
+  #   $2: Ordinal suffix (st, nd, rd, th, case-insensitive)
+  #   Check for word boundaries with \b
+  PARSE_MDAY_PAT = /(\d+)(st|nd|rd|th)\b/i
+  private_constant :PARSE_MDAY_PAT
+
+  # Pattern structure:
+  #   $1: Sign ([-+]?, optional)
+  #   $2: Main digits (2-14 digits)
+  #   $3: Time digits (2-6 digits, optional)
+  #   $4: Fractional part (optional)
+  #   $5: Time zone (z, [-+]\d{1,4}, [\d...], optional)
+  PARSE_DDD_PAT = /
+    ([-+]?)                    # $1 sign
+    (\d{2,14})                 # $2 main number string
+    (?:                        # time portion (optional)
+      \s*
+      t?                       # "t" option (ISO 8601 date and time separator)
+      \s*
+      (\d{2,6})?               # $3 time digit string
+      (?:[,.](\d*))?           # $4 decimal part
+    )?
+    (?:                        # zone part (optional)
+      \s*
+      (                        # $5 zone
+        z\b                    #   "z" (UTC)
+      |
+        [-+]\d{1,4}\b          #   numeric offset (e.g. +0900)
+      |
+        \[[-+]?\d[^\]]*\]      #   bracketed zones (e.g., [+09:00])
+      )
+    )?
+  /xi
 end

@@ -82,43 +82,88 @@ class RubyDate
     private
 
     def date__parse(str, comp)
+      # Preprocessing: Remove unnecessary characters (non-whitespace characters and symbols)
+      # Non-TIGHT: Replace [^-+',./:@[:alnum:]\[\]]+ with a single space
+      str = str.gsub(%r{[^-+',./:@a-zA-Z0-9\[\]]+}, ' ')
+
       hash = {}
       hash[:_comp] = comp
-      hash[:_year_str] = nil
 
-      # Return empty hash for nil or empty string
-      return hash if str.nil? || str.empty?
+      # Calculate character type flag
+      flags = check_class(str)
 
-      # Clean up the string - normalize whitespace and remove null bytes
-      str = str.gsub(/[\t\n\v\f\r\0]+/, ' ').strip
+      # Parser invocation (non-TIGHT order)
+      # parse_day (week)
+      if have_elem_p?(flags, HAVE_ALPHA)
+        parse_day(str, hash)
+      end
 
-      # Return empty hash for blank string after cleanup
-      return hash if str.empty?
+      # parse_time (time)
+      if have_elem_p?(flags, HAVE_DIGIT)
+        parse_time(str, hash)
+      end
 
-      # Try various formats in order of specificity
-      return hash if parse_asctime_with_zone(str, hash)
-      return hash if parse_asctime(str, hash)
-      return hash if parse_dot(str, hash)
-      return hash if parse_iso_extended_datetime(str, hash)
-      return hash if parse_iso_basic_date_with_ext_time(str, hash)
-      return hash if parse_iso_basic_datetime(str, hash)
-      return hash if parse_iso_basic_datetime_6digit(str, hash)
-      return hash if parse_iso_basic_mmddthhmm(str, hash)
-      return hash if parse_iso_basic_dd_hhmm(str, hash)
-      return hash if parse_iso_basic_mmdd_hhmm(str, hash)
-      return hash if parse_iso_basic_datetime_with_space(str, hash)
-      return hash if parse_iso_basic_dd(str, hash)
-      return hash if parse_iso_basic_mmdd(str, hash)
-      return hash if parse_iso_basic_date_only(str, hash)
-      return hash if parse_iso_date_only(str, hash)
-      return hash if parse_rfc2822(str, hash)
-      return hash if parse_rfc850(str, hash)
-      return hash if parse_reversed_iso(str, hash)
-      return hash if parse_jisx0301(str, hash)
-      return hash if parse_ddd(str, hash)
+      # parse_eu (European: DD Mon YYYY)
+      if have_elem_p?(flags, HAVE_ALPHA | HAVE_DIGIT)
+        return hash if parse_eu(str, hash)
+      end
 
-      apply_comp(hash)
+      # parse_us (American: Mon DD, YYYY)
+      if have_elem_p?(flags, HAVE_ALPHA | HAVE_DIGIT)
+        return hash if parse_us(str, hash)
+      end
 
+      # parse_iso (ISO 8601: YYYY-MM-DD)
+      if have_elem_p?(flags, HAVE_DIGIT | HAVE_DASH)
+        return hash if parse_iso(str, hash)
+      end
+
+      # parse_jis (JIS X 0301: E年.月.日)
+      if have_elem_p?(flags, HAVE_DIGIT | HAVE_DOT)
+        return hash if parse_jis(str, hash)
+      end
+
+      # parse_vms (VMS: DD-Mon-YYYY or Mon-DD-YYYY)
+      if have_elem_p?(flags, HAVE_ALPHA | HAVE_DIGIT | HAVE_DASH)
+        return hash if parse_vms(str, hash)
+      end
+
+      # parse_sla (Slash delimited: YYYY/MM/DD)
+      if have_elem_p?(flags, HAVE_DIGIT | HAVE_SLASH)
+        return hash if parse_sla(str, hash)
+      end
+
+      # parse_dot (Dot-separated: YYYY.MM.DD)
+      if have_elem_p?(flags, HAVE_DIGIT | HAVE_DOT)
+        return hash if parse_dot(str, hash)
+      end
+
+      # parse_iso2 (ISO 8601 Short form: weekday and ordinal dates)
+      if have_elem_p?(flags, HAVE_DIGIT)
+        return hash if parse_iso2(str, hash)
+      end
+
+      # parse_year (Year with apostrophe: '99)
+      if have_elem_p?(flags, HAVE_DIGIT)
+        return hash if parse_year(str, hash)
+      end
+
+      # parse_mon (Month name only: Jan)
+      if have_elem_p?(flags, HAVE_ALPHA)
+        return hash if parse_mon(str, hash)
+      end
+
+      # parse_mday (Ordinal Days: 22nd)
+      if have_elem_p?(flags, HAVE_DIGIT)
+        return hash if parse_mday(str, hash)
+      end
+
+      # parse_ddd (Numeric only: 19990523235521)
+      if have_elem_p?(flags, HAVE_DIGIT)
+        return hash if parse_ddd(str, hash)
+      end
+
+      # If no parsers match, returns an empty hash.
       hash
     end
 
@@ -644,154 +689,6 @@ class RubyDate
       true
     end
 
-    def parse_ddd(str, hash)
-      pattern = /^([-+]?)(\d{2,14})(?:\s*t?\s*(\d{2,6})?(?:[,.](\d*))?)?\s*(z|[-+]\d{1,4}|\[[-+]?\d[^\]]*\])?$/i
-
-      m = str.match(pattern)
-      return false if m.nil?
-
-      sign = m[1]
-      digits = m[2]
-      time_digits = m[3]
-      fraction = m[4]
-      zone = m[5]
-
-      l = digits.length
-
-      case l
-      when 2
-        if time_digits.nil? && !fraction.nil?
-          hash[:sec] = digits[-2, 2].to_i
-        else
-          hash[:mday] = digits[0, 2].to_i
-        end
-      when 4
-        if time_digits.nil? && !fraction.nil?
-          hash[:sec] = digits[-2, 2].to_i
-          hash[:min] = digits[-4, 2].to_i
-        else
-          hash[:mon] = digits[0, 2].to_i
-          hash[:mday] = digits[2, 2].to_i
-        end
-      when 6
-        if time_digits.nil? && !fraction.nil?
-          hash[:sec] = digits[-2, 2].to_i
-          hash[:min] = digits[-4, 2].to_i
-          hash[:hour] = digits[-6, 2].to_i
-        else
-          y = digits[0, 2].to_i
-          y = -y if sign == '-'
-          hash[:year] = y
-          hash[:mon] = digits[2, 2].to_i
-          hash[:mday] = digits[4, 2].to_i
-          hash[:_year_str] = digits[0, 2]
-        end
-      when 8, 10, 12, 14
-        if time_digits.nil? && !fraction.nil?
-          hash[:sec] = digits[-2, 2].to_i
-          hash[:min] = digits[-4, 2].to_i
-          hash[:hour] = digits[-6, 2].to_i
-          hash[:mday] = digits[-8, 2].to_i
-          hash[:mon] = digits[-10, 2].to_i if l >= 10
-          if l == 12
-            y = digits[-12, 2].to_i
-            y = -y if sign == '-'
-            hash[:year] = y
-            hash[:_year_str] = digits[-12, 2]
-          elsif l == 14
-            y = digits[-14, 4].to_i
-            y = -y if sign == '-'
-            hash[:year] = y
-            hash[:_comp] = false
-          end
-        else
-          y = digits[0, 4].to_i
-          y = -y if sign == '-'
-          hash[:year] = y
-          hash[:mon] = digits[4, 2].to_i
-          hash[:mday] = digits[6, 2].to_i
-          hash[:hour] = digits[8, 2].to_i if l >= 10
-          hash[:min] = digits[10, 2].to_i if l >= 12
-          hash[:sec] = digits[12, 2].to_i if l >= 14
-          hash[:_comp] = false
-        end
-      when 3
-        if time_digits.nil? && !fraction.nil?
-          hash[:sec] = digits[-2, 2].to_i
-          hash[:min] = digits[-3, 1].to_i
-        else
-          hash[:yday] = digits[0, 3].to_i
-        end
-      when 5
-        if time_digits.nil? && !fraction.nil?
-          hash[:sec] = digits[-2, 2].to_i
-          hash[:min] = digits[-4, 2].to_i
-          hash[:hour] = digits[-5, 1].to_i
-        else
-          y = digits[0, 2].to_i
-          y = -y if sign == '-'
-          hash[:year] = y
-          hash[:yday] = digits[2, 3].to_i
-          hash[:_year_str] = digits[0, 2]
-        end
-      when 7
-        if time_digits.nil? && !fraction.nil?
-          hash[:sec] = digits[-2, 2].to_i
-          hash[:min] = digits[-4, 2].to_i
-          hash[:hour] = digits[-6, 2].to_i
-          hash[:mday] = digits[-7, 1].to_i
-        else
-          y = digits[0, 4].to_i
-          y = -y if sign == '-'
-          hash[:year] = y
-          hash[:yday] = digits[4, 3].to_i
-        end
-      end
-
-      # Processing the time portion
-      if time_digits && !time_digits.empty?
-        tl = time_digits.length
-        if !fraction.nil?
-          case tl
-          when 2, 4, 6
-            hash[:sec] = time_digits[-2, 2].to_i
-            hash[:min] = time_digits[-4, 2].to_i if tl >= 4
-            hash[:hour] = time_digits[-6, 2].to_i if tl >= 6
-          end
-        else
-          case tl
-          when 2, 4, 6
-            hash[:hour] = time_digits[0, 2].to_i
-            hash[:min] = time_digits[2, 2].to_i if tl >= 4
-            hash[:sec] = time_digits[4, 2].to_i if tl >= 6
-          end
-        end
-      end
-
-      # Handling fractional seconds
-      if fraction && !fraction.empty?
-        hash[:sec_fraction] = Rational(fraction.to_i, 10 ** fraction.length)
-      end
-
-      # Handling timezone
-      if zone && !zone.empty?
-        clean_zone = zone.gsub(/[\[\]]/, '')
-
-        # Handle [-5:EST] format: offset:timezone_name
-        if clean_zone =~ /^([-+]?\d+(?:\.\d+)?):(.+)$/
-          offset_part = $1
-          zone_name = $2
-          hash[:zone] = zone_name
-          hash[:offset] = parse_zone_offset("[#{offset_part}]")
-        else
-          hash[:zone] = clean_zone
-          hash[:offset] = parse_zone_offset(zone)
-        end
-      end
-
-      true
-    end
-
     # Parse HTTP date format
     def date__httpdate(str)
       hash = {}
@@ -952,6 +849,148 @@ class RubyDate
       true
     end
 
+    # parse_ddd in date_parse.c.
+    def parse_ddd(str, hash)
+      return false unless str =~ PARSE_DDD_PAT
+
+      sign        = $1
+      digits      = $2
+      time_digits = $3
+      fraction    = $4
+      zone        = $5
+
+      l = digits.length
+
+      # Branches based on the length of the main number string.
+      case l
+      when 2
+        if time_digits.nil? && !fraction.nil?
+          hash[:sec] = digits[-2, 2].to_i
+        else
+          hash[:mday] = digits[0, 2].to_i
+        end
+      when 4
+        if time_digits.nil? && !fraction.nil?
+          hash[:sec] = digits[-2, 2].to_i
+          hash[:min] = digits[-4, 2].to_i
+        else
+          hash[:mon]  = digits[0, 2].to_i
+          hash[:mday] = digits[2, 2].to_i
+        end
+      when 6
+        if time_digits.nil? && !fraction.nil?
+          hash[:sec]  = digits[-2, 2].to_i
+          hash[:min]  = digits[-4, 2].to_i
+          hash[:hour] = digits[-6, 2].to_i
+        else
+          y = digits[0, 2].to_i
+          y = -y if sign == '-'
+          hash[:year] = y
+          hash[:mon]  = digits[2, 2].to_i
+          hash[:mday] = digits[4, 2].to_i
+          hash[:_year_str] = digits[0, 2]  # year completion
+        end
+      when 8, 10, 12, 14
+        if time_digits.nil? && !fraction.nil?
+          # Interpreted as time
+          hash[:sec]  = digits[-2, 2].to_i
+          hash[:min]  = digits[-4, 2].to_i
+          hash[:hour] = digits[-6, 2].to_i
+          hash[:mday] = digits[-8, 2].to_i
+          hash[:mon]  = digits[-10, 2].to_i if l >= 10
+          if l == 12
+            y = digits[-12, 2].to_i
+            y = -y if sign == '-'
+            hash[:year] = y
+            hash[:_year_str] = digits[-12, 2]
+          elsif l == 14
+            y = digits[-14, 4].to_i
+            y = -y if sign == '-'
+            hash[:year] = y
+            hash[:_comp] = false
+          end
+        else
+          # Interpret as date
+          y = digits[0, 4].to_i
+          y = -y if sign == '-'
+          hash[:year] = y
+          hash[:mon]  = digits[4, 2].to_i
+          hash[:mday] = digits[6, 2].to_i
+          hash[:hour] = digits[8, 2].to_i if l >= 10
+          hash[:min]  = digits[10, 2].to_i if l >= 12
+          hash[:sec]  = digits[12, 2].to_i if l >= 14
+          hash[:_comp] = false
+        end
+      when 3
+        if time_digits.nil? && !fraction.nil?
+          hash[:sec] = digits[-2, 2].to_i
+          hash[:min] = digits[-3, 1].to_i
+        else
+          hash[:yday] = digits[0, 3].to_i
+        end
+      when 5
+        if time_digits.nil? && !fraction.nil?
+          hash[:sec]  = digits[-2, 2].to_i
+          hash[:min]  = digits[-4, 2].to_i
+          hash[:hour] = digits[-5, 1].to_i
+        else
+          y = digits[0, 2].to_i
+          y = -y if sign == '-'
+          hash[:year] = y
+          hash[:yday] = digits[2, 3].to_i
+          hash[:_year_str] = digits[0, 2]
+        end
+      when 7
+        if time_digits.nil? && !fraction.nil?
+          hash[:sec]  = digits[-2, 2].to_i
+          hash[:min]  = digits[-4, 2].to_i
+          hash[:hour] = digits[-6, 2].to_i
+          hash[:mday] = digits[-7, 1].to_i
+        else
+          y = digits[0, 4].to_i
+          y = -y if sign == '-'
+          hash[:year] = y
+          hash[:yday] = digits[4, 3].to_i
+          # No need to complete because it is a 4-digit year
+        end
+      end
+
+      # Processing time portion
+      if time_digits && !time_digits.empty?
+        tl = time_digits.length
+        if !fraction.nil?
+          # Interpreted as time
+          case tl
+          when 2, 4, 6
+            hash[:sec]  = time_digits[-2, 2].to_i
+            hash[:min]  = time_digits[-4, 2].to_i if tl >= 4
+            hash[:hour] = time_digits[-6, 2].to_i if tl >= 6
+          end
+        else
+          # Interpreted as time
+          case tl
+          when 2, 4, 6
+            hash[:hour] = time_digits[0, 2].to_i
+            hash[:min]  = time_digits[2, 2].to_i if tl >= 4
+            hash[:sec]  = time_digits[4, 2].to_i if tl >= 6
+          end
+        end
+      end
+
+      # Handling fractional seconds
+      if fraction && !fraction.empty?
+        hash[:sec_fraction] = Rational(fraction.to_i, 10 ** fraction.length)
+      end
+
+      # Handling time zone
+      if zone && !zone.empty?
+        hash[:zone]   = zone
+        hash[:offset] = date_zone_to_diff(zone)
+      end
+
+      true
+    end
+
     # Parse $1 (time string) further and set hash to hour/min/sec/sec_fraction.
     #
     # Internal pattern:
@@ -1082,6 +1121,75 @@ class RubyDate
       true
     end
 
+    # parse_iso2 in date_parse.c
+    def parse_iso2(str, hash)
+      return true if parse_iso21(str, hash)
+      return true if parse_iso22(str, hash)
+      return true if parse_iso23(str, hash)
+      return true if parse_iso24(str, hash)
+      return true if parse_iso25(str, hash)
+      return true if parse_iso26(str, hash)
+
+      false
+    end
+
+    def parse_iso21(str, hash)
+      return false unless str =~ PARSE_ISO21_PAT
+
+      hash[:cwyear] = $1.to_i if $1
+      hash[:cweek]  = $2.to_i
+      hash[:cwday]  = $3.to_i if $3
+
+      true
+    end
+
+    def parse_iso22(str, hash)
+      return false unless str =~ PARSE_ISO22_PAT
+
+      hash[:cwday] = $1.to_i
+
+      true
+    end
+
+    def parse_iso23(str, hash)
+      return false unless str =~ PARSE_ISO23_PAT
+
+      hash[:mon]  = $1.to_i if $1
+      hash[:mday] = $2.to_i
+
+      true
+    end
+
+    def parse_iso24(str, hash)
+      return false unless str =~ PARSE_ISO24_PAT
+
+      hash[:mon]  = $1.to_i
+      hash[:mday] = $2.to_i if $2
+
+      true
+    end
+
+    def parse_iso25(str, hash)
+      # Skip if exclude pattern is true.
+      return false if str =~ PARSE_ISO25_PAT0
+      return false unless str =~ PARSE_ISO25_PAT
+
+      hash[:year] = $1.to_i
+      hash[:yday] = $2.to_i
+
+      true
+    end
+
+    def parse_iso26(str, hash)
+      # Skip if exclude pattern is true.
+      return false if str =~ PARSE_ISO26_PAT0
+      return false unless str =~ PARSE_ISO26_PAT
+
+      hash[:yday] = $1.to_i
+
+      true
+    end
+
     # parse_jis in date_parse.c
     def parse_jis(str, hash)
       return false unless str =~ PARSE_JIS_PAT
@@ -1152,6 +1260,33 @@ class RubyDate
       # Normalize y/m/d and set to hash in s3e.
       # bc is always false.
       s3e(hash, $1, $2, $3, false)
+
+      true
+    end
+
+    # parse_year in date_parse.c
+    def parse_year(str, hash)
+      return false unless str =~ PARSE_YEAR_PAT
+
+      hash[:year] = $1.to_i
+
+      true
+    end
+
+    # parse_mon in date_parse.c
+    def parse_mon(str, hash)
+      return false unless str =~ PARSE_MON_PAT
+
+      hash[:mon] = mon_num($1)
+
+      true
+    end
+
+    # parse_mday in date_parse.c
+    def parse_mday(str, hash)
+      return false unless str =~ PARSE_MDAY_PAT
+
+      hash[:mday] = $1.to_i
 
       true
     end
@@ -2078,6 +2213,24 @@ class RubyDate
 
     def have_invalid_char_p(s)
       s.each_char.any? { |c| (c.ord < 32 || c.ord == 127) && !c.match?(/\s/) }
+    end
+
+    def check_class(str)
+      flags = 0
+      str.each_char do |c|
+        flags |= HAVE_ALPHA if c =~ /[a-zA-Z]/
+        flags |= HAVE_DIGIT if c =~ /\d/
+        flags |= HAVE_DASH  if c == '-'
+        flags |= HAVE_DOT   if c == '.'
+        flags |= HAVE_SLASH if c == '/'
+      end
+
+      flags
+    end
+
+    # C macro HAVE_ELEM_P(x) in date_parse.c.
+    def have_elem_p?(flags, required)
+      (flags & required) == required
     end
   end
 end

@@ -133,4 +133,11 @@ class RubyDate
   JISX0301_ERA_INITIALS = 'mtshr'
   JISX0301_DEFAULT_ERA = 'H'  # obsolete
   private_constant :JISX0301_ERA_INITIALS, :JISX0301_DEFAULT_ERA
+
+  HAVE_ALPHA = 1 << 0
+  HAVE_DIGIT = 1 << 1
+  HAVE_DASH  = 1 << 2
+  HAVE_DOT   = 1 << 3
+  HAVE_SLASH = 1 << 4
+  private_constant :HAVE_ALPHA, :HAVE_DIGIT, :HAVE_DASH, :HAVE_DOT, :HAVE_SLASH
 end
