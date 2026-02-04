@@ -1134,6 +1134,28 @@ class RubyDate
       true
     end
 
+    # parse_sla in date_parse.c
+    def parse_sla(str, hash)
+      return false unless str =~ PARSE_SLA_PAT
+
+      # Normalize y/m/d and set to hash in s3e.
+      # bc is always false.
+      s3e(hash, $1, $2, $3, false)
+
+      true
+    end
+
+    # parse_dot in date_parse.c
+    def parse_dot(str, hash)
+      return false unless str =~ PARSE_DOT_PAT
+
+      # Normalize y/m/d and set to hash in s3e.
+      # bc is always false.
+      s3e(hash, $1, $2, $3, false)
+
+      true
+    end
+
     # Helper: Convert day name to number (0=Sunday, 6=Saturday)
     def day_num(day_name)
       abbr_days = %w[sun mon tue wed thu fri sat]

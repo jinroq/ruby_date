@@ -193,4 +193,23 @@ class RubyDate
   /xi
   private_constant :PARSE_VMS12_PAT
 
+  # Pattern structure:
+  #   $1: First number  ('?-?\d+ optional apostrophe/minus)
+  #   /                 slash separator
+  #   $2: Second number ('?\d+ optional apostrophe)
+  #   $3: Third number  ('?-?\d+ optional)
+  #       \D absorbs "one non-numeric character" as a separator
+  #       => Anything can be a separator, such as "/", "-", or " "
+  PARSE_SLA_PAT = /('?-?\d+)\/\s*('?\d+)(?:\D\s*('?-?\d+))?/
+  private_constant :PARSE_SLA_PAT
+
+  # Pattern structure:
+  #   $1: First number  ('?-?\d + optional apostrophe minus)
+  #   \.                Dot separator + optional space
+  #   $2: Second number ('?\d + optional apostrophe)
+  #   \.                Dot separator + optional space
+  #   $3: Third number  ('?-?\d + optional apostrophe minus)
+  PARSE_DOT_PAT = /('?-?\d+)\.\s*('?\d+)\.\s*('?-?\d+)/
+  private_constant :PARSE_DOT_PAT
+
 end
