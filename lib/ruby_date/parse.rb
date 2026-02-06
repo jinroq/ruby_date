@@ -83,145 +83,69 @@ class RubyDate
 
     def date__parse(str, comp)
       hash = {}
-      hash[:_comp] = comp
 
-      # Special processing for asctime format (performed before preprocessing)
-      # "Sat Aug 28 02:55:50 1999" or "Sat Aug 28 02:29:34 JST 1999", etc.
-      if parse_asctime_with_zone(str, hash = {})
-        apply_comp(hash)
-
-        return hash
-      end
-
-      if parse_asctime(str, hash = {})
-        apply_comp(hash)
-
-        return hash
-      end
-
-      # Preprocessing: Remove unnecessary characters (non-whitespace characters and symbols)
+      # Preprocessing: duplicate and replace non-allowed characters.
       # Non-TIGHT: Replace [^-+',./:@[:alnum:]\[\]]+ with a single space
       str = str.dup.gsub(%r{[^-+',./:@a-zA-Z0-9\[\]]+}, ' ')
 
-      # parse_day (week)
-      if have_elem_p?(str, HAVE_ALPHA)
-        parse_day(str, hash)
-      end
+      hash[:_comp] = comp
 
-      # parse_time (time)
-      if have_elem_p?(str, HAVE_DIGIT)
-        parse_time(str, hash)
-      end
+      # parse_day and parse_time always run (no goto ok).
+      parse_day(str, hash) if have_elem_p?(str, HAVE_ALPHA)
 
-      # parse_eu (European: DD Mon YYYY)
-      if have_elem_p?(str, HAVE_ALPHA | HAVE_DIGIT)
-        if parse_eu(str, hash)
-          apply_comp(hash)
+      parse_time(str, hash) if have_elem_p?(str, HAVE_DIGIT)
 
-          return hash
+      catch(:date_parsed) do
+        if have_elem_p?(str, HAVE_ALPHA | HAVE_DIGIT)
+          throw :date_parsed if parse_eu(str, hash)
+          throw :date_parsed if parse_us(str, hash)
+        end
+
+        if have_elem_p?(str, HAVE_DIGIT | HAVE_DASH)
+          throw :date_parsed if parse_iso(str, hash)
+        end
+
+        if have_elem_p?(str, HAVE_DIGIT | HAVE_DOT)
+          throw :date_parsed if parse_jis(str, hash)
+        end
+
+        if have_elem_p?(str, HAVE_ALPHA | HAVE_DIGIT | HAVE_DASH)
+          throw :date_parsed if parse_vms(str, hash)
+        end
+
+        if have_elem_p?(str, HAVE_DIGIT | HAVE_SLASH)
+          throw :date_parsed if parse_sla(str, hash)
+        end
+
+        if have_elem_p?(str, HAVE_DIGIT | HAVE_DOT)
+          throw :date_parsed if parse_dot(str, hash)
+        end
+
+        if have_elem_p?(str, HAVE_DIGIT)
+          throw :date_parsed if parse_iso2(str, hash)
+        end
+
+        if have_elem_p?(str, HAVE_DIGIT)
+          throw :date_parsed if parse_year(str, hash)
+        end
+
+        if have_elem_p?(str, HAVE_ALPHA)
+          throw :date_parsed if parse_mon(str, hash)
+        end
+
+        if have_elem_p?(str, HAVE_DIGIT)
+          throw :date_parsed if parse_mday(str, hash)
+        end
+
+        if have_elem_p?(str, HAVE_DIGIT)
+          throw :date_parsed if parse_ddd(str, hash)
         end
       end
 
-      # parse_us (American: Mon DD, YYYY)
-      if have_elem_p?(str, HAVE_ALPHA | HAVE_DIGIT)
-        if parse_us(str, hash)
-          apply_comp(hash)
+      parse_bc(str, hash) if have_elem_p?(str, HAVE_ALPHA)
 
-          return hash
-        end
-      end
+      parse_frag(str, hash) if have_elem_p?(str, HAVE_DIGIT)
 
-      # parse_iso (ISO 8601: YYYY-MM-DD)
-      if have_elem_p?(str, HAVE_DIGIT | HAVE_DASH)
-        if parse_iso(str, hash)
-          apply_comp(hash)
-
-          return hash
-        end
-      end
-
-      # parse_jis (JIS X 0301: E年.月.日)
-      if have_elem_p?(str, HAVE_DIGIT | HAVE_DOT)
-        if parse_jis(str, hash)
-          apply_comp(hash)
-
-          return hash
-        end
-      end
-
-      # parse_vms (VMS: DD-Mon-YYYY or Mon-DD-YYYY)
-      if have_elem_p?(str, HAVE_ALPHA | HAVE_DIGIT | HAVE_DASH)
-        if parse_vms(str, hash)
-          apply_comp(hash)
-
-          return hash
-        end
-      end
-
-      # parse_sla (Slash delimited: YYYY/MM/DD)
-      if have_elem_p?(str, HAVE_DIGIT | HAVE_SLASH)
-        if parse_sla(str, hash)
-          apply_comp(hash)
-
-          return hash
-        end
-      end
-
-      # parse_dot (Dot-separated: YYYY.MM.DD)
-      if have_elem_p?(str, HAVE_DIGIT | HAVE_DOT)
-        if parse_dot(str, hash)
-          apply_comp(hash)
-
-          return hash
-        end
-      end
-
-      # parse_iso2 (ISO 8601 Short form: weekday and ordinal dates)
-      if have_elem_p?(str, HAVE_DIGIT)
-        if parse_iso2(str, hash)
-          apply_comp(hash)
-
-          return hash
-        end
-      end
-
-      # parse_year (Year with apostrophe: '99)
-      if have_elem_p?(str, HAVE_DIGIT)
-        if parse_year(str, hash)
-          apply_comp(hash)
-
-          return hash
-        end
-      end
-
-      # parse_mon (Month name only: Jan)
-      if have_elem_p?(str, HAVE_ALPHA)
-        if parse_mon(str, hash)
-          apply_comp(hash)
-
-          return hash
-        end
-      end
-
-      # parse_mday (Ordinal Days: 22nd)
-      if have_elem_p?(str, HAVE_DIGIT)
-        if parse_mday(str, hash)
-          apply_comp(hash)
-
-          return hash
-        end
-      end
-
-      # parse_ddd (Numeric only: 19990523235521)
-      if have_elem_p?(str, HAVE_DIGIT)
-        if parse_ddd(str, hash)
-          apply_comp(hash)
-
-          return hash
-        end
-      end
-
-      # If no parsers match, returns an empty hash.
       apply_comp(hash)
       hash
     end
@@ -447,13 +371,14 @@ class RubyDate
 
     # parse_ddd in date_parse.c.
     def parse_ddd(str, hash)
-      return false unless str =~ PARSE_DDD_PAT
+      m = subx(str, PARSE_DDD_PAT)
+      return false unless m
 
-      sign        = $1
-      digits      = $2
-      time_digits = $3
-      fraction    = $4
-      zone        = $5
+      sign        = m[1]
+      digits      = m[2]
+      time_digits = m[3]
+      fraction    = m[4]
+      zone        = m[5]
 
       l = digits.length
 
@@ -661,12 +586,13 @@ class RubyDate
 
     # parse_eu in date_parse.c.
     def parse_eu(str, hash)
-      return false unless str =~ PARSE_EU_PAT
+      m = subx(str, PARSE_EU_PAT)
+      return false unless m
 
-      mday_str = $1
-      mon_str  = $2
-      era_str  = $3
-      year_str = $4
+      mday_str = m[1]
+      mon_str  = m[2]
+      era_str  = m[3]
+      year_str = m[4]
 
       # Determine bc flag from era.
       # AD/A.D./CE/C.E. => false, BC/B.C./BCE/B.C.E. => true
@@ -685,12 +611,13 @@ class RubyDate
 
     # parse_us in date_parse.c.
     def parse_us(str, hash)
-      return false unless str =~ PARSE_US_PAT
+      m = subx(str, PARSE_US_PAT)
+      return false unless m
 
-      mon_str  = $1
-      mday_str = $2
-      era_str  = $3
-      year_str = $4
+      mon_str  = m[1]
+      mday_str = m[2]
+      era_str  = m[3]
+      year_str = m[4]
 
       # Determine bc flag from era (same logic as parse_eu).
       bc = if era_str
@@ -708,11 +635,12 @@ class RubyDate
 
     # parse_iso in date_parse.c
     def parse_iso(str, hash)
-      return false unless str =~ PARSE_ISO_PAT
+      m = subx(str, PARSE_ISO_PAT)
+      return false unless m
 
       # Normalize y/m/d and set to hash in s3e.
       # bc is always false (there is no era symbol in ISO format).
-      s3e(hash, $1, $2, $3, false)
+      s3e(hash, m[1], m[2], m[3], false)
 
       true
     end
@@ -730,74 +658,83 @@ class RubyDate
     end
 
     def parse_iso21(str, hash)
-      return false unless str =~ PARSE_ISO21_PAT
+      m = subx(str, PARSE_ISO21_PAT)
+      return false unless m
 
-      hash[:cwyear] = $1.to_i if $1
-      hash[:cweek]  = $2.to_i
-      hash[:cwday]  = $3.to_i if $3
+      hash[:cwyear] = m[1].to_i if m[1]
+      hash[:cweek]  = m[2].to_i
+      hash[:cwday]  = m[3].to_i if m[3]
 
       true
     end
 
     def parse_iso22(str, hash)
-      return false unless str =~ PARSE_ISO22_PAT
+      m = subx(str, PARSE_ISO22_PAT)
+      return false unless m
 
-      hash[:cwday] = $1.to_i
+      hash[:cwday] = m[1].to_i
 
       true
     end
 
     def parse_iso23(str, hash)
-      return false unless str =~ PARSE_ISO23_PAT
+      m = subx(str, PARSE_ISO23_PAT)
+      return false unless m
 
-      hash[:mon]  = $1.to_i if $1
-      hash[:mday] = $2.to_i
+      hash[:mon]  = m[1].to_i if m[1]
+      hash[:mday] = m[2].to_i
 
       true
     end
 
     def parse_iso24(str, hash)
-      return false unless str =~ PARSE_ISO24_PAT
+      m = subx(str, PARSE_ISO24_PAT)
+      return false unless m
 
-      hash[:mon]  = $1.to_i
-      hash[:mday] = $2.to_i if $2
+      hash[:mon]  = m[1].to_i
+      hash[:mday] = m[2].to_i if m[2]
 
       true
     end
 
     def parse_iso25(str, hash)
-      # Skip if exclude pattern is true.
+      # Skip if exclude pattern matches (uses match, not subx).
       return false if str =~ PARSE_ISO25_PAT0
-      return false unless str =~ PARSE_ISO25_PAT
 
-      hash[:year] = $1.to_i
-      hash[:yday] = $2.to_i
+      m = subx(str, PARSE_ISO25_PAT)
+      return false unless m
+
+      hash[:year] = m[1].to_i
+      hash[:yday] = m[2].to_i
 
       true
     end
 
     def parse_iso26(str, hash)
-      # Skip if exclude pattern is true.
+      # Skip if exclude pattern matches (uses match, not subx).
       return false if str =~ PARSE_ISO26_PAT0
-      return false unless str =~ PARSE_ISO26_PAT
 
-      hash[:yday] = $1.to_i
+      m = subx(str, PARSE_ISO26_PAT)
+      return false unless m
+
+      hash[:yday] = m[1].to_i
 
       true
     end
 
     # parse_jis in date_parse.c
     def parse_jis(str, hash)
-      return false unless str =~ PARSE_JIS_PAT
+      m = subx(str, PARSE_JIS_PAT)
+      return false unless m
 
-      era  = $1.upcase
-      year = $2.to_i
-      mon  = $3.to_i
-      mday = $4.to_i
+      era  = m[1].upcase
+      year = m[2].to_i
+      mon  = m[3].to_i
+      mday = m[4].to_i
 
       # Convert the era symbol and year number to Gregorian calendar
       # and set it to hash.
-      hash[:year] = jis_era_to_gregorian(era, year)
+      hash[:year] = gengo(era) + year
       hash[:mon]  = mon
       hash[:mday] = mday
 
@@ -813,11 +750,12 @@ class RubyDate
     end
 
     def parse_vms11(str, hash)
-      return false unless str =~ PARSE_VMS11_PAT
+      m = subx(str, PARSE_VMS11_PAT)
+      return false unless m
 
-      mday_str = $1
-      mon_str  = $2
-      year_str = $3
+      mday_str = m[1]
+      mon_str  = m[2]
+      year_str = m[3]
 
       # Normalize y/m/d and set to hash in s3e.
       s3e(hash, year_str, mon_num(mon_str), mday_str, false)
@@ -826,11 +764,12 @@ class RubyDate
     end
 
     def parse_vms12(str, hash)
-      return false unless str =~ PARSE_VMS12_PAT
+      m = subx(str, PARSE_VMS12_PAT)
+      return false unless m
 
-      mon_str  = $1
-      mday_str = $2
-      year_str = $3
+      mon_str  = m[1]
+      mday_str = m[2]
+      year_str = m[3]
 
       # Normalize y/m/d and set to hash in s3e.
       s3e(hash, year_str, mon_num(mon_str), mday_str, false)
@@ -840,49 +779,86 @@ class RubyDate
 
     # parse_sla in date_parse.c
     def parse_sla(str, hash)
-      return false unless str =~ PARSE_SLA_PAT
+      m = subx(str, PARSE_SLA_PAT)
+      return false unless m
 
       # Normalize y/m/d and set to hash in s3e.
       # bc is always false.
-      s3e(hash, $1, $2, $3, false)
+      s3e(hash, m[1], m[2], m[3], false)
 
       true
     end
 
     # parse_dot in date_parse.c
     def parse_dot(str, hash)
-      return false unless str =~ PARSE_DOT_PAT
+      m = subx(str, PARSE_DOT_PAT)
+      return false unless m
 
       # Normalize y/m/d and set to hash in s3e.
       # bc is always false.
-      s3e(hash, $1, $2, $3, false)
+      s3e(hash, m[1], m[2], m[3], false)
 
       true
     end
 
     # parse_year in date_parse.c
     def parse_year(str, hash)
-      return false unless str =~ PARSE_YEAR_PAT
+      m = subx(str, PARSE_YEAR_PAT)
+      return false unless m
 
-      hash[:year] = $1.to_i
+      hash[:year] = m[1].to_i
 
       true
     end
 
     # parse_mon in date_parse.c
     def parse_mon(str, hash)
-      return false unless str =~ PARSE_MON_PAT
+      m = subx(str, PARSE_MON_PAT)
+      return false unless m
 
-      hash[:mon] = mon_num($1)
+      hash[:mon] = mon_num(m[1])
 
       true
     end
 
     # parse_mday in date_parse.c
     def parse_mday(str, hash)
-      return false unless str =~ PARSE_MDAY_PAT
+      m = subx(str, PARSE_MDAY_PAT)
+      return false unless m
 
-      hash[:mday] = $1.to_i
+      hash[:mday] = m[1].to_i
+
+      true
+    end
+
+    # parse_bc in date_parse.c (non-TIGHT post-processing).
+    # Matches standalone BC/BCE/B.C./B.C.E. and sets _bc flag.
+    def parse_bc(str, hash)
+      m = subx(str, PARSE_BC_PAT)
+      return false unless m
+
+      hash[:_bc] = true
+
+      true
+    end
+
+    # parse_frag in date_parse.c (non-TIGHT post-processing).
+    # If the remaining string (after all other parsers have consumed
+    # their portions) is a standalone 1-2 digit number:
+    #   - If we have hour but no mday, and the number is 1-31, set mday
+    #   - If we have mday but no hour, and the number is 0-24, set hour
+    def parse_frag(str, hash)
+      m = subx(str, PARSE_FRAG_PAT)
+      return false unless m
+
+      n = m[1].to_i
+
+      if hash.key?(:hour) && !hash.key?(:mday)
+        hash[:mday] = n if n >= 1 && n <= 31
+      end
+      if hash.key?(:mday) && !hash.key?(:hour)
+        hash[:hour] = n if n >= 0 && n <= 24
+      end
 
       true
     end
@@ -1424,17 +1400,43 @@ class RubyDate
       end
     end
 
+    # Post-processing: matches C's date__parse post-processing after ok: label.
+    #
+    # 1. _bc handling: negate year and cwyear (year = 1 - year)
+    # 2. _comp handling: complete 2-digit year/cwyear to 4-digit (69-99 → 1900s, 0-68 → 2000s)
+    # 3. zone → offset conversion
+    # 4. Clean up internal keys
     def apply_comp(hash)
-      if hash[:_comp] && hash[:year] && hash[:_year_str]
-        year = hash[:year]
-        year_str = hash[:_year_str].sub(/^-/, '')
+      # _bc: del_hash("_bc") — read and delete
+      bc = hash.delete(:_bc)
+      if bc
+        hash[:cwyear] = 1 - hash[:cwyear] if hash.key?(:cwyear)
+        hash[:year] = 1 - hash[:year] if hash.key?(:year)
+      end
 
-        if year_str.length == 2 && year >= 0 && year <= 99
-          hash[:year] = year >= 69 ? year + 1900 : year + 2000
+      # _comp: del_hash("_comp") — read and delete
+      comp = hash.delete(:_comp)
+      if comp
+        if hash.key?(:cwyear)
+          y = hash[:cwyear]
+          if y >= 0 && y <= 99
+            hash[:cwyear] = y >= 69 ? y + 1900 : y + 2000
+          end
+        end
+        if hash.key?(:year)
+          y = hash[:year]
+          if y >= 0 && y <= 99
+            hash[:year] = y >= 69 ? y + 1900 : y + 2000
+          end
         end
       end
 
-      hash.delete(:_comp)
+      # zone -> offset conversion
+      if hash.key?(:zone) && !hash.key?(:offset)
+        hash[:offset] = date_zone_to_diff(hash[:zone])
+      end
+
+      # Clean up internal keys
       hash.delete(:_year_str)
     end
 
@@ -1813,6 +1815,7 @@ class RubyDate
       return nil unless m
 
       str[m.begin(0), m.end(0) - m.begin(0)] = rep
+
       m
     end
 
@@ -1830,8 +1833,8 @@ class RubyDate
     end
 
     # C macro HAVE_ELEM_P(x) in date_parse.c.
-    def have_elem_p?(flags, required)
-      (flags & required) == required
+    def have_elem_p?(str, required)
+      (check_class(str) & required) == required
     end
   end
 end
