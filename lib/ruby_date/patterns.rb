@@ -59,6 +59,10 @@ class RubyDate
   /xi
   private_constant :TIME_DETAIL_PAT
 
+  # PARSE_DAY_PAT
+  PARSE_DAY_PAT = /\b(sun|mon|tue|wed|thu|fri|sat)[^-\/\d\s]*/i
+  private_constant :PARSE_DAY_PAT
+
   # ERA1_PAT
   # Pattern for AD, A.D.
   ERA1_PAT = /\b(a(?:d\b|\.d\.))(?!(?<!\.)[a-z])/i

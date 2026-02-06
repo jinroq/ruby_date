@@ -82,89 +82,207 @@ class RubyDate
     private
 
     def date__parse(str, comp)
-      # Preprocessing: Remove unnecessary characters (non-whitespace characters and symbols)
-      # Non-TIGHT: Replace [^-+',./:@[:alnum:]\[\]]+ with a single space
-      str = str.gsub(%r{[^-+',./:@a-zA-Z0-9\[\]]+}, ' ')
-
       hash = {}
       hash[:_comp] = comp
 
-      # Calculate character type flag
-      flags = check_class(str)
+      # Special processing for asctime format (performed before preprocessing)
+      # "Sat Aug 28 02:55:50 1999" or "Sat Aug 28 02:29:34 JST 1999", etc.
+      if parse_asctime_with_zone(str, hash = {})
+        apply_comp(hash)
 
-      # Parser invocation (non-TIGHT order)
+        return hash
+      end
+
+      if parse_asctime(str, hash = {})
+        apply_comp(hash)
+
+        return hash
+      end
+
+      # Preprocessing: Remove unnecessary characters (non-whitespace characters and symbols)
+      # Non-TIGHT: Replace [^-+',./:@[:alnum:]\[\]]+ with a single space
+      str = str.dup.gsub(%r{[^-+',./:@a-zA-Z0-9\[\]]+}, ' ')
+
       # parse_day (week)
-      if have_elem_p?(flags, HAVE_ALPHA)
+      if have_elem_p?(str, HAVE_ALPHA)
         parse_day(str, hash)
       end
 
       # parse_time (time)
-      if have_elem_p?(flags, HAVE_DIGIT)
+      if have_elem_p?(str, HAVE_DIGIT)
         parse_time(str, hash)
       end
 
       # parse_eu (European: DD Mon YYYY)
-      if have_elem_p?(flags, HAVE_ALPHA | HAVE_DIGIT)
-        return hash if parse_eu(str, hash)
+      if have_elem_p?(str, HAVE_ALPHA | HAVE_DIGIT)
+        if parse_eu(str, hash)
+          apply_comp(hash)
+
+          return hash
+        end
       end
 
       # parse_us (American: Mon DD, YYYY)
-      if have_elem_p?(flags, HAVE_ALPHA | HAVE_DIGIT)
-        return hash if parse_us(str, hash)
+      if have_elem_p?(str, HAVE_ALPHA | HAVE_DIGIT)
+        if parse_us(str, hash)
+          apply_comp(hash)
+
+          return hash
+        end
       end
 
       # parse_iso (ISO 8601: YYYY-MM-DD)
-      if have_elem_p?(flags, HAVE_DIGIT | HAVE_DASH)
-        return hash if parse_iso(str, hash)
+      if have_elem_p?(str, HAVE_DIGIT | HAVE_DASH)
+        if parse_iso(str, hash)
+          apply_comp(hash)
+
+          return hash
+        end
       end
 
       # parse_jis (JIS X 0301: E年.月.日)
-      if have_elem_p?(flags, HAVE_DIGIT | HAVE_DOT)
-        return hash if parse_jis(str, hash)
+      if have_elem_p?(str, HAVE_DIGIT | HAVE_DOT)
+        if parse_jis(str, hash)
+          apply_comp(hash)
+
+          return hash
+        end
       end
 
       # parse_vms (VMS: DD-Mon-YYYY or Mon-DD-YYYY)
-      if have_elem_p?(flags, HAVE_ALPHA | HAVE_DIGIT | HAVE_DASH)
-        return hash if parse_vms(str, hash)
+      if have_elem_p?(str, HAVE_ALPHA | HAVE_DIGIT | HAVE_DASH)
+        if parse_vms(str, hash)
+          apply_comp(hash)
+
+          return hash
+        end
       end
 
       # parse_sla (Slash delimited: YYYY/MM/DD)
-      if have_elem_p?(flags, HAVE_DIGIT | HAVE_SLASH)
-        return hash if parse_sla(str, hash)
+      if have_elem_p?(str, HAVE_DIGIT | HAVE_SLASH)
+        if parse_sla(str, hash)
+          apply_comp(hash)
+
+          return hash
+        end
       end
 
       # parse_dot (Dot-separated: YYYY.MM.DD)
-      if have_elem_p?(flags, HAVE_DIGIT | HAVE_DOT)
-        return hash if parse_dot(str, hash)
+      if have_elem_p?(str, HAVE_DIGIT | HAVE_DOT)
+        if parse_dot(str, hash)
+          apply_comp(hash)
+
+          return hash
+        end
       end
 
       # parse_iso2 (ISO 8601 Short form: weekday and ordinal dates)
-      if have_elem_p?(flags, HAVE_DIGIT)
-        return hash if parse_iso2(str, hash)
+      if have_elem_p?(str, HAVE_DIGIT)
+        if parse_iso2(str, hash)
+          apply_comp(hash)
+
+          return hash
+        end
       end
 
       # parse_year (Year with apostrophe: '99)
-      if have_elem_p?(flags, HAVE_DIGIT)
-        return hash if parse_year(str, hash)
+      if have_elem_p?(str, HAVE_DIGIT)
+        if parse_year(str, hash)
+          apply_comp(hash)
+
+          return hash
+        end
       end
 
       # parse_mon (Month name only: Jan)
-      if have_elem_p?(flags, HAVE_ALPHA)
-        return hash if parse_mon(str, hash)
+      if have_elem_p?(str, HAVE_ALPHA)
+        if parse_mon(str, hash)
+          apply_comp(hash)
+
+          return hash
+        end
       end
 
       # parse_mday (Ordinal Days: 22nd)
-      if have_elem_p?(flags, HAVE_DIGIT)
-        return hash if parse_mday(str, hash)
+      if have_elem_p?(str, HAVE_DIGIT)
+        if parse_mday(str, hash)
+          apply_comp(hash)
+
+          return hash
+        end
       end
 
       # parse_ddd (Numeric only: 19990523235521)
-      if have_elem_p?(flags, HAVE_DIGIT)
-        return hash if parse_ddd(str, hash)
+      if have_elem_p?(str, HAVE_DIGIT)
+        if parse_ddd(str, hash)
+          apply_comp(hash)
+
+          return hash
+        end
       end
 
       # If no parsers match, returns an empty hash.
+      apply_comp(hash)
       hash
+    end
+
+    # asctime format with timezone: Sat Aug 28 02:29:34 JST 1999
+    def parse_asctime_with_zone(str, hash)
+      return false unless str =~ /\b(sun|mon|tue|wed|thu|fri|sat)\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+(\d{1,2})\s+(\d{2}):(\d{2}):(\d{2})\s+(.*?)\s+(-?\d+)\s*$/i
+
+      wday_str = $1
+      mon_str = $2
+      mday_str = $3
+      hour_str = $4
+      min_str = $5
+      sec_str = $6
+      zone_part = $7
+      year_str = $8
+
+      hash[:wday] = day_num(wday_str)
+      hash[:mon] = mon_num(mon_str)
+      hash[:mday] = mday_str.to_i
+      hash[:hour] = hour_str.to_i
+      hash[:min] = min_str.to_i
+      hash[:sec] = sec_str.to_i
+
+      zone_part = zone_part.strip
+      unless zone_part.empty?
+        zone = zone_part.gsub(/\s+/, ' ')
+        hash[:zone] = zone
+        hash[:offset] = parse_zone_offset(zone)
+      end
+
+      hash[:_year_str] = year_str
+      hash[:year] = year_str.to_i
+      apply_comp(hash)
+
+      true
+    end
+
+    # asctime format without timezone: Sat Aug 28 02:55:50 1999
+    def parse_asctime(str, hash)
+      return false unless str =~ /\b(sun|mon|tue|wed|thu|fri|sat)\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+(\d{1,2})\s+(\d{2}):(\d{2}):(\d{2})\s+(-?\d+)\s*$/i
+
+      wday_str = $1
+      mon_str = $2
+      mday_str = $3
+      hour_str = $4
+      min_str = $5
+      sec_str = $6
+      year_str = $7
+
+      hash[:wday] = day_num(wday_str)
+      hash[:mon] = mon_num(mon_str)
+      hash[:mday] = mday_str.to_i
+      hash[:hour] = hour_str.to_i
+      hash[:min] = min_str.to_i
+      hash[:sec] = sec_str.to_i
+      hash[:_year_str] = year_str
+      hash[:year] = year_str.to_i
+      apply_comp(hash)
+
+      true
     end
 
     # Parse HTTP date format
@@ -301,21 +419,21 @@ class RubyDate
 
     # parse_day in date_parse.c.
     def parse_day(str, hash)
-      unless str =~ /\b(sunday|monday|tuesday|wednesday|thursday|friday|saturday|tues|wednes|thurs|thur|sun|mon|tue|wed|thu|fri|sat)\.?/i
-        return false
-      end
+      m = subx(str, PARSE_DAY_PAT)
+      return false unless m
 
-      hash[:wday] = day_num($1)
+      hash[:wday] = day_num(m[1])
 
       true
     end
 
     # parse_time in date_parse.c.
     def parse_time(str, hash)
-      return false unless str =~ TIME_PAT
+      m = subx(str, TIME_PAT)
+      return false unless m
 
-      time_str = $1
-      zone_str = $2
+      time_str = m[1]
+      zone_str = m[2]
 
       parse_time_detail(time_str, hash)
 
@@ -1687,6 +1805,15 @@ class RubyDate
       sec  = l >= 5 ? zn[pad + 2, 2].to_i : 0
 
       sign * (sec + min * 60 + hour * 3600)
+    end
+
+    # subx in date_parse.c.
+    def subx(str, pat, rep = " ")
+      m = pat.match(str)
+      return nil unless m
+
+      str[m.begin(0), m.end(0) - m.begin(0)] = rep
+      m
     end
 
     def check_class(str)
