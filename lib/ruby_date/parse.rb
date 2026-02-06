@@ -90,11 +90,21 @@ class RubyDate
 
       hash[:_comp] = comp
 
+      # Parser invocation (non-TIGHT order)
+      # Note: C's HAVE_ELEM_P calls check_class(str) every time because
+      # str is modified by subx after each successful parse.
+
       # parse_day and parse_time always run (no goto ok).
-      parse_day(str, hash) if have_elem_p?(str, HAVE_ALPHA)
+      if have_elem_p?(str, HAVE_ALPHA)
+        parse_day(str, hash)
+      end
 
-      parse_time(str, hash) if have_elem_p?(str, HAVE_DIGIT)
+      if have_elem_p?(str, HAVE_DIGIT)
+        parse_time(str, hash)
+      end
 
+      # Date parsers: first success skips the rest (C's "goto ok").
+      # In C, all paths converge at ok: for post-processing.
       catch(:date_parsed) do
         if have_elem_p?(str, HAVE_ALPHA | HAVE_DIGIT)
           throw :date_parsed if parse_eu(str, hash)
@@ -142,9 +152,13 @@ class RubyDate
         end
       end
 
-      parse_bc(str, hash) if have_elem_p?(str, HAVE_ALPHA)
-
-      parse_frag(str, hash) if have_elem_p?(str, HAVE_DIGIT)
+      # ok: (post-processing — always runs, matching C's ok: label)
+      if have_elem_p?(str, HAVE_ALPHA)
+        parse_bc(str, hash)
+      end
+      if have_elem_p?(str, HAVE_DIGIT)
+        parse_frag(str, hash)
+      end
 
       apply_comp(hash)
       hash
@@ -342,6 +356,10 @@ class RubyDate
     end
 
     # parse_day in date_parse.c.
+    # Non-TIGHT pattern: \b(sun|mon|tue|wed|thu|fri|sat)[^-/\d\s]*
+    # The [^-/\d\s]* part consumes trailing characters (e.g., "urday"
+    # in "Saturday") so they get replaced by subx, but only the
+    # abbreviation in $1 is used.
     def parse_day(str, hash)
       m = subx(str, PARSE_DAY_PAT)
       return false unless m
@@ -352,6 +370,8 @@ class RubyDate
     end
 
     # parse_time in date_parse.c.
+    # Uses subx to replace the matched time portion with " " so
+    # subsequent parsers (parse_us, etc.) won't re-match it.
     def parse_time(str, hash)
       m = subx(str, TIME_PAT)
       return false unless m
@@ -505,8 +525,34 @@ class RubyDate
 
       # Handling time zone
       if zone && !zone.empty?
-        hash[:zone]   = zone
-        hash[:offset] = date_zone_to_diff(zone)
+        if zone[0] == '['
+          # Bracket-enclosed zone: C's parse_ddd_cb special handling.
+          # Strip '[' and ']', then check for ':' separator.
+          inner = zone[1..-2]  # content between [ and ]
+          colon_pos = inner.index(':')
+          if colon_pos
+            # e.g., "[-5:EST]" → zone_name="EST", offset_str="-5:"
+            # C: zone = part after ':', s5 = part from start to after ':'
+            zone_name  = inner[(colon_pos + 1)..]
+            offset_str = inner[0, colon_pos + 1]  # includes ':'
+          else
+            # e.g., "[-9]" → zone_name="-9", offset_str="-9"
+            # e.g., "[9]"  → zone_name="9",  offset_str="+9" (digit→prepend '+')
+            zone_name = inner
+            if inner[0] && inner[0] =~ /\d/
+              offset_str = "+" + zone_name
+            else
+              offset_str = zone_name
+            end
+          end
+          hash[:zone]   = zone_name
+          hash[:offset] = date_zone_to_diff(offset_str)
+        else
+          # Non-bracket zone: just set zone.
+          # Offset will be resolved in apply_comp if not already set.
+          hash[:zone]   = zone
+          hash[:offset] = date_zone_to_diff(zone)
+        end
       end
 
       true
@@ -1410,8 +1456,12 @@ class RubyDate
       # _bc: del_hash("_bc") — read and delete
       bc = hash.delete(:_bc)
       if bc
-        hash[:cwyear] = 1 - hash[:cwyear] if hash.key?(:cwyear)
-        hash[:year] = 1 - hash[:year] if hash.key?(:year)
+        if hash.key?(:cwyear)
+          hash[:cwyear] = 1 - hash[:cwyear]
+        end
+        if hash.key?(:year)
+          hash[:year] = 1 - hash[:year]
+        end
       end
 
       # _comp: del_hash("_comp") — read and delete
@@ -1431,7 +1481,7 @@ class RubyDate
         end
       end
 
-      # zone -> offset conversion
+      # zone → offset conversion
       if hash.key?(:zone) && !hash.key?(:offset)
         hash[:offset] = date_zone_to_diff(hash[:zone])
       end
@@ -1796,26 +1846,34 @@ class RubyDate
       # Only HH
       return sign * zn.to_i * 3600 if l <= 2
 
-      # l > 2: Same as C "2 - l % 2" index adjustment
-      #   l=3 => pad=1 => hour=zn[0,1], min=zn[1,2]
-      #   l=4 => pad=0 => hour=zn[0,2], min=zn[2,2]
-      #   l=5 => pad=1 => hour=zn[0,1], min=zn[1,2], sec=zn[3,2]
-      #   l=6 => pad=0 => hour=zn[0,2], min=zn[2,2], sec=zn[4,2]
-      pad  = 2 - l % 2   # 0 or 1
-      hour = zn[0, pad.zero? ? 2 : 1].to_i
-      min  = l >= 3 ? zn[pad, 2].to_i : 0
-      sec  = l >= 5 ? zn[pad + 2, 2].to_i : 0
+      # C: hour = scan_digits(&s[0], 2 - l % 2)
+      #    min  = scan_digits(&s[2 - l % 2], 2)
+      #    sec  = scan_digits(&s[4 - l % 2], 2)
+      #
+      #   l=3 => hw=1 => hour=zn[0,1], min=zn[1,2]
+      #   l=4 => hw=2 => hour=zn[0,2], min=zn[2,2]
+      #   l=5 => hw=1 => hour=zn[0,1], min=zn[1,2], sec=zn[3,2]
+      #   l=6 => hw=2 => hour=zn[0,2], min=zn[2,2], sec=zn[4,2]
+      hw   = 2 - l % 2   # hour width: 2 for even, 1 for odd
+      hour = zn[0, hw].to_i
+      min  = l >= 3 ? zn[hw, 2].to_i : 0
+      sec  = l >= 5 ? zn[hw + 2, 2].to_i : 0
 
       sign * (sec + min * 60 + hour * 3600)
     end
 
     # subx in date_parse.c.
+    # Matches pat against str. If it matches, replaces the matched
+    # portion of str (in-place) with rep (default: " ") and returns
+    # the MatchData. Returns nil on no match.
+    #
+    # This is the core mechanism C uses (via the SUBS macro) to
+    # prevent later parsers from re-matching already-consumed text.
     def subx(str, pat, rep = " ")
       m = pat.match(str)
       return nil unless m
 
       str[m.begin(0), m.end(0) - m.begin(0)] = rep
-
       m
     end
 
@@ -1833,6 +1891,8 @@ class RubyDate
     end
 
     # C macro HAVE_ELEM_P(x) in date_parse.c.
+    # Note: C calls check_class(str) every time because str is
+    # modified by subx. We do the same here.
     def have_elem_p?(str, required)
       (check_class(str) & required) == required
     end

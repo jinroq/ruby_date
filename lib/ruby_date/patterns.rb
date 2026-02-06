@@ -60,6 +60,9 @@ class RubyDate
   private_constant :TIME_DETAIL_PAT
 
   # PARSE_DAY_PAT
+  # Non-TIGHT pattern for parse_day.
+  # Matches abbreviated day name and consumes trailing characters
+  # (e.g., "urday" in "Saturday") so they get replaced by subx.
   PARSE_DAY_PAT = /\b(sun|mon|tue|wed|thu|fri|sat)[^-\/\d\s]*/i
   private_constant :PARSE_DAY_PAT
 
@@ -147,13 +150,14 @@ class RubyDate
 
   # PARSE_VMS12_PAT
   # VMS format: Mon-DD[-YYYY]
+  # C: \b(ABBR_MONTHS)[^-/.]*-('?-?\d+)(?:-('?-?\d+))?
   PARSE_VMS12_PAT = /
     \b
     (january|february|march|april|may|june|
       july|august|september|october|november|december|
       jan|feb|mar|apr|jun|jul|aug|sep|oct|nov|dec)
     (?:[^\-\/.])*
-    -('?\d+)
+    -('?-?\d+)
     (?:-('?-?\d+))?
   /xi
   private_constant :PARSE_VMS12_PAT
@@ -241,4 +245,16 @@ class RubyDate
     )?
   /xi
   private_constant :PARSE_DDD_PAT
+
+  # PARSE_BC_PAT
+  # Pattern for parse_bc (non-TIGHT post-processing).
+  # Matches standalone BC/BCE/B.C./B.C.E. and sets _bc flag.
+  PARSE_BC_PAT = /\b(bc\b|bce\b|b\.c\.|b\.c\.e\.)/i
+  private_constant :PARSE_BC_PAT
+
+  # PARSE_FRAG_PAT
+  # Pattern for parse_frag (non-TIGHT post-processing).
+  # Matches a standalone 1-2 digit number in the remaining string.
+  PARSE_FRAG_PAT = /\A\s*(\d{1,2})\s*\z/i
+  private_constant :PARSE_FRAG_PAT
 end
