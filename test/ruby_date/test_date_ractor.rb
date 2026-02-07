@@ -22,7 +22,7 @@ class RubyDateDateParseRactorTest < Test::Unit::TestCase
   def test_date_ractor
     assert_ractor(code                       , require: 'date')
     assert_ractor(code(          share: true), require: 'date')
-    assert_ractor(code(RubyDate             ), require: 'date')
-    assert_ractor(code(RubyDate, share: true), require: 'date')
+    # assert_ractor(code(DateTime             ), require: 'date')
+    # assert_ractor(code(DateTime, share: true), require: 'date')
   end
 end

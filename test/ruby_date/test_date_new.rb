@@ -27,11 +27,13 @@ class RubyDateDateNewTest < Test::Unit::TestCase
     #              [d.year, d.mon, d.mday, d.hour, d.min, d.sec, d.offset])
   end
 
-  # def test_jd__ex
-  #   assert_raise(RubyDate::Error) do
-  #     DateTime.jd(0, 23,59,60,0)
-  #   end
-  # end
+  def test_jd__ex
+    omit "DateTime is deprecated and not implemented in RubyDate"
+
+    assert_raise(RubyDate::Error) do
+      DateTime.jd(0, 23,59,60,0)
+    end
+  end
 
   def test_valid_with_invalid_types
     o = Object.new
@@ -321,12 +323,14 @@ class RubyDateDateNewTest < Test::Unit::TestCase
     # assert_in_delta(t, t2, t - z + 2)
   end
 
-  # def test_memsize
-  #   require 'objspace'
-  #   t = DateTime.now
-  #   size = ObjectSpace.memsize_of(t)
-  #   t.__send__(:initialize_copy, RubyDate.today)
-  #   assert_instance_of(DateTime, t)
-  #   assert_equal(size, ObjectSpace.memsize_of(t), "not reallocated but memsize changed")
-  # end
+  def test_memsize
+    omit "DateTime is deprecated and not implemented in RubyDate"
+
+    require 'objspace'
+    t = DateTime.now
+    size = ObjectSpace.memsize_of(t)
+    t.__send__(:initialize_copy, RubyDate.today)
+    assert_instance_of(DateTime, t)
+    assert_equal(size, ObjectSpace.memsize_of(t), "not reallocated but memsize changed")
+  end
 end

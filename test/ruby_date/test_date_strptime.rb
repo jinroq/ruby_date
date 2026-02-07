@@ -53,7 +53,7 @@ class RubyDateDateStrptimeTest < Test::Unit::TestCase
     '%z'=>['+0000',{:zone=>'+0000',:offset=>0}],
     '%+'=>['Sat Feb  3 00:00:00 +00:00 2001',
       {:wday=>6,:mon=>2,:mday=>3,
-	:hour=>0,:min=>0,:sec=>0,:zone=>'+00:00',:offset=>0,:year=>2001}],
+       :hour=>0,:min=>0,:sec=>0,:zone=>'+00:00',:offset=>0,:year=>2001}],
   }
 
   STRFTIME_2001_02_03_CVS19 = {
@@ -71,27 +71,27 @@ class RubyDateDateStrptimeTest < Test::Unit::TestCase
   def test__strptime
     STRFTIME_2001_02_03.each do |f, s|
       if (f == '%I' and s[0] == '12') or
-	 (f == '%l' and s[0] == '12') # hour w/o merid
-	s[1][:hour] = 12
+         (f == '%l' and s[0] == '12') # hour w/o merid
+        s[1][:hour] = 12
       end
       assert_equal(s[1], RubyDate._strptime(s[0], f), [f, s].inspect)
       case f[-1,1]
       when 'c', 'C', 'x', 'X', 'y', 'Y'
-	f2 = f.sub(/\A%/, '%E')
-	assert_equal(s[1], RubyDate._strptime(s[0], f2), [f2, s].inspect)
+        f2 = f.sub(/\A%/, '%E')
+        assert_equal(s[1], RubyDate._strptime(s[0], f2), [f2, s].inspect)
       else
-	f2 = f.sub(/\A%/, '%E')
-	assert_equal(nil, RubyDate._strptime(s[0], f2), [f2, s].inspect)
-	assert_equal({}, RubyDate._strptime(f2, f2), [f2, s].inspect)
+        f2 = f.sub(/\A%/, '%E')
+        assert_equal(nil, RubyDate._strptime(s[0], f2), [f2, s].inspect)
+        assert_equal({}, RubyDate._strptime(f2, f2), [f2, s].inspect)
       end
       case f[-1,1]
       when 'd', 'e', 'H', 'I', 'm', 'M', 'S', 'u', 'U', 'V', 'w', 'W', 'y'
-	f2 = f.sub(/\A%/, '%O')
-	assert_equal(s[1], RubyDate._strptime(s[0], f2), [f2, s].inspect)
+        f2 = f.sub(/\A%/, '%O')
+        assert_equal(s[1], RubyDate._strptime(s[0], f2), [f2, s].inspect)
       else
-	f2 = f.sub(/\A%/, '%O')
-	assert_equal(nil, RubyDate._strptime(s[0], f2), [f2, s].inspect)
-	assert_equal({}, RubyDate._strptime(f2, f2), [f2, s].inspect)
+        f2 = f.sub(/\A%/, '%O')
+        assert_equal(nil, RubyDate._strptime(s[0], f2), [f2, s].inspect)
+        assert_equal({}, RubyDate._strptime(f2, f2), [f2, s].inspect)
       end
     end
   end
@@ -100,9 +100,9 @@ class RubyDateDateStrptimeTest < Test::Unit::TestCase
     h = RubyDate._strptime('2001-02-03')
     assert_equal([2001,2,3], h.values_at(:year,:mon,:mday))
 
-    h = RubyDate._strptime('2001-02-03T12:13:14Z')
-    assert_equal([2001,2,3,12,13,14],
-		 h.values_at(:year,:mon,:mday,:hour,:min,:sec))
+    # h = DateTime._strptime('2001-02-03T12:13:14Z')
+    # assert_equal([2001,2,3,12,13,14],
+        #    h.values_at(:year,:mon,:mday,:hour,:min,:sec))
 
     assert_equal({}, RubyDate._strptime('', ''))
     assert_equal({:leftover=>"\s"*3}, RubyDate._strptime("\s"*3, ''))
@@ -189,8 +189,8 @@ class RubyDateDateStrptimeTest < Test::Unit::TestCase
       h = RubyDate._strptime(*x)
       a = h.values_at(:year,:mon,:mday,:hour,:min,:sec,:zone,:offset,:wday)
       if y[1] == -1
-	a[1] = -1
-	a[2] = h[:yday]
+        a[1] = -1
+        a[2] = h[:yday]
       end
       assert_equal(y, a, [x, y, a].inspect)
     end
@@ -237,8 +237,8 @@ class RubyDateDateStrptimeTest < Test::Unit::TestCase
       h = RubyDate._strptime(*x)
       a = (h || {}).values_at(:year,:mon,:mday,:hour,:min,:sec,:zone,:offset,:wday)
       if y[1] == -1
-	a[1] = -1
-	a[2] = h[:yday]
+        a[1] = -1
+        a[2] = h[:yday]
       end
       assert_equal(y, a, format('<failed at line %d>', l))
     end
@@ -310,18 +310,18 @@ class RubyDateDateStrptimeTest < Test::Unit::TestCase
     assert_equal(d, RubyDate.strptime(d.to_s))
     assert_equal(RubyDate.new(2002,3,14), RubyDate.strptime('2002-03-14'))
 
-    d = RubyDate.new(2002,3,14,11,22,33, 0)
-    assert_equal(d, RubyDate.strptime(d.to_s))
-    assert_equal(RubyDate.new(2002,3,14,11,22,33, 0),
-		 RubyDate.strptime('2002-03-14T11:22:33Z'))
-    assert_equal(RubyDate.new(2002,3,14,11,22,33, 0),
-		 RubyDate.strptime('2002-03-14T11:22:33Z', '%Y-%m-%dT%H:%M:%S%Z'))
-    assert_equal(RubyDate.new(2002,3,14,11,22,33, 9.to_r/24),
-		 RubyDate.strptime('2002-03-14T11:22:33+09:00', '%Y-%m-%dT%H:%M:%S%Z'))
-    assert_equal(RubyDate.new(2002,3,14,11,22,33, -9.to_r/24),
-		 RubyDate.strptime('2002-03-14T11:22:33-09:00', '%FT%T%Z'))
-    assert_equal(RubyDate.new(2002,3,14,11,22,33, -9.to_r/24) + 123456789.to_r/1000000000/86400,
-		 RubyDate.strptime('2002-03-14T11:22:33.123456789-09:00', '%FT%T.%N%Z'))
+    # d = DateTime.new(2002,3,14,11,22,33, 0)
+    # assert_equal(d, DateTime.strptime(d.to_s))
+    # assert_equal(DateTime.new(2002,3,14,11,22,33, 0),
+    #              DateTime.strptime('2002-03-14T11:22:33Z'))
+    # assert_equal(DateTime.new(2002,3,14,11,22,33, 0),
+    #              DateTime.strptime('2002-03-14T11:22:33Z', '%Y-%m-%dT%H:%M:%S%Z'))
+    # assert_equal(DateTime.new(2002,3,14,11,22,33, 9.to_r/24),
+    #              DateTime.strptime('2002-03-14T11:22:33+09:00', '%Y-%m-%dT%H:%M:%S%Z'))
+    # assert_equal(DateTime.new(2002,3,14,11,22,33, -9.to_r/24),
+    #              DateTime.strptime('2002-03-14T11:22:33-09:00', '%FT%T%Z'))
+    # assert_equal(DateTime.new(2002,3,14,11,22,33, -9.to_r/24) + 123456789.to_r/1000000000/86400,
+    #              DateTime.strptime('2002-03-14T11:22:33.123456789-09:00', '%FT%T.%N%Z'))
   end
 
   def test_strptime__2
@@ -347,147 +347,151 @@ class RubyDateDateStrptimeTest < Test::Unit::TestCase
        '%C %y %W %w',
        '%C %y %W %u',
        ].each do |fmt|
-	s = d.strftime(fmt)
-	d2 = RubyDate.strptime(s, fmt)
-	assert_equal(d, d2, [fmt, d.to_s, d2.to_s].inspect)
+        s = d.strftime(fmt)
+        d2 = RubyDate.strptime(s, fmt)
+        assert_equal(d, d2, [fmt, d.to_s, d2.to_s].inspect)
       end
 
-      [
-       '%Y %m %d %H %M %S',
-       '%Y %m %d %H %M %S %N',
-       '%C %y %m %d %H %M %S',
-       '%C %y %m %d %H %M %S %N',
-
-       '%Y %j %H %M %S',
-       '%Y %j %H %M %S %N',
-       '%C %y %j %H %M %S',
-       '%C %y %j %H %M %S %N',
-
-       '%s',
-       '%s %N',
-       '%Q',
-       '%Q %N',
-      ].each do |fmt|
-	s = d.strftime(fmt)
-	d2 = RubyDate.strptime(s, fmt)
-	assert_equal(d, d2, [fmt, d.to_s, d2.to_s].inspect)
-      end
+      # [
+      #  '%Y %m %d %H %M %S',
+      #  '%Y %m %d %H %M %S %N',
+      #  '%C %y %m %d %H %M %S',
+      #  '%C %y %m %d %H %M %S %N',
+      #
+      #  '%Y %j %H %M %S',
+      #  '%Y %j %H %M %S %N',
+      #  '%C %y %j %H %M %S',
+      #  '%C %y %j %H %M %S %N',
+      #
+      #  '%s',
+      #  '%s %N',
+      #  '%Q',
+      #  '%Q %N',
+      # ].each do |fmt|
+      #   s = d.strftime(fmt)
+      #   d2 = DateTime.strptime(s, fmt)
+      #   assert_equal(d, d2, [fmt, d.to_s, d2.to_s].inspect)
+      # end
     end
   end
 
   def test_strptime__minus
-    d = RubyDate.strptime('-1', '%s')
-    assert_equal([1969, 12, 31, 23, 59, 59],
-		 [d.year, d.mon, d.mday, d.hour, d.min, d.sec])
-    d = RubyDate.strptime('-86400', '%s')
-    assert_equal([1969, 12, 31, 0, 0, 0],
-		 [d.year, d.mon, d.mday, d.hour, d.min, d.sec])
+    omit "DateTime is deprecated and not implemented in RubyDate"
 
-    d = RubyDate.strptime('-999', '%Q')
+    d = DateTime.strptime('-1', '%s')
+    assert_equal([1969, 12, 31, 23, 59, 59],
+                 [d.year, d.mon, d.mday, d.hour, d.min, d.sec])
+    d = DateTime.strptime('-86400', '%s')
+    assert_equal([1969, 12, 31, 0, 0, 0],
+                 [d.year, d.mon, d.mday, d.hour, d.min, d.sec])
+
+    d = DateTime.strptime('-999', '%Q')
     assert_equal([1969, 12, 31, 23, 59, 59, 1.to_r/10**3],
-		 [d.year, d.mon, d.mday, d.hour, d.min, d.sec, d.sec_fraction])
-    d = RubyDate.strptime('-1000', '%Q')
+                 [d.year, d.mon, d.mday, d.hour, d.min, d.sec, d.sec_fraction])
+    d = DateTime.strptime('-1000', '%Q')
     assert_equal([1969, 12, 31, 23, 59, 59, 0],
-		 [d.year, d.mon, d.mday, d.hour, d.min, d.sec, d.sec_fraction])
+                 [d.year, d.mon, d.mday, d.hour, d.min, d.sec, d.sec_fraction])
   end
 
   def test_strptime__comp
-    n = RubyDate.now
+    omit "DateTime is deprecated and not implemented in RubyDate"
 
-    d = RubyDate.strptime('073', '%j')
+    n = DateTime.now
+
+    d = DateTime.strptime('073', '%j')
     assert_equal([n.year, 73, 0, 0, 0],
-		 [d.year, d.yday, d.hour, d.min, d.sec])
-    d = RubyDate.strptime('13', '%d')
+                 [d.year, d.yday, d.hour, d.min, d.sec])
+    d = DateTime.strptime('13', '%d')
     assert_equal([n.year, n.mon, 13, 0, 0, 0],
-		 [d.year, d.mon, d.mday, d.hour, d.min, d.sec])
+                 [d.year, d.mon, d.mday, d.hour, d.min, d.sec])
 
-    d = RubyDate.strptime('Mar', '%b')
+    d = DateTime.strptime('Mar', '%b')
     assert_equal([n.year, 3, 1, 0, 0, 0],
-		 [d.year, d.mon, d.mday, d.hour, d.min, d.sec])
-    d = RubyDate.strptime('2004', '%Y')
+                 [d.year, d.mon, d.mday, d.hour, d.min, d.sec])
+    d = DateTime.strptime('2004', '%Y')
     assert_equal([2004, 1, 1, 0, 0, 0],
-		 [d.year, d.mon, d.mday, d.hour, d.min, d.sec])
+                 [d.year, d.mon, d.mday, d.hour, d.min, d.sec])
 
-    d = RubyDate.strptime('Mar 13', '%b %d')
+    d = DateTime.strptime('Mar 13', '%b %d')
     assert_equal([n.year, 3, 13, 0, 0, 0],
-		 [d.year, d.mon, d.mday, d.hour, d.min, d.sec])
-    d = RubyDate.strptime('Mar 2004', '%b %Y')
+                 [d.year, d.mon, d.mday, d.hour, d.min, d.sec])
+    d = DateTime.strptime('Mar 2004', '%b %Y')
     assert_equal([2004, 3, 1, 0, 0, 0],
-		 [d.year, d.mon, d.mday, d.hour, d.min, d.sec])
-    d = RubyDate.strptime('23:55', '%H:%M')
+                 [d.year, d.mon, d.mday, d.hour, d.min, d.sec])
+    d = DateTime.strptime('23:55', '%H:%M')
     assert_equal([n.year, n.mon, n.mday, 23, 55, 0],
-		 [d.year, d.mon, d.mday, d.hour, d.min, d.sec])
-    d = RubyDate.strptime('23:55:30', '%H:%M:%S')
+                 [d.year, d.mon, d.mday, d.hour, d.min, d.sec])
+    d = DateTime.strptime('23:55:30', '%H:%M:%S')
     assert_equal([n.year, n.mon, n.mday, 23, 55, 30],
-		 [d.year, d.mon, d.mday, d.hour, d.min, d.sec])
+                 [d.year, d.mon, d.mday, d.hour, d.min, d.sec])
 
-    d = RubyDate.strptime('Sun 23:55', '%a %H:%M')
+    d = DateTime.strptime('Sun 23:55', '%a %H:%M')
     d2 = d - d.wday
     assert_equal([d2.year, d2.mon, d2.mday, 23, 55, 0],
-		 [d.year, d.mon, d.mday, d.hour, d.min, d.sec])
-    d = RubyDate.strptime('Aug 23:55', '%b %H:%M')
+                 [d.year, d.mon, d.mday, d.hour, d.min, d.sec])
+    d = DateTime.strptime('Aug 23:55', '%b %H:%M')
     assert_equal([n.year, 8, 1, 23, 55, 0],
-		 [d.year, d.mon, d.mday, d.hour, d.min, d.sec])
+                 [d.year, d.mon, d.mday, d.hour, d.min, d.sec])
 
-    d = RubyDate.strptime('2004', '%G')
+    d = DateTime.strptime('2004', '%G')
     assert_equal([2004, 1, 1, 0, 0, 0],
-		 [d.cwyear, d.cweek, d.cwday, d.hour, d.min, d.sec])
-    d = RubyDate.strptime('11', '%V')
+                 [d.cwyear, d.cweek, d.cwday, d.hour, d.min, d.sec])
+    d = DateTime.strptime('11', '%V')
     assert_equal([n.cwyear, 11, 1, 0, 0, 0],
-		 [d.cwyear, d.cweek, d.cwday, d.hour, d.min, d.sec])
-    d = RubyDate.strptime('6', '%u')
+                 [d.cwyear, d.cweek, d.cwday, d.hour, d.min, d.sec])
+    d = DateTime.strptime('6', '%u')
     assert_equal([n.cwyear, n.cweek, 6, 0, 0, 0],
-		 [d.cwyear, d.cweek, d.cwday, d.hour, d.min, d.sec])
+                 [d.cwyear, d.cweek, d.cwday, d.hour, d.min, d.sec])
 
-    d = RubyDate.strptime('11-6', '%V-%u')
+    d = DateTime.strptime('11-6', '%V-%u')
     assert_equal([n.cwyear, 11, 6, 0, 0, 0],
-		 [d.cwyear, d.cweek, d.cwday, d.hour, d.min, d.sec])
-    d = RubyDate.strptime('2004-11', '%G-%V')
+                 [d.cwyear, d.cweek, d.cwday, d.hour, d.min, d.sec])
+    d = DateTime.strptime('2004-11', '%G-%V')
     assert_equal([2004, 11, 1, 0, 0, 0],
-		 [d.cwyear, d.cweek, d.cwday, d.hour, d.min, d.sec])
+                 [d.cwyear, d.cweek, d.cwday, d.hour, d.min, d.sec])
 
-    d = RubyDate.strptime('11-6', '%U-%w')
+    d = DateTime.strptime('11-6', '%U-%w')
     assert_equal([n.year, 11, 6, 0, 0, 0],
-		 [d.year, d.strftime('%U').to_i, d.wday, d.hour, d.min, d.sec])
-    d = RubyDate.strptime('2004-11', '%Y-%U')
+                 [d.year, d.strftime('%U').to_i, d.wday, d.hour, d.min, d.sec])
+    d = DateTime.strptime('2004-11', '%Y-%U')
     assert_equal([2004, 11, 0, 0, 0, 0],
-		 [d.year, d.strftime('%U').to_i, d.wday, d.hour, d.min, d.sec])
+                 [d.year, d.strftime('%U').to_i, d.wday, d.hour, d.min, d.sec])
 
-    d = RubyDate.strptime('11-6', '%W-%w')
+    d = DateTime.strptime('11-6', '%W-%w')
     assert_equal([n.year, 11, 6, 0, 0, 0],
-		 [d.year, d.strftime('%W').to_i, d.wday, d.hour, d.min, d.sec])
-    d = RubyDate.strptime('2004-11', '%Y-%W')
+                 [d.year, d.strftime('%W').to_i, d.wday, d.hour, d.min, d.sec])
+    d = DateTime.strptime('2004-11', '%Y-%W')
     assert_equal([2004, 11, 1, 0, 0, 0],
-		 [d.year, d.strftime('%W').to_i, d.wday, d.hour, d.min, d.sec])
+                 [d.year, d.strftime('%W').to_i, d.wday, d.hour, d.min, d.sec])
   end
 
   def test_strptime__d_to_s
     d = RubyDate.new(2002,3,14)
     assert_equal(d, RubyDate.strptime(d.to_s))
 
-    d = RubyDate.new(2002,3,14,11,22,33, 9.to_r/24)
-    assert_equal(d, RubyDate.strptime(d.to_s))
+    # d = DateTime.new(2002,3,14,11,22,33, 9.to_r/24)
+    # assert_equal(d, DateTime.strptime(d.to_s))
   end
 
   def test_strptime__ex
     assert_raise(RubyDate::Error) do
       RubyDate.strptime('')
     end
-    assert_raise(RubyDate::Error) do
-      RubyDate.strptime('')
-    end
+    # assert_raise(RubyDate::Error) do
+    #   DateTime.strptime('')
+    # end
     assert_raise(RubyDate::Error) do
       RubyDate.strptime('2001-02-29', '%F')
     end
-    assert_raise(RubyDate::Error) do
-      RubyDate.strptime('2001-02-29T23:59:60', '%FT%T')
-    end
-    assert_nothing_raised(RubyDate::Error) do
-      RubyDate.strptime('2001-03-01T23:59:60', '%FT%T')
-    end
-    assert_raise(RubyDate::Error) do
-      RubyDate.strptime('2001-03-01T23:59:61', '%FT%T')
-    end
+    # assert_raise(RubyDate::Error) do
+    #   DateTime.strptime('2001-02-29T23:59:60', '%FT%T')
+    # end
+    # assert_nothing_raised(RubyDate::Error) do
+    #   DateTime.strptime('2001-03-01T23:59:60', '%FT%T')
+    # end
+    # assert_raise(RubyDate::Error) do
+    #   DateTime.strptime('2001-03-01T23:59:61', '%FT%T')
+    # end
     assert_raise(RubyDate::Error) do
       RubyDate.strptime('23:55', '%H:%M')
     end
@@ -505,20 +509,20 @@ class RubyDateDateStrptimeTest < Test::Unit::TestCase
   end
 
   def test_sz
-    d = RubyDate.strptime('0 -0200', '%s %z')
+    omit "DateTime is deprecated and not implemented in RubyDate"
+
+    d = DateTime.strptime('0 -0200', '%s %z')
     assert_equal([1969, 12, 31, 22, 0, 0], [d.year, d.mon, d.mday, d.hour, d.min, d.sec])
     assert_equal(Rational(-2, 24), d.offset)
-    d = RubyDate.strptime('9 +0200', '%s %z')
+    d = DateTime.strptime('9 +0200', '%s %z')
     assert_equal([1970, 1, 1, 2, 0, 9], [d.year, d.mon, d.mday, d.hour, d.min, d.sec])
     assert_equal(Rational(2, 24), d.offset)
 
-    d = RubyDate.strptime('0 -0200', '%Q %z')
+    d = DateTime.strptime('0 -0200', '%Q %z')
     assert_equal([1969, 12, 31, 22, 0, 0], [d.year, d.mon, d.mday, d.hour, d.min, d.sec])
     assert_equal(Rational(-2, 24), d.offset)
-    d = RubyDate.strptime('9000 +0200', '%Q %z')
+    d = DateTime.strptime('9000 +0200', '%Q %z')
     assert_equal([1970, 1, 1, 2, 0, 9], [d.year, d.mon, d.mday, d.hour, d.min, d.sec])
     assert_equal(Rational(2, 24), d.offset)
-
   end
-
 end

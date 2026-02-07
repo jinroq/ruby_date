@@ -20,12 +20,12 @@ class RubyDateDateMarshalTest < Test::Unit::TestCase
     assert_equal(d.start, d2.start)
     assert_instance_of(String, d2.to_s)
 
-    d = RubyDate.now
-    m = Marshal.dump(d)
-    d2 = Marshal.load(m)
-    assert_equal(d, d2)
-    assert_equal(d.start, d2.start)
-    assert_instance_of(String, d2.to_s)
+    # d = DateTime.now
+    # m = Marshal.dump(d)
+    # d2 = Marshal.load(m)
+    # assert_equal(d, d2)
+    # assert_equal(d.start, d2.start)
+    # assert_instance_of(String, d2.to_s)
 
     d = RubyDate.today
     a = d.marshal_dump
@@ -34,12 +34,12 @@ class RubyDateDateMarshalTest < Test::Unit::TestCase
     expected_error = defined?(FrozenError) ? FrozenError : RuntimeError
     assert_raise(expected_error){d.marshal_load(a)}
 
-    d = RubyDate.now
-    a = d.marshal_dump
-    d.freeze
-    assert(d.frozen?)
-    expected_error = defined?(FrozenError) ? FrozenError : RuntimeError
-    assert_raise(expected_error){d.marshal_load(a)}
+    # d = DateTime.now
+    # a = d.marshal_dump
+    # d.freeze
+    # assert(d.frozen?)
+    # expected_error = defined?(FrozenError) ? FrozenError : RuntimeError
+    # assert_raise(expected_error){d.marshal_load(a)}
 
     d = RubyDate.new + 1/2r + 2304/65437r/86400
     m = Marshal.dump(d)
@@ -50,8 +50,10 @@ class RubyDateDateMarshalTest < Test::Unit::TestCase
   end
 
   def test_memsize
+    omit "DateTime is deprecated and not implemented in RubyDate"
+
     require 'objspace'
-    t = RubyDate.new(2018, 11, 13)
+    t = DateTime.new(2018, 11, 13)
     size = ObjectSpace.memsize_of(t)
     t2 = Marshal.load(Marshal.dump(t))
     assert_equal(t, t2)
