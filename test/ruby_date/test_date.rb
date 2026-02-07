@@ -4,7 +4,7 @@ require 'test/unit'
 require_relative '../../lib/ruby_date'
 
 class DateSub < RubyDate; end
-class DateTimeSub < RubyDate; end
+class DateTimeSub < RubyDateTime; end
 
 class RubyDateDateTest < Test::Unit::TestCase
   def test_range_infinite_float

@@ -1940,7 +1940,7 @@ class RubyDate
       end
     end
 
-    # Create a Date from a parsed hash (C's d_new_by_frags)
+    # Create a Date/DateTime from a parsed hash (C's d_new_by_frags)
     #
     # Logic:
     #   1. If hash is nil or empty, raise Error.
@@ -1948,6 +1948,7 @@ class RubyDate
     #      validate with valid_civil?. Raise Error if invalid.
     #   3. Slow path: try ordinal (year+yday), commercial (cwyear+cweek+cwday).
     #   4. If no valid date can be constructed, raise Error.
+    #   5. If time fields are present, create DateTime-style object.
     def new_by_frags(hash, sg)
       raise Error, "invalid date" if hash.nil? || hash.empty?
 
@@ -1955,15 +1956,25 @@ class RubyDate
       m = hash[:mon]
       d = hash[:mday]
 
+      # Check for time fields → DateTime-style
+      has_time = hash.key?(:hour) || hash.key?(:min) || hash.key?(:sec) || hash.key?(:offset)
+
+      # --- Determine date fields ---
+
       # Fast path: year+mon+mday without jd/yday
       if !hash.key?(:jd) && !hash.key?(:yday) && y && m && d
         raise Error, "invalid date" unless valid_civil?(y, m, d, sg)
+        if has_time
+          return new_datetime_from_frags(y, m, d, hash, sg)
+        end
         return new(y, m, d, sg)
       end
 
       # Try jd
       if hash.key?(:jd)
-        return jd(hash[:jd], sg)
+        obj = jd(hash[:jd], sg)
+        # TODO: apply time fields to jd-based object
+        return obj
       end
 
       # Try ordinal: year+yday
@@ -1979,16 +1990,39 @@ class RubyDate
       # Try year+mon (mday defaults to 1), or year alone
       if y && m
         raise Error, "invalid date" unless valid_civil?(y, m, 1, sg)
+        if has_time
+          return new_datetime_from_frags(y, m, 1, hash, sg)
+        end
         return new(y, m, 1, sg)
       end
 
       if y
         raise Error, "invalid date" unless valid_civil?(y, 1, 1, sg)
+        if has_time
+          return new_datetime_from_frags(y, 1, 1, hash, sg)
+        end
         return new(y, 1, 1, sg)
       end
 
-      # No date fields available (e.g. time-only input)
+      # No date fields available (e.g. time-only input like "23:55")
       raise Error, "invalid date"
+    end
+
+    # Build a DateTime-style object from date fields + parsed hash with time
+    def new_datetime_from_frags(y, m, d, hash, sg)
+      h   = hash[:hour] || 0
+      min = hash[:min]  || 0
+      s   = hash[:sec]  || 0
+
+      # Add sec_fraction if present
+      if hash[:sec_fraction]
+        s = s + hash[:sec_fraction]
+      end
+
+      # Convert offset (integer seconds) to Rational fraction of day
+      of = hash[:offset] ? Rational(hash[:offset], DAY_IN_SECONDS) : 0
+
+      new(y, m, d, h, min, s, of, sg)
     end
 
     # --- comp_year helpers (C's comp_year69, comp_year50) ---
