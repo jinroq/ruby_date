@@ -4,7 +4,7 @@
 class RubyDate
   include Comparable
 
-  Error = Class.new(StandardError)
+  Error = Class.new(ArgumentError)
 
   # Initialize method
   # call-seq:
@@ -471,59 +471,6 @@ class RubyDate
       end
 
       obj
-    end
-
-    # call-seq:
-    #   Date._httpdate(string, limit: 128) -> hash
-    #
-    # Returns a hash of values parsed from +string+, which should be a valid
-    # {HTTP date format}[rdoc-ref:language/strftime_formatting.rdoc@HTTP+Format]:
-    #
-    #   d = Date.new(2001, 2, 3)
-    #   s = d.httpdate # => "Sat, 03 Feb 2001 00:00:00 GMT"
-    #   Date._httpdate(s)
-    #   # => {:wday=>6, :mday=>3, :mon=>2, :year=>2001, :hour=>0, :min=>0, :sec=>0, :zone=>"GMT", :offset=>0}
-    #
-    # Related: Date.httpdate (returns a \Date object).
-    def _httpdate(string, limit: 128)
-      str = string.nil? ? nil : check_limit(string, limit)
-      date__httpdate(str)
-    end
-
-    # call-seq:
-    #   Date._iso8601(string, limit: 128) -> hash
-    #
-    # Returns a hash of values parsed from +string+, which should contain
-    # an {ISO 8601 formatted date}[rdoc-ref:language/strftime_formatting.rdoc@ISO+8601+Format+Specifications]:
-    #
-    #   d = Date.new(2001, 2, 3)
-    #   s = d.iso8601    # => "2001-02-03"
-    #   Date._iso8601(s) # => {:mday=>3, :year=>2001, :mon=>2}
-    #
-    # See argument {limit}[rdoc-ref:Date@Argument+limit].
-    #
-    # Related: Date.iso8601 (returns a \Date object).
-    def _iso8601(string, limit: 128)
-      str = string.nil? ? nil : check_limit(string, limit)
-      date__iso8601(str)
-    end
-
-    # call-seq:
-    #   Date._jisx0301(string, limit: 128) -> hash
-    #
-    # Returns a hash of values parsed from +string+, which should be a valid
-    # {JIS X 0301 date format}[rdoc-ref:language/strftime_formatting.rdoc@JIS+X+0301+Format]:
-    #
-    #   d = Date.new(2001, 2, 3)
-    #   s = d.jisx0301    # => "H13.02.03"
-    #   Date._jisx0301(s) # => {:year=>2001, :mon=>2, :mday=>3}
-    #
-    # See argument {limit}[rdoc-ref:Date@Argument+limit].
-    #
-    # Related: Date.jisx0301 (returns a \Date object).
-    def _jisx0301(string, limit: 128)
-      str = string.nil? ? nil : check_limit(string, limit)
-      date__jisx0301(str)
     end
 
     private

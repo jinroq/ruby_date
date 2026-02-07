@@ -19,42 +19,8 @@ class RubyDate
     #
     # Related: Date._parse (returns a hash).
     def parse(string = JULIAN_EPOCH_DATE, comp = true, start = DEFAULT_SG, limit: 128)
-      str = string.to_s.strip
-      sg = start
-
-      # JIS X 0301 format (e.g., M06.01.01, H31.04.30, R01.05.01)
-      if str =~ /^([MTSHR])(\d{2})\.(\d{2})\.(\d{2})$/i
-        era_char = $1.upcase
-        era_year = $2.to_i
-        month = $3.to_i
-        day = $4.to_i
-
-        # Convert era year to gregorian year
-        era_start = case era_char
-                    when 'M' then 1867  # Meiji
-                    when 'T' then 1911  # Taisho
-                    when 'S' then 1925  # Showa
-                    when 'H' then 1988  # Heisei
-                    when 'R' then 2018  # Reiwa
-                    else 0
-                    end
-
-        year = era_start + era_year
-
-        return new(year, month, day, sg)
-      end
-
-      # ISO 8601 format (YYYY-MM-DD)
-      if str =~ /^(-?\d{4})-(\d{1,2})-(\d{1,2})$/
-        year = $1.to_i
-        month = $2.to_i
-        day = $3.to_i
-
-        return new(year, month, day, sg)
-      end
-
-      # Fallback to default
-      new(-4712, 1, 1, sg)
+      hash = _parse(string, comp, limit: limit)
+      new_by_frags(hash, start)
     end
 
     # call-seq:
@@ -80,7 +46,19 @@ class RubyDate
       date__parse(str, comp)
     end
 
-    # date__iso8601 in date_parse.c
+    # call-seq:
+    #   Date._iso8601(string, limit: 128) -> hash
+    #
+    # Returns a hash of values parsed from +string+, which should contain
+    # an {ISO 8601 formatted date}[rdoc-ref:language/strftime_formatting.rdoc@ISO+8601+Format+Specifications]:
+    #
+    #   d = Date.new(2001, 2, 3)
+    #   s = d.iso8601    # => "2001-02-03"
+    #   Date._iso8601(s) # => {:mday=>3, :year=>2001, :mon=>2}
+    #
+    # See argument {limit}[rdoc-ref:Date@Argument+limit].
+    #
+    # Related: Date.iso8601 (returns a \Date object).
     def _iso8601(string, limit: 128)
       return {} if string.nil?
       string = string_value(string)
@@ -115,7 +93,18 @@ class RubyDate
     end
     alias _rfc822 _rfc2822
 
-    # date__httpdate in date_parse.c
+    # call-seq:
+    #   Date._httpdate(string, limit: 128) -> hash
+    #
+    # Returns a hash of values parsed from +string+, which should be a valid
+    # {HTTP date format}[rdoc-ref:language/strftime_formatting.rdoc@HTTP+Format]:
+    #
+    #   d = Date.new(2001, 2, 3)
+    #   s = d.httpdate # => "Sat, 03 Feb 2001 00:00:00 GMT"
+    #   Date._httpdate(s)
+    #   # => {:wday=>6, :mday=>3, :mon=>2, :year=>2001, :hour=>0, :min=>0, :sec=>0, :zone=>"GMT", :offset=>0}
+    #
+    # Related: Date.httpdate (returns a \Date object).
     def _httpdate(string, limit: 128)
       return {} if string.nil?
       string = string_value(string)
@@ -123,7 +112,19 @@ class RubyDate
       date__httpdate(string)
     end
 
-    # date__jisx0301 in date_parse.c
+    # call-seq:
+    #   Date._jisx0301(string, limit: 128) -> hash
+    #
+    # Returns a hash of values parsed from +string+, which should be a valid
+    # {JIS X 0301 date format}[rdoc-ref:language/strftime_formatting.rdoc@JIS+X+0301+Format]:
+    #
+    #   d = Date.new(2001, 2, 3)
+    #   s = d.jisx0301    # => "H13.02.03"
+    #   Date._jisx0301(s) # => {:year=>2001, :mon=>2, :mday=>3}
+    #
+    # See argument {limit}[rdoc-ref:Date@Argument+limit].
+    #
+    # Related: Date.jisx0301 (returns a \Date object).
     def _jisx0301(string, limit: 128)
       return {} if string.nil?
       string = string_value(string)
@@ -1940,22 +1941,54 @@ class RubyDate
     end
 
     # Create a Date from a parsed hash (C's d_new_by_frags)
+    #
+    # Logic:
+    #   1. If hash is nil or empty, raise Error.
+    #   2. Fast path: if year, mon, mday are present (and no jd/yday),
+    #      validate with valid_civil?. Raise Error if invalid.
+    #   3. Slow path: try ordinal (year+yday), commercial (cwyear+cweek+cwday).
+    #   4. If no valid date can be constructed, raise Error.
     def new_by_frags(hash, sg)
-      raise ArgumentError, "invalid date" if hash.nil? || hash.empty?
+      raise Error, "invalid date" if hash.nil? || hash.empty?
 
       y = hash[:year]
       m = hash[:mon]
       d = hash[:mday]
 
-      if y && m && d && !hash.key?(:jd) && !hash.key?(:yday)
+      # Fast path: year+mon+mday without jd/yday
+      if !hash.key?(:jd) && !hash.key?(:yday) && y && m && d
+        raise Error, "invalid date" unless valid_civil?(y, m, d, sg)
         return new(y, m, d, sg)
       end
 
-      # Fallback: try to complete from available fields
-      y ||= -4712
-      m ||= 1
-      d ||= 1
-      new(y, m, d, sg)
+      # Try jd
+      if hash.key?(:jd)
+        return jd(hash[:jd], sg)
+      end
+
+      # Try ordinal: year+yday
+      if y && hash.key?(:yday)
+        return ordinal(y, hash[:yday], sg)
+      end
+
+      # Try commercial: cwyear+cweek+cwday
+      if hash.key?(:cwyear) && hash.key?(:cweek) && hash.key?(:cwday)
+        return commercial(hash[:cwyear], hash[:cweek], hash[:cwday], sg)
+      end
+
+      # Try year+mon (mday defaults to 1), or year alone
+      if y && m
+        raise Error, "invalid date" unless valid_civil?(y, m, 1, sg)
+        return new(y, m, 1, sg)
+      end
+
+      if y
+        raise Error, "invalid date" unless valid_civil?(y, 1, 1, sg)
+        return new(y, 1, 1, sg)
+      end
+
+      # No date fields available (e.g. time-only input)
+      raise Error, "invalid date"
     end
 
     # --- comp_year helpers (C's comp_year69, comp_year50) ---
@@ -2157,6 +2190,8 @@ class RubyDate
       hash
     end
 
+    # --- RFC 2822 ---
+
     def date__rfc2822(str)
       hash = {}
       return hash if str.nil? || str.empty?
@@ -2177,6 +2212,8 @@ class RubyDate
       hash[:offset] = date_zone_to_diff(m[8])
       hash
     end
+
+    # --- HTTP date ---
 
     def date__httpdate(str)
       hash = {}
@@ -2215,6 +2252,8 @@ class RubyDate
       end
       hash
     end
+
+    # --- JIS X 0301 ---
 
     def date__jisx0301(str)
       hash = {}
