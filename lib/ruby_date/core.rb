@@ -2194,6 +2194,63 @@ class RubyDate
     m_yday
   end
 
+  #  call-seq:
+  #    deconstruct_keys(array_of_names_or_nil) -> hash
+  #
+  #  Returns a hash of the name/value pairs, to use in pattern matching.
+  #  Possible keys are: <tt>:year</tt>, <tt>:month</tt>, <tt>:day</tt>,
+  #  <tt>:wday</tt>, <tt>:yday</tt>.
+  #
+  #  Possible usages:
+  #
+  #    d = Date.new(2022, 10, 5)
+  #
+  #    if d in wday: 3, day: ..7  # uses deconstruct_keys underneath
+  #      puts "first Wednesday of the month"
+  #    end
+  #    #=> prints "first Wednesday of the month"
+  #
+  #    case d
+  #    in year: ...2022
+  #      puts "too old"
+  #    in month: ..9
+  #      puts "quarter 1-3"
+  #    in wday: 1..5, month:
+  #      puts "working day in month #{month}"
+  #    end
+  #    #=> prints "working day in month 10"
+  #
+  #  Note that deconstruction by pattern can also be combined with class check:
+  #
+  #    if d in Date(wday: 3, day: ..7)
+  #      puts "first Wednesday of the month"
+  #    end
+  def deconstruct_keys(keys)
+    if keys.nil?
+      return {
+        year: year,
+        month: month,
+        day: day,
+        yday: yday,
+        wday: wday
+      }
+    end
+
+    raise TypeError, "wrong argument type #{keys.class} (expected Array or nil)" unless keys.is_a?(Array)
+
+    h = {}
+    keys.each do |key|
+      case key
+      when :year  then h[:year]  = year
+      when :month then h[:month] = month
+      when :day   then h[:day]   = day
+      when :yday  then h[:yday]  = yday
+      when :wday  then h[:wday]  = wday
+      end
+    end
+    h
+  end
+
   # call-seq:
   #   step(limit, step = 1){|date| ... } -> self
   #
