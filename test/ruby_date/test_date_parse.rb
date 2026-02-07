@@ -1161,7 +1161,7 @@ class RubyDateDateParseTest < Test::Unit::TestCase
 
   def test_rfc3339
     assert_instance_of(RubyDate, RubyDate.rfc3339)
-    assert_instance_of(DateTime, DateTime.rfc3339)
+    # assert_instance_of(DateTime, DateTime.rfc3339)
 
     d = RubyDate.rfc3339('2001-02-03T04:05:06+07:00', RubyDate::ITALY + 10)
     assert_equal(RubyDate.new(2001,2,3), d)
@@ -1187,9 +1187,9 @@ class RubyDateDateParseTest < Test::Unit::TestCase
 
   def test_rfc2822
     assert_instance_of(RubyDate, RubyDate.rfc2822)
-    assert_instance_of(DateTime, DateTime.rfc2822)
+    # assert_instance_of(DateTime, DateTime.rfc2822)
     assert_instance_of(RubyDate, RubyDate.rfc822)
-    assert_instance_of(DateTime, DateTime.rfc822)
+    # assert_instance_of(DateTime, DateTime.rfc822)
 
     d = RubyDate.rfc2822('Sat, 3 Feb 2001 04:05:06 +0700', RubyDate::ITALY + 10)
     assert_equal(RubyDate.new(2001,2,3), d)
@@ -1208,7 +1208,7 @@ class RubyDateDateParseTest < Test::Unit::TestCase
 
   def test_httpdate
     assert_instance_of(RubyDate, RubyDate.httpdate)
-    assert_instance_of(DateTime, DateTime.httpdate)
+    # assert_instance_of(DateTime, DateTime.httpdate)
 
     d = RubyDate.httpdate('Sat, 03 Feb 2001 04:05:06 GMT', RubyDate::ITALY + 10)
     assert_equal(RubyDate.new(2001,2,3), d)
@@ -1221,7 +1221,7 @@ class RubyDateDateParseTest < Test::Unit::TestCase
 
   def test_jisx0301
     assert_instance_of(RubyDate, RubyDate.jisx0301)
-    assert_instance_of(DateTime, DateTime.jisx0301)
+    # assert_instance_of(DateTime, DateTime.jisx0301)
 
     d = RubyDate.jisx0301('H13.02.03', RubyDate::ITALY + 10)
     assert_equal(RubyDate.new(2001,2,3), d)

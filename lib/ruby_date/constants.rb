@@ -21,6 +21,10 @@ class RubyDate
   DAYS_PATTERN = '(sunday|monday|tuesday|wednesday|thursday|friday|saturday)'
   ABBR_MONTHS_PATTERN = '(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)'
   private_constant :ABBR_DAYS_PATTERN, :DAYS_PATTERN, :ABBR_MONTHS_PATTERN
+  DAYS_PAT = "sunday|monday|tuesday|wednesday|thursday|friday|saturday"
+  ABBR_DAYS_PAT   = "sun|mon|tue|wed|thu|fri|sat"
+  ABBR_MONTHS_PAT = "jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec"
+  private_constant :DAYS_PAT, :ABBR_DAYS_PAT, :ABBR_MONTHS_PAT
 
   ITALY     = 2299161 # 1582-10-15
   ENGLAND   = 2361222 # 1752-09-14
@@ -127,8 +131,11 @@ class RubyDate
   NS_JD_MAX = 538_000_000
   private_constant :NS_JD_MIN, :NS_JD_MAX
 
-  JULIAN_EPOCH_DATE = "-4712-01-01"
-  private_constant :JULIAN_EPOCH_DATE
+  JULIAN_EPOCH_DATE              = "-4712-01-01"
+  JULIAN_EPOCH_DATETIME          = "-4712-01-01T00:00:00+00:00"
+  JULIAN_EPOCH_DATETIME_RFC2822  = "Mon, 1 Jan -4712 00:00:00 +0000"
+  JULIAN_EPOCH_DATETIME_HTTPDATE = "Mon, 01 Jan -4712 00:00:00 GMT"
+  private_constant :JULIAN_EPOCH_DATE, :JULIAN_EPOCH_DATETIME, :JULIAN_EPOCH_DATETIME_RFC2822, :JULIAN_EPOCH_DATETIME_HTTPDATE
 
   JISX0301_ERA_INITIALS = 'mtshr'
   JISX0301_DEFAULT_ERA = 'H'  # obsolete

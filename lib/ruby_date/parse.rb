@@ -69,7 +69,8 @@ class RubyDate
     #
     # Related: Date.parse (returns a \Date object).
     def _parse(string, comp = true, limit: 128)
-      str = string.to_s.strip
+      string = string_value(string)
+      str = string.strip
 
       # Check limit
       if limit && str.length > limit
@@ -77,6 +78,90 @@ class RubyDate
       end
 
       date__parse(str, comp)
+    end
+
+    # date__iso8601 in date_parse.c
+    def _iso8601(string, limit: 128)
+      return {} if string.nil?
+      string = string_value(string)
+      check_string_limit(string, limit)
+
+      date__iso8601(string)
+    end
+
+    # date__rfc3339 in date_parse.c
+    def _rfc3339(string, limit: 128)
+      return {} if string.nil?
+      string = string_value(string)
+      check_string_limit(string, limit)
+
+      date__rfc3339(string)
+    end
+
+    # date__xmlschema in date_parse.c
+    def _xmlschema(string, limit: 128)
+      return {} if string.nil?
+      string = string_value(string)
+      check_string_limit(string, limit)
+      date__xmlschema(string)
+    end
+
+    # date__rfc2822 in date_parse.c
+    def _rfc2822(string, limit: 128)
+      return {} if string.nil?
+      string = string_value(string)
+      check_string_limit(string, limit)
+      date__rfc2822(string)
+    end
+    alias _rfc822 _rfc2822
+
+    # date__httpdate in date_parse.c
+    def _httpdate(string, limit: 128)
+      return {} if string.nil?
+      string = string_value(string)
+      check_string_limit(string, limit)
+      date__httpdate(string)
+    end
+
+    # date__jisx0301 in date_parse.c
+    def _jisx0301(string, limit: 128)
+      return {} if string.nil?
+      string = string_value(string)
+      check_string_limit(string, limit)
+      date__jisx0301(string)
+    end
+
+    # --- Constructor methods ---
+
+    def iso8601(string = JULIAN_EPOCH_DATE, start = DEFAULT_SG, limit: 128)
+      hash = _iso8601(string, limit: limit)
+      new_by_frags(hash, start)
+    end
+
+    def rfc3339(string = JULIAN_EPOCH_DATETIME, start = DEFAULT_SG, limit: 128)
+      hash = _rfc3339(string, limit: limit)
+      new_by_frags(hash, start)
+    end
+
+    def xmlschema(string = JULIAN_EPOCH_DATE, start = DEFAULT_SG, limit: 128)
+      hash = _xmlschema(string, limit: limit)
+      new_by_frags(hash, start)
+    end
+
+    def rfc2822(string = JULIAN_EPOCH_DATETIME_RFC2822, start = DEFAULT_SG, limit: 128)
+      hash = _rfc2822(string, limit: limit)
+      new_by_frags(hash, start)
+    end
+    alias rfc822 rfc2822
+
+    def httpdate(string = JULIAN_EPOCH_DATETIME_HTTPDATE, start = DEFAULT_SG, limit: 128)
+      hash = _httpdate(string, limit: limit)
+      new_by_frags(hash, start)
+    end
+
+    def jisx0301(string = JULIAN_EPOCH_DATE, start = DEFAULT_SG, limit: 128)
+      hash = _jisx0301(string, limit: limit)
+      new_by_frags(hash, start)
     end
 
     private
@@ -221,61 +306,6 @@ class RubyDate
       apply_comp(hash)
 
       true
-    end
-
-    # Parse HTTP date format
-    def date__httpdate(str)
-      hash = {}
-
-      # Return empty hash for nil or empty string
-      return hash if str.nil? || str.empty?
-
-      # Try type 1: "Sat, 03 Feb 2001 00:00:00 GMT"
-      return hash if httpdate_type1(str, hash)
-
-      # Try type 2: "Saturday, 03-Feb-01 00:00:00 GMT"
-      return hash if httpdate_type2(str, hash)
-
-      # Try type 3: "Sat Feb  3 00:00:00 2001"
-      return hash if httpdate_type3(str, hash)
-
-      hash
-    end
-
-    # Parse ISO 8601 format
-    def date__iso8601(str)
-      hash = {}
-
-      # Return empty hash for nil or empty string
-      return hash if str.nil? || str.empty?
-
-      # Try extended datetime format: 2001-02-03T04:05:06
-      return hash if iso8601_ext_datetime(str, hash)
-
-      # Try basic datetime format: 20010203T040506
-      return hash if iso8601_bas_datetime(str, hash)
-
-      # Try extended time format: 04:05:06
-      return hash if iso8601_ext_time(str, hash)
-
-      # Try basic time format: 040506
-      return hash if iso8601_bas_time(str, hash)
-
-      hash
-    end
-
-    # Parse JIS X 0301 format
-    def date__jisx0301(str)
-      hash = {}
-
-      # Return empty hash for nil or empty string
-      return hash if str.nil? || str.empty?
-
-      # Try JIS X 0301 format first
-      return hash if jisx0301(str, hash)
-
-      # Fallback to ISO 8601 format
-      date__iso8601(str)
     end
 
     # HTTP date type 1: "Sat, 03 Feb 2001 00:00:00 GMT"
@@ -921,11 +951,6 @@ class RubyDate
       (abbr_months.index(month_name[0, 3].downcase) || 0) + 1
     end
 
-    # Helper: Complete 2-digit year (69-99 -> 1900s, 00-68 -> 2000s)
-    def comp_year69(year)
-      year >= 69 ? year + 1900 : year + 2000
-    end
-
     # ISO 8601 extended datetime: 2001-02-03T04:05:06+09:00
     def iso8601_ext_datetime(str, hash)
       pattern = /\A\s*
@@ -1385,7 +1410,7 @@ class RubyDate
     end
 
     # JIS X 0301 format: H13.02.03 or H13.02.03T04:05:06
-    def jisx0301(str, hash)
+    def parse_jisx0301_fmt(str, hash)
       # Pattern: [Era]YY.MM.DD[T]HH:MM:SS[.fraction][timezone]
       # Era initials: M, T, S, H, R (or none for ISO 8601 fallback)
       pattern = /\A\s*
@@ -1895,6 +1920,328 @@ class RubyDate
     # modified by subx. We do the same here.
     def have_elem_p?(str, required)
       (check_class(str) & required) == required
+    end
+
+    # --- String type conversion (C's StringValue macro) ---
+    def string_value(str)
+      return str if str.is_a?(String)
+      if str.respond_to?(:to_str)
+        s = str.to_str
+        raise TypeError, "can't convert #{str.class} to String (#{str.class}#to_str gives #{s.class})" unless s.is_a?(String)
+        return s
+      end
+      raise TypeError, "no implicit conversion of #{str.class} into String"
+    end
+
+    def check_string_limit(str, limit)
+      if limit && str.length > limit
+        raise ArgumentError, "string length (#{str.length}) exceeds the limit #{limit}"
+      end
+    end
+
+    # Create a Date from a parsed hash (C's d_new_by_frags)
+    def new_by_frags(hash, sg)
+      raise ArgumentError, "invalid date" if hash.nil? || hash.empty?
+
+      y = hash[:year]
+      m = hash[:mon]
+      d = hash[:mday]
+
+      if y && m && d && !hash.key?(:jd) && !hash.key?(:yday)
+        return new(y, m, d, sg)
+      end
+
+      # Fallback: try to complete from available fields
+      y ||= -4712
+      m ||= 1
+      d ||= 1
+      new(y, m, d, sg)
+    end
+
+    # --- comp_year helpers (C's comp_year69, comp_year50) ---
+    def comp_year69(y)
+      y >= 69 ? y + 1900 : y + 2000
+    end
+
+    def comp_year50(y)
+      y >= 50 ? y + 1900 : y + 2000
+    end
+
+    # --- sec_fraction helper ---
+    def sec_fraction(frac_str)
+      Rational(frac_str.to_i, 10 ** frac_str.length)
+    end
+
+    # ================================================================
+    # Format-specific parsers (date_parse.c)
+    # ================================================================
+
+    # --- ISO 8601 ---
+
+    def date__iso8601(str)
+      hash = {}
+      return hash if str.nil? || str.empty?
+
+      if (m = ISO8601_EXT_DATETIME_PAT.match(str))
+        iso8601_ext_datetime_cb(m, hash)
+      elsif (m = ISO8601_BAS_DATETIME_PAT.match(str))
+        iso8601_bas_datetime_cb(m, hash)
+      elsif (m = ISO8601_EXT_TIME_PAT.match(str))
+        iso8601_time_cb(m, hash)
+      elsif (m = ISO8601_BAS_TIME_PAT.match(str))
+        iso8601_time_cb(m, hash)
+      end
+      hash
+    end
+
+    def iso8601_ext_datetime_cb(m, hash)
+      if m[1]
+        hash[:mday] = m[3].to_i if m[3]
+        if m[1] != '-'
+          y = m[1].to_i
+          y = comp_year69(y) if m[1].length < 4
+          hash[:year] = y
+        end
+        if m[2].nil?
+          return false if m[1] != '-'
+        else
+          hash[:mon] = m[2].to_i
+        end
+      elsif m[5]
+        hash[:yday] = m[5].to_i
+        if m[4]
+          y = m[4].to_i
+          y = comp_year69(y) if m[4].length < 4
+          hash[:year] = y
+        end
+      elsif m[8]
+        hash[:cweek] = m[7].to_i
+        hash[:cwday] = m[8].to_i
+        if m[6]
+          y = m[6].to_i
+          y = comp_year69(y) if m[6].length < 4
+          hash[:cwyear] = y
+        end
+      elsif m[9]
+        hash[:cwday] = m[9].to_i
+      end
+
+      if m[10]
+        hash[:hour] = m[10].to_i
+        hash[:min]  = m[11].to_i
+        hash[:sec]  = m[12].to_i if m[12]
+      end
+      hash[:sec_fraction] = sec_fraction(m[13]) if m[13]
+      if m[14]
+        hash[:zone]   = m[14]
+        hash[:offset] = date_zone_to_diff(m[14])
+      end
+      true
+    end
+
+    def iso8601_bas_datetime_cb(m, hash)
+      if m[3]
+        hash[:mday] = m[3].to_i
+        if m[1] != '--'
+          y = m[1].to_i
+          y = comp_year69(y) if m[1].length < 4
+          hash[:year] = y
+        end
+        if m[2][0] == '-'
+          return false if m[1] != '--'
+        else
+          hash[:mon] = m[2].to_i
+        end
+      elsif m[5]
+        hash[:yday] = m[5].to_i
+        y = m[4].to_i
+        y = comp_year69(y) if m[4].length < 4
+        hash[:year] = y
+      elsif m[6]
+        hash[:yday] = m[6].to_i
+      elsif m[9]
+        hash[:cweek] = m[8].to_i
+        hash[:cwday] = m[9].to_i
+        y = m[7].to_i
+        y = comp_year69(y) if m[7].length < 4
+        hash[:cwyear] = y
+      elsif m[11]
+        hash[:cweek] = m[10].to_i
+        hash[:cwday] = m[11].to_i
+      elsif m[12]
+        hash[:cwday] = m[12].to_i
+      end
+
+      if m[13]
+        hash[:hour] = m[13].to_i
+        hash[:min]  = m[14].to_i
+        hash[:sec]  = m[15].to_i if m[15]
+      end
+      hash[:sec_fraction] = sec_fraction(m[16]) if m[16]
+      if m[17]
+        hash[:zone]   = m[17]
+        hash[:offset] = date_zone_to_diff(m[17])
+      end
+      true
+    end
+
+    def iso8601_time_cb(m, hash)
+      hash[:hour] = m[1].to_i
+      hash[:min]  = m[2].to_i
+      hash[:sec]  = m[3].to_i if m[3]
+      hash[:sec_fraction] = sec_fraction(m[4]) if m[4]
+      if m[5]
+        hash[:zone]   = m[5]
+        hash[:offset] = date_zone_to_diff(m[5])
+      end
+      true
+    end
+
+    # --- RFC 3339 ---
+
+    def date__rfc3339(str)
+      hash = {}
+      return hash if str.nil? || str.empty?
+
+      m = RFC3339_PAT.match(str)
+      return hash unless m
+
+      hash[:year]   = m[1].to_i
+      hash[:mon]    = m[2].to_i
+      hash[:mday]   = m[3].to_i
+      hash[:hour]   = m[4].to_i
+      hash[:min]    = m[5].to_i
+      hash[:sec]    = m[6].to_i
+      hash[:zone]   = m[8]
+      hash[:offset] = date_zone_to_diff(m[8])
+      hash[:sec_fraction] = sec_fraction(m[7]) if m[7]
+      hash
+    end
+
+    # --- XML Schema ---
+
+    def date__xmlschema(str)
+      hash = {}
+      return hash if str.nil? || str.empty?
+
+      if (m = XMLSCHEMA_DATETIME_PAT.match(str))
+        hash[:year] = m[1].to_i
+        hash[:mon]  = m[2].to_i if m[2]
+        hash[:mday] = m[3].to_i if m[3]
+        hash[:hour] = m[4].to_i if m[4]
+        hash[:min]  = m[5].to_i if m[5]
+        hash[:sec]  = m[6].to_i if m[6]
+        hash[:sec_fraction] = sec_fraction(m[7]) if m[7]
+        if m[8]
+          hash[:zone]   = m[8]
+          hash[:offset] = date_zone_to_diff(m[8])
+        end
+      elsif (m = XMLSCHEMA_TIME_PAT.match(str))
+        hash[:hour] = m[1].to_i
+        hash[:min]  = m[2].to_i
+        hash[:sec]  = m[3].to_i if m[3]
+        hash[:sec_fraction] = sec_fraction(m[4]) if m[4]
+        if m[5]
+          hash[:zone]   = m[5]
+          hash[:offset] = date_zone_to_diff(m[5])
+        end
+      elsif (m = XMLSCHEMA_TRUNC_PAT.match(str))
+        hash[:mon]  = m[1].to_i if m[1]
+        hash[:mday] = m[2].to_i if m[2]
+        hash[:mday] = m[3].to_i if m[3]
+        if m[4]
+          hash[:zone]   = m[4]
+          hash[:offset] = date_zone_to_diff(m[4])
+        end
+      end
+      hash
+    end
+
+    def date__rfc2822(str)
+      hash = {}
+      return hash if str.nil? || str.empty?
+
+      m = PARSE_RFC2822_PAT.match(str)
+      return hash unless m
+
+      hash[:wday] = day_num(m[1]) if m[1]
+      hash[:mday] = m[2].to_i
+      hash[:mon]  = mon_num(m[3])
+      y = m[4].to_i
+      y = comp_year50(y) if m[4].length < 4
+      hash[:year] = y
+      hash[:hour] = m[5].to_i
+      hash[:min]  = m[6].to_i
+      hash[:sec]  = m[7].to_i if m[7]
+      hash[:zone]   = m[8]
+      hash[:offset] = date_zone_to_diff(m[8])
+      hash
+    end
+
+    def date__httpdate(str)
+      hash = {}
+      return hash if str.nil? || str.empty?
+
+      if (m = PARSE_HTTPDATE_TYPE1_PAT.match(str))
+        hash[:wday]   = day_num(m[1])
+        hash[:mday]   = m[2].to_i
+        hash[:mon]    = mon_num(m[3])
+        hash[:year]   = m[4].to_i
+        hash[:hour]   = m[5].to_i
+        hash[:min]    = m[6].to_i
+        hash[:sec]    = m[7].to_i
+        hash[:zone]   = m[8]
+        hash[:offset] = 0
+      elsif (m = PARSE_HTTPDATE_TYPE2_PAT.match(str))
+        hash[:wday]   = day_num(m[1])
+        hash[:mday]   = m[2].to_i
+        hash[:mon]    = mon_num(m[3])
+        y = m[4].to_i
+        y = comp_year69(y) if y >= 0 && y <= 99
+        hash[:year]   = y
+        hash[:hour]   = m[5].to_i
+        hash[:min]    = m[6].to_i
+        hash[:sec]    = m[7].to_i
+        hash[:zone]   = m[8]
+        hash[:offset] = 0
+      elsif (m = PARSE_HTTPDATE_TYPE3_PAT.match(str))
+        hash[:wday] = day_num(m[1])
+        hash[:mon]  = mon_num(m[2])
+        hash[:mday] = m[3].to_i
+        hash[:hour] = m[4].to_i
+        hash[:min]  = m[5].to_i
+        hash[:sec]  = m[6].to_i
+        hash[:year] = m[7].to_i
+      end
+      hash
+    end
+
+    def date__jisx0301(str)
+      hash = {}
+      return hash if str.nil? || str.empty?
+
+      m = PARSE_JISX0301_PAT.match(str)
+      if m
+        era = m[1] || JISX0301_DEFAULT_ERA
+        ep = gengo(era)
+        hash[:year] = ep + m[2].to_i
+        hash[:mon]  = m[3].to_i
+        hash[:mday] = m[4].to_i
+        if m[5]
+          hash[:hour] = m[5].to_i
+          hash[:min]  = m[6].to_i if m[6]
+          hash[:sec]  = m[7].to_i if m[7]
+        end
+        hash[:sec_fraction] = sec_fraction(m[8]) if m[8] && !m[8].empty?
+        if m[9]
+          hash[:zone]   = m[9]
+          hash[:offset] = date_zone_to_diff(m[9])
+        end
+      else
+        # Fallback to iso8601
+        hash = date__iso8601(str)
+      end
+      hash
     end
   end
 end

@@ -257,4 +257,147 @@ class RubyDate
   # Matches a standalone 1-2 digit number in the remaining string.
   PARSE_FRAG_PAT = /\A\s*(\d{1,2})\s*\z/i
   private_constant :PARSE_FRAG_PAT
+
+  PARSE_RFC2822_PAT = /
+    \A\s*(?:(#{ABBR_DAYS_PAT})\s*,\s+)?
+    (\d{1,2})\s+
+    (#{ABBR_MONTHS_PAT})\s+
+    (-?\d{2,})\s+
+    (\d{2}):(\d{2})(?::(\d{2}))?\s*
+    ([-+]\d{4}|ut|gmt|e[sd]t|c[sd]t|m[sd]t|p[sd]t|[a-ik-z])\s*\z
+  /xi
+  private_constant :PARSE_RFC2822_PAT
+
+  PARSE_HTTPDATE_TYPE1_PAT = /
+    \A\s*(#{ABBR_DAYS_PAT})\s*,\s+
+    (\d{2})\s+
+    (#{ABBR_MONTHS_PAT})\s+
+    (-?\d{4})\s+
+    (\d{2}):(\d{2}):(\d{2})\s+
+    (gmt)\s*\z
+  /xi
+  private_constant :PARSE_HTTPDATE_TYPE1_PAT
+
+  PARSE_HTTPDATE_TYPE2_PAT = /
+    \A\s*(#{DAYS_PAT})\s*,\s+
+    (\d{2})\s*-\s*
+    (#{ABBR_MONTHS_PAT})\s*-\s*
+    (\d{2})\s+
+    (\d{2}):(\d{2}):(\d{2})\s+
+    (gmt)\s*\z
+  /xi
+  private_constant :PARSE_HTTPDATE_TYPE2_PAT
+
+  PARSE_HTTPDATE_TYPE3_PAT = /
+    \A\s*(#{ABBR_DAYS_PAT})\s+
+    (#{ABBR_MONTHS_PAT})\s+
+    (\d{1,2})\s+
+    (\d{2}):(\d{2}):(\d{2})\s+
+    (\d{4})\s*\z
+  /xi
+  private_constant :PARSE_HTTPDATE_TYPE3_PAT
+
+  PARSE_JISX0301_PAT = /
+    \A\s*([mtshr])?(\d{2})\.(\d{2})\.(\d{2})
+    (?:t
+      (?:(\d{2}):(\d{2})(?::(\d{2})(?:[,.](\d*))?)?
+      (z|[-+]\d{2}(?::?\d{2})?)?)?
+    )?\s*\z
+  /xi
+  private_constant :PARSE_JISX0301_PAT
+
+  XMLSCHEMA_DATETIME_PAT = /
+    \A\s*(-?\d{4,})(?:-(\d{2})(?:-(\d{2}))?)?
+    (?:t
+      (\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?)?
+    (z|[-+]\d{2}:\d{2})?\s*\z
+  /xi
+  private_constant :XMLSCHEMA_DATETIME_PAT
+
+  XMLSCHEMA_TIME_PAT = /
+    \A\s*(\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?
+    (z|[-+]\d{2}:\d{2})?\s*\z
+  /xi
+  private_constant :XMLSCHEMA_TIME_PAT
+
+  XMLSCHEMA_TRUNC_PAT = /
+    \A\s*(?:--(\d{2})(?:-(\d{2}))?|---(\d{2}))
+    (z|[-+]\d{2}:\d{2})?\s*\z
+  /xi
+  private_constant :XMLSCHEMA_TRUNC_PAT
+
+  RFC3339_PAT = /
+    \A\s*(-?\d{4})-(\d{2})-(\d{2})
+    (?:t|\s)
+    (\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?
+    (z|[-+]\d{2}:\d{2})\s*\z
+  /xi
+  private_constant :RFC3339_PAT
+
+  ISO8601_EXT_DATETIME_PAT = /
+    \A\s*(?:
+      ([-+]?\d{2,}|-)  # $1: year or '-'
+      -(\d{2})?        # $2: mon (optional)
+      (?:-(\d{2}))?    # $3: mday (optional)
+    |
+      ([-+]?\d{2,})?   # $4: year (optional, for ordinal)
+      -(\d{3})         # $5: yday
+    |
+      (\d{4}|\d{2})?   # $6: cwyear (optional)
+      -w(\d{2})        # $7: cweek
+      -(\d)            # $8: cwday
+    |
+      -w-(\d)          # $9: cwday only
+    )
+    (?:t
+      (\d{2}):(\d{2})              # $10: hour, $11: min
+      (?::(\d{2})(?:[,.](\d+))?)?  # $12: sec, $13: frac
+      (z|[-+]\d{2}(?::?\d{2})?)?   # $14: zone
+    )?\s*\z
+  /xi
+  private_constant :ISO8601_EXT_DATETIME_PAT
+
+  ISO8601_BAS_DATETIME_PAT = /
+    \A\s*(?:
+      ([-+]?(?:\d{4}|\d{2})|--)  # $1: year or '--'
+      (\d{2}|-)                  # $2: mon or '-'
+      (\d{2})                    # $3: mday
+    |
+      ([-+]?(?:\d{4}|\d{2}))    # $4: year (ordinal)
+      (\d{3})                    # $5: yday
+    |
+      -(\d{3})                   # $6: yday only
+    |
+      (\d{4}|\d{2})             # $7: cwyear
+      w(\d{2})                   # $8: cweek
+      (\d)                       # $9: cwday
+    |
+      -w(\d{2})                  # $10: cweek (no year)
+      (\d)                       # $11: cwday
+    |
+      -w-(\d)                    # $12: cwday only
+    )
+    (?:t?
+      (\d{2})(\d{2})                  # $13: hour, $14: min
+      (?:(\d{2})(?:[,.](\d+))?)?      # $15: sec, $16: frac
+      (z|[-+]\d{2}(?:\d{2})?)?        # $17: zone
+    )?\s*\z
+  /xi
+  private_constant :ISO8601_BAS_DATETIME_PAT
+
+  ISO8601_EXT_TIME_PAT = /
+    \A\s*(\d{2}):(\d{2})
+    (?::(\d{2})(?:[,.](\d+))?
+      (z|[-+]\d{2}(:?\d{2})?)?
+    )?\s*\z
+  /xi
+  private_constant :ISO8601_EXT_TIME_PAT
+
+  ISO8601_BAS_TIME_PAT = /
+    \A\s*(\d{2})(\d{2})
+    (?:(\d{2})(?:[,.](\d+))?
+      (z|[-+]\d{2}(\d{2})?)?
+    )?\s*\z
+  /xi
+  private_constant :ISO8601_BAS_TIME_PAT
 end
