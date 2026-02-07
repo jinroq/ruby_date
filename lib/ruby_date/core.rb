@@ -1577,21 +1577,43 @@ class RubyDate
   #
   #     d <=> Object.new # => nil
   def <=>(other)
-    return nil unless other.is_a?(RubyDate)
+    case other
+    when RubyDate
+      m_canonicalize_jd
+      other.send(:m_canonicalize_jd)
 
-    m_canonicalize_jd
-    other.send(:m_canonicalize_jd)
+      a_nth = m_nth
+      b_nth = other.send(:m_nth)
 
-    a_nth = m_nth
-    b_nth = other.send(:m_nth)
+      cmp = a_nth <=> b_nth
+      return cmp if cmp.nonzero?
 
-    cmp = a_nth <=> b_nth
-    return cmp if cmp.nonzero?
+      a_jd = m_jd
+      b_jd = other.send(:m_jd)
 
-    a_jd = m_jd
-    b_jd = other.send(:m_jd)
+      cmp = a_jd <=> b_jd
+      return cmp if cmp.nonzero?
 
-    a_jd <=> b_jd
+      a_df = m_df
+      b_df = other.send(:m_df)
+
+      cmp = a_df <=> b_df
+      return cmp if cmp.nonzero?
+
+      a_sf = m_sf
+      b_sf = other.send(:m_sf)
+
+      a_sf <=> b_sf
+    when Numeric
+      ajd <=> other
+    else
+      begin
+        l, r = other.coerce(self)
+        l <=> r
+      rescue NoMethodError
+        nil
+      end
+    end
   end
 
   # call-seq:
@@ -1735,20 +1757,27 @@ class RubyDate
   def ==(other) # :nodoc:
     return false unless other.is_a?(RubyDate)
 
-    @nth == other.instance_variable_get(:@nth) &&
-    @jd == other.instance_variable_get(:@jd)
+    m_canonicalize_jd
+    other.send(:m_canonicalize_jd)
+
+    m_nth == other.send(:m_nth) &&
+    m_jd == other.send(:m_jd)
   end
 
   def eql?(other) # :nodoc:
     return false unless other.is_a?(RubyDate)
 
-    @nth == other.instance_variable_get(:@nth) &&
-    @jd == other.instance_variable_get(:@jd) &&
+    m_canonicalize_jd
+    other.send(:m_canonicalize_jd)
+
+    m_nth == other.send(:m_nth) &&
+    m_jd == other.send(:m_jd) &&
     @sg == other.instance_variable_get(:@sg)
   end
 
   def hash # :nodoc:
-    [@nth, @jd, @sg].hash
+    m_canonicalize_jd
+    [m_nth, m_jd, @sg].hash
   end
 
   # call-seq:
@@ -2433,6 +2462,14 @@ class RubyDate
   end
 
   # call-seq:
+  #   to_datetime -> datetime
+  #
+  # Returns a RubyDateTime whose value is the same as +self+.
+  def to_datetime
+    RubyDateTime.new(year, month, day, 0, 0, 0, 0, start)
+  end
+
+  # call-seq:
   #    d.ajd  ->  rational
   #
   # Returns the astronomical Julian day number.  This is a fractional
@@ -2655,7 +2692,8 @@ class RubyDate
   end
 
   def to_s
-    sprintf("%04d-%02d-%02d", year, month, day)
+    s = sprintf("%04d-%02d-%02d", year, month, day)
+    s.force_encoding(Encoding::US_ASCII)
   end
 
   # call-seq:
@@ -2666,12 +2704,14 @@ class RubyDate
   #   Date.new(2001, 2, 3).inspect
   #   # => "#<Date: 2001-02-03 ((2451944j,0s,0n),+0s,2299161j)>"
   def inspect
-    if simple_dat_p?
+    s = if simple_dat_p?
       inspect_raw
     else
       # In the case of complex, time information is also displayed.
       strftime("%Y-%m-%d %H:%M:%S")
     end
+    s.force_encoding(Encoding::US_ASCII) if s.ascii_only?
+    s
   end
 
   private
@@ -3150,7 +3190,7 @@ class RubyDate
     if other.is_a?(Numeric)
       m_real_local_jd == other
     elsif other.is_a?(RubyDate)
-      m_real_local_jd == other.send(:f_jd)
+      m_real_local_jd == other.send(:m_real_local_jd)
     else
       begin
         coerced = other.coerce(self)
@@ -3614,8 +3654,21 @@ class Time
                         0x04)  # RubyDate::HAVE_CIVIL
 
     # Then change to DEFAULT_SG.
-    obj.send(:set_sg, RubyDate::ITALY)
+    obj.send(:set_sg, RubyDate::DEFAULT_SG)
 
     obj
   end unless method_defined?(:to_date)
+
+  def to_datetime
+    y = year
+    m = month
+    d = day
+    h = hour
+    mi = min
+    s = sec
+    of = Rational(utc_offset, 86400)
+    sf = Rational(nsec, 1_000_000_000)
+
+    RubyDateTime.new(y, m, d, h, mi, s + sf, of, RubyDate::DEFAULT_SG)
+  end unless method_defined?(:to_datetime)
 end

@@ -7,7 +7,7 @@ class RubyDateTime < RubyDate
   #   DateTime.new(year=-4712, month=1, day=1, hour=0, minute=0, second=0, offset=0, start=Date::ITALY) -> datetime
   #
   # Creates a new DateTime object.
-  def initialize(year = -4712, month = 1, day = 1, hour = 0, minute = 0, second = 0, offset = 0, start = DEFAULT_SG)
+  def initialize(year = -4712, month = 1, day = 1, hour = 0, minute = 0, second = 0, offset = 0, start = ITALY)
     y = year
     m = month
     d = day
@@ -302,7 +302,7 @@ class RubyDateTime < RubyDate
     # Creates a DateTime for the current time.
     #
     # C: datetime_s_now
-    def now(start = DEFAULT_SG)
+    def now(start = RubyDate::ITALY)
       t = Time.now
       sg = valid_sg(start)
 
@@ -311,7 +311,7 @@ class RubyDateTime < RubyDate
       new(
         t.year, t.mon, t.mday,
         t.hour, t.min, t.sec + Rational(t.nsec, 1_000_000_000),
-        Rational(of, DAY_IN_SECONDS),
+        Rational(of, 86400),
         sg
       )
     end
@@ -322,40 +322,40 @@ class RubyDateTime < RubyDate
     # Parses +string+ and creates a DateTime.
     #
     # C: date_parse → dt_new_by_frags
-    def parse(string = JULIAN_EPOCH_DATETIME, comp = true, start = DEFAULT_SG, limit: 128)
+    def parse(string = JULIAN_EPOCH_DATETIME, comp = true, start = RubyDate::ITALY, limit: 128)
       hash = _parse(string, comp, limit: limit)
       dt_new_by_frags(hash, start)
     end
 
     # Format-specific constructors delegate to _xxx + dt_new_by_frags
 
-    def iso8601(string = JULIAN_EPOCH_DATETIME, start = DEFAULT_SG, limit: 128)
+    def iso8601(string = JULIAN_EPOCH_DATETIME, start = RubyDate::ITALY, limit: 128)
       hash = _iso8601(string, limit: limit)
       dt_new_by_frags(hash, start)
     end
 
-    def rfc3339(string = JULIAN_EPOCH_DATETIME, start = DEFAULT_SG, limit: 128)
+    def rfc3339(string = JULIAN_EPOCH_DATETIME, start = RubyDate::ITALY, limit: 128)
       hash = _rfc3339(string, limit: limit)
       dt_new_by_frags(hash, start)
     end
 
-    def xmlschema(string = JULIAN_EPOCH_DATETIME, start = DEFAULT_SG, limit: 128)
+    def xmlschema(string = JULIAN_EPOCH_DATETIME, start = RubyDate::ITALY, limit: 128)
       hash = _xmlschema(string, limit: limit)
       dt_new_by_frags(hash, start)
     end
 
-    def rfc2822(string = JULIAN_EPOCH_DATETIME_RFC2822, start = DEFAULT_SG, limit: 128)
+    def rfc2822(string = JULIAN_EPOCH_DATETIME_RFC2822, start = RubyDate::ITALY, limit: 128)
       hash = _rfc2822(string, limit: limit)
       dt_new_by_frags(hash, start)
     end
     alias_method :rfc822, :rfc2822
 
-    def httpdate(string = JULIAN_EPOCH_DATETIME_HTTPDATE, start = DEFAULT_SG, limit: 128)
+    def httpdate(string = JULIAN_EPOCH_DATETIME_HTTPDATE, start = RubyDate::ITALY, limit: 128)
       hash = _httpdate(string, limit: limit)
       dt_new_by_frags(hash, start)
     end
 
-    def jisx0301(string = JULIAN_EPOCH_DATETIME, start = DEFAULT_SG, limit: 128)
+    def jisx0301(string = JULIAN_EPOCH_DATETIME, start = RubyDate::ITALY, limit: 128)
       hash = _jisx0301(string, limit: limit)
       dt_new_by_frags(hash, start)
     end
@@ -385,7 +385,7 @@ class RubyDateTime < RubyDate
       end
 
       # Convert offset (integer seconds) to Rational fraction of day
-      of = hash[:offset] ? Rational(hash[:offset], DAY_IN_SECONDS) : 0
+      of = hash[:offset] ? Rational(hash[:offset], 86400) : 0
 
       # Fast path: year+mon+mday without jd/yday
       if !hash.key?(:jd) && !hash.key?(:yday) && y && m && d

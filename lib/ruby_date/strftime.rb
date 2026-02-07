@@ -201,14 +201,14 @@ class RubyDate
         unless width.empty?
           # If the width is too long (check number of digits)
           if width.length > 10 || (width.length == 10 && width > '2147483647')
-            raise ArgumentError, "width too big"
+            raise Errno::ERANGE, "Result too large"
           end
 
           width_num = width.to_i
 
           # Practical upper limit check (a width of 1MB or more is unreasonable)
           if width_num > 1_000_000
-            raise ArgumentError, "width too big"
+            raise Errno::ERANGE, "Result too large"
           end
         end
 
@@ -282,7 +282,9 @@ class RubyDate
   def get_base_format(spec, flags = '')
     case spec
     when 'Y' # 4-digit year
-      sprintf('%04d', tmx_year)
+      y = tmx_year
+      raise Errno::ERANGE, "Result too large" if y.is_a?(Integer) && y.bit_length > 128
+      sprintf('%04d', y)
     when 'C' # Century
       sprintf('%02d', tmx_year / 100)
     when 'y' # Two-digit year
