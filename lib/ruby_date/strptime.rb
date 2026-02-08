@@ -282,7 +282,7 @@ class RubyDate
         return nil unless m
         hour = m[1].to_i
         return nil if hour < 1 || hour > 12
-        h[:hour] = hour % 12  # 12 -> 0
+        h[:hour] = hour  # C stores raw value; _merid post-processing applies % 12
         { pos: pos + m[0].length, hash: h }
 
       when 'M' # Minute (00-59)
