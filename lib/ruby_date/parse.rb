@@ -1976,8 +1976,49 @@ class RubyDate
 
     # C: rt_rewrite_frags
     # Converts :seconds (from %s/%Q) into jd/hour/min/sec/sec_fraction fields.
-    # TODO: full implementation (P0-2)
+    #
+    # C implementation (date_core.c:4033):
+    #   seconds = del_hash("seconds");
+    #   if (!NIL_P(seconds)) {
+    #       if (!NIL_P(offset)) seconds = f_add(seconds, offset);
+    #       d  = f_idiv(seconds, DAY_IN_SECONDS);
+    #       fr = f_mod(seconds, DAY_IN_SECONDS);
+    #       h  = f_idiv(fr, HOUR_IN_SECONDS);   fr = f_mod(fr, HOUR_IN_SECONDS);
+    #       min= f_idiv(fr, MINUTE_IN_SECONDS);  fr = f_mod(fr, MINUTE_IN_SECONDS);
+    #       s  = f_idiv(fr, 1);                   fr = f_mod(fr, 1);
+    #       set jd = UNIX_EPOCH_IN_CJD + d, hour, min, sec, sec_fraction
+    #   }
+    #
+    # Ruby's .div() and % match C's f_idiv (rb_intern("div")) and f_mod ('%').
+    # Both use floor semantics, correctly handling negative and Rational values.
     def rt_rewrite_frags(hash)
+      seconds = hash.delete(:seconds)
+      return hash unless seconds
+
+      offset = hash[:offset]
+      seconds = seconds + offset if offset
+
+      # Day count from Unix epoch
+      # C: d = f_idiv(seconds, DAY_IN_SECONDS)
+      d  = seconds.div(DAY_IN_SECONDS)
+      fr = seconds % DAY_IN_SECONDS
+
+      # Decompose remainder into h:min:s.frac
+      h   = fr.div(HOUR_IN_SECONDS)
+      fr  = fr % HOUR_IN_SECONDS
+
+      min = fr.div(MINUTE_IN_SECONDS)
+      fr  = fr % MINUTE_IN_SECONDS
+
+      s   = fr.div(1)
+      fr  = fr % 1
+
+      # C: UNIX_EPOCH_IN_CJD = 2440588 (1970-01-01 in Chronological JD)
+      hash[:jd]           = 2440588 + d
+      hash[:hour]         = h
+      hash[:min]          = min
+      hash[:sec]          = s
+      hash[:sec_fraction] = fr
       hash
     end
 
