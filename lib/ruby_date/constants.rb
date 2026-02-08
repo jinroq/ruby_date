@@ -10,11 +10,15 @@ class RubyDate
   private_constant :HAVE_JD, :HAVE_DF, :HAVE_CIVIL, :HAVE_TIME, :COMPLEX_DAT
 
   MONTHNAMES = [nil, "January", "February", "March", "April", "May", "June",
-                "July", "August", "September", "October", "November", "December"].freeze
+                "July", "August", "September", "October", "November", "December"]
+                 .map { |s| s&.encode(Encoding::US_ASCII)&.freeze }.freeze
   ABBR_MONTHNAMES = [nil, "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-                     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].freeze
-  DAYNAMES = %w[Sunday Monday Tuesday Wednesday Thursday Friday Saturday].freeze
-  ABBR_DAYNAMES = %w[Sun Mon Tue Wed Thu Fri Sat].freeze
+                     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+                      .map { |s| s&.encode(Encoding::US_ASCII)&.freeze }.freeze
+  DAYNAMES = %w[Sunday Monday Tuesday Wednesday Thursday Friday Saturday]
+               .map { |s| s.encode(Encoding::US_ASCII).freeze }.freeze
+  ABBR_DAYNAMES = %w[Sun Mon Tue Wed Thu Fri Sat]
+                    .map { |s| s.encode(Encoding::US_ASCII).freeze }.freeze
 
   # Pattern constants for regex
   ABBR_DAYS_PATTERN = '(sun|mon|tue|wed|thu|fri|sat)'
