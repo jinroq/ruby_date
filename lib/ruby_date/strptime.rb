@@ -92,7 +92,11 @@ class RubyDate
           # Determine field width
           field_width = width_str.empty? ? nil : width_str.to_i
 
-          result = _strptime_spec(str, pos, spec, field_width, hash)
+          # C: NUM_PATTERN_P() - check if next format element is a digit-consuming pattern.
+          # Used by %C, %G, %L, %N, %Y to limit digit consumption when adjacent.
+          next_is_num = num_pattern_p(format, i)
+
+          result = _strptime_spec(str, pos, spec, field_width, hash, next_is_num)
           return nil unless result
           pos = result[:pos]
           hash.merge!(result[:hash]) if result[:hash]
@@ -191,19 +195,55 @@ class RubyDate
 
     private
 
-    def _strptime_spec(str, pos, spec, width, context_hash)
+    # C: num_pattern_p (date_strptime.c:48)
+    # Returns true if the format string at position `i` starts with a
+    # digit-consuming pattern (a literal digit or a %-specifier that reads digits).
+    NUM_PATTERN_SPECS = "CDdeFGgHIjkLlMmNQRrSsTUuVvWwXxYy"
+    def num_pattern_p(format, i)
+      return false if i >= format.length
+      c = format[i]
+      return true if c =~ /\d/
+      if c == '%'
+        i += 1
+        return false if i >= format.length
+        # Skip E/O modifier
+        if format[i] == 'E' || format[i] == 'O'
+          i += 1
+          return false if i >= format.length
+        end
+        s = format[i]
+        return true if s =~ /\d/ || NUM_PATTERN_SPECS.include?(s)
+      end
+      false
+    end
+
+    def _strptime_spec(str, pos, spec, width, context_hash, next_is_num = false)
       h = {}
 
       case spec
       when 'Y' # Full year (possibly negative)
-        w = width || 4
-        m = str[pos..].match(/\A([+-]?\d{1,#{[w, 40].max}})/)
+        # C: if (NUM_PATTERN_P()) READ_DIGITS(n, 4); else READ_DIGITS_MAX(n);
+        if width
+          w = width
+        elsif next_is_num
+          w = 4
+        else
+          w = 40  # effectively unlimited
+        end
+        m = str[pos..].match(/\A([+-]?\d{1,#{w}})/)
         return nil unless m
         h[:year] = m[1].to_i
         { pos: pos + m[0].length, hash: h }
 
       when 'C' # Century
-        w = width || 2
+        # C: if (NUM_PATTERN_P()) READ_DIGITS(n, 2); else READ_DIGITS_MAX(n);
+        if width
+          w = width
+        elsif next_is_num
+          w = 2
+        else
+          w = 40
+        end
         m = str[pos..].match(/\A([+-]?\d{1,#{w}})/)
         return nil unless m
         century = m[1].to_i
@@ -304,7 +344,14 @@ class RubyDate
         { pos: pos + m[0].length, hash: h }
 
       when 'L' # Milliseconds
-        w = width || 3
+        # C: if (NUM_PATTERN_P()) READ_DIGITS(n, 3); else READ_DIGITS_MAX(n);
+        if width
+          w = width
+        elsif next_is_num
+          w = 3
+        else
+          w = 40
+        end
         m = str[pos..].match(/\A(\d{1,#{w}})/)
         return nil unless m
         frac_str = m[1].ljust(3, '0')[0, 3]
@@ -312,7 +359,14 @@ class RubyDate
         { pos: pos + m[0].length, hash: h }
 
       when 'N' # Nanoseconds
-        w = width || 9
+        # C: if (NUM_PATTERN_P()) READ_DIGITS(n, 9); else READ_DIGITS_MAX(n);
+        if width
+          w = width
+        elsif next_is_num
+          w = 9
+        else
+          w = 40
+        end
         m = str[pos..].match(/\A(\d{1,#{w}})/)
         return nil unless m
         frac_str = m[1].ljust(9, '0')[0, 9]
@@ -401,8 +455,15 @@ class RubyDate
         { pos: pos + m[0].length, hash: h }
 
       when 'G' # ISO week year
-        w = width || 4
-        m = str[pos..].match(/\A([+-]?\d{1,#{[w, 40].max}})/)
+        # C: if (NUM_PATTERN_P()) READ_DIGITS(n, 4); else READ_DIGITS_MAX(n);
+        if width
+          w = width
+        elsif next_is_num
+          w = 4
+        else
+          w = 40
+        end
+        m = str[pos..].match(/\A([+-]?\d{1,#{w}})/)
         return nil unless m
         h[:cwyear] = m[1].to_i
         { pos: pos + m[0].length, hash: h }
