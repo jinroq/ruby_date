@@ -1964,7 +1964,7 @@ class RubyDate
       #    hash = rt_complete_frags(klass, hash);
       #    jd = rt__valid_date_frags_p(hash, sg);
       hash = rt_rewrite_frags(hash)
-      hash = rt_complete_frags(hash)
+      hash = rt_complete_frags(self, hash)
       jd = rt__valid_date_frags_p(hash, sg)
 
       raise Error, "invalid date" unless jd
@@ -2022,10 +2022,156 @@ class RubyDate
       hash
     end
 
-    # C: rt_complete_frags
-    # Selects the best field set from 11 patterns and fills missing fields from Date.today.
-    # TODO: full implementation (P0-3)
-    def rt_complete_frags(hash)
+    # C: rt_complete_frags (date_core.c:4071)
+    #
+    # Algorithm:
+    # 1. Score each of 11 field-set patterns against hash, pick highest match count.
+    # 2. For the winning named pattern, fill leading missing date fields from Date.today
+    #    and set defaults for trailing date fields.
+    # 3. Special case: "time" pattern + DateTime class → set :jd from today.
+    # 4. Default :hour/:min/:sec to 0; clamp :sec to 59.
+    #
+    # Pattern table (C's static tab):
+    #   [name,        [fields...]]
+    #   ──────────────────────────
+    #   [:time,       [:hour, :min, :sec]]
+    #   [nil,         [:jd]]
+    #   [:ordinal,    [:year, :yday, :hour, :min, :sec]]
+    #   [:civil,      [:year, :mon, :mday, :hour, :min, :sec]]
+    #   [:commercial, [:cwyear, :cweek, :cwday, :hour, :min, :sec]]
+    #   [:wday,       [:wday, :hour, :min, :sec]]
+    #   [:wnum0,      [:year, :wnum0, :wday, :hour, :min, :sec]]
+    #   [:wnum1,      [:year, :wnum1, :wday, :hour, :min, :sec]]
+    #   [nil,         [:cwyear, :cweek, :wday, :hour, :min, :sec]]
+    #   [nil,         [:year, :wnum0, :cwday, :hour, :min, :sec]]
+    #   [nil,         [:year, :wnum1, :cwday, :hour, :min, :sec]]
+    #
+    COMPLETE_FRAGS_TABLE = [
+      [:time,       [:hour, :min, :sec]],
+      [nil,         [:jd]],
+      [:ordinal,    [:year, :yday, :hour, :min, :sec]],
+      [:civil,      [:year, :mon, :mday, :hour, :min, :sec]],
+      [:commercial, [:cwyear, :cweek, :cwday, :hour, :min, :sec]],
+      [:wday,       [:wday, :hour, :min, :sec]],
+      [:wnum0,      [:year, :wnum0, :wday, :hour, :min, :sec]],
+      [:wnum1,      [:year, :wnum1, :wday, :hour, :min, :sec]],
+      [nil,         [:cwyear, :cweek, :wday, :hour, :min, :sec]],
+      [nil,         [:year, :wnum0, :cwday, :hour, :min, :sec]],
+      [nil,         [:year, :wnum1, :cwday, :hour, :min, :sec]],
+    ].freeze
+
+    def rt_complete_frags(klass, hash)
+      # Step 1: Find best matching pattern
+      # C: for each tab entry, count how many fields exist in hash; pick max.
+      #    First match wins on tie (strict >).
+      best_key    = nil
+      best_fields = nil
+      best_count  = 0
+
+      COMPLETE_FRAGS_TABLE.each do |key, fields|
+        count = fields.count { |f| hash.key?(f) }
+        if count > best_count
+          best_count  = count
+          best_key    = key
+          best_fields = fields
+        end
+      end
+
+      # Step 2: Complete missing fields for named patterns
+      # C: if (!NIL_P(k) && (RARRAY_LEN(a) > e))
+      d = nil  # lazy Date.today
+
+      if best_key && best_fields && best_fields.length > best_count
+        case best_key
+
+        when :ordinal
+          # C: fill year from today if missing, default yday=1
+          unless hash.key?(:year)
+            d ||= today
+            hash[:year] = d.year
+          end
+          hash[:yday] ||= 1
+
+        when :civil
+          # C: fill leading missing fields from today, stop at first present field.
+          #    Then default mon=1, mday=1.
+          #
+          #    The loop iterates [:year, :mon, :mday, :hour, :min, :sec].
+          #    For each field, if it's already in hash → break.
+          #    Otherwise fill from today via d.send(field).
+          #    In practice, the loop only reaches date fields (:year/:mon/:mday)
+          #    because at least one date field must be present for civil to win.
+          best_fields.each do |f|
+            break if hash.key?(f)
+            d ||= today
+            hash[f] = d.send(f)
+          end
+          hash[:mon]  ||= 1
+          hash[:mday] ||= 1
+
+        when :commercial
+          # C: same leading-fill pattern, then default cweek=1, cwday=1
+          best_fields.each do |f|
+            break if hash.key?(f)
+            d ||= today
+            hash[f] = d.send(f)
+          end
+          hash[:cweek] ||= 1
+          hash[:cwday] ||= 1
+
+        when :wday
+          # C: set_hash("jd", d_lite_jd(f_add(f_sub(d, d_lite_wday(d)), ref_hash("wday"))))
+          #    → jd of (today - today.wday + parsed_wday)
+          d ||= today
+          hash[:jd] = (d - d.wday + hash[:wday]).jd
+
+        when :wnum0
+          # C: leading-fill from today, then default wnum0=0, wday=0
+          best_fields.each do |f|
+            break if hash.key?(f)
+            d ||= today
+            # :year is the only field that can be missing before :wnum0 in practice
+            hash[f] = d.send(f) if d.respond_to?(f)
+          end
+          hash[:wnum0] ||= 0
+          hash[:wday]  ||= 0
+
+        when :wnum1
+          # C: leading-fill from today, then default wnum1=0, wday=1
+          best_fields.each do |f|
+            break if hash.key?(f)
+            d ||= today
+            hash[f] = d.send(f) if d.respond_to?(f)
+          end
+          hash[:wnum1] ||= 0
+          hash[:wday]  ||= 1
+        end
+      end
+
+      # Step 3: "time" pattern special case
+      # C: if (k == sym("time")) { if (f_le_p(klass, cDateTime)) { ... } }
+      # For DateTime (or subclass), time-only input gets :jd from today.
+      # For Date, time-only input will fail validation (no date fields).
+      if best_key == :time
+        if defined?(RubyDateTime) && klass <= RubyDateTime
+          d ||= today
+          hash[:jd] ||= d.jd
+        end
+      end
+
+      # Step 4: Default time fields, clamp sec
+      # C: if (NIL_P(ref_hash("hour"))) set_hash("hour", 0);
+      #    if (NIL_P(ref_hash("min")))  set_hash("min",  0);
+      #    if (NIL_P(ref_hash("sec")))  set_hash("sec",  0);
+      #    else if (ref_hash("sec") > 59) set_hash("sec", 59);
+      hash[:hour] ||= 0
+      hash[:min]  ||= 0
+      if !hash.key?(:sec)
+        hash[:sec] = 0
+      elsif hash[:sec] > 59
+        hash[:sec] = 59
+      end
+
       hash
     end
 
