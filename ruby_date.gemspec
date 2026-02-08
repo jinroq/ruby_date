@@ -12,7 +12,7 @@ Gem::Specification.new do |spec|
   spec.description = "RubyDate is a pure Ruby replacement for the official Ruby date library, which was implemented in C."
   spec.homepage = "https://github.com/jinroq/ruby_date/"
   spec.license = "MIT"
-  spec.required_ruby_version = ">= 3.2.0"
+  spec.required_ruby_version = ">= 3.0.0"
 
   spec.metadata["homepage_uri"] = spec.homepage
   spec.metadata["changelog_uri"] = spec.homepage + "/blob/master/CHANGELOG.md"
