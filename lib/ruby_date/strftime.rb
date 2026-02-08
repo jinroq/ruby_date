@@ -87,15 +87,30 @@ class RubyDate
   end
 
   def tmx_hour
-    simple_dat_p? ? 0 : (m_df / 3600).floor
+    if simple_dat_p?
+      0
+    else
+      df = df_utc_to_local(m_df, m_of)
+      (df / 3600).floor
+    end
   end
 
   def tmx_min
-    simple_dat_p? ? 0 : ((m_df % 3600) / 60).floor
+    if simple_dat_p?
+      0
+    else
+      df = df_utc_to_local(m_df, m_of)
+      ((df % 3600) / 60).floor
+    end
   end
 
   def tmx_sec
-    simple_dat_p? ? 0 : m_df % 60
+    if simple_dat_p?
+      0
+    else
+      df = df_utc_to_local(m_df, m_of)
+      df % 60
+    end
   end
 
   def tmx_sec_fraction

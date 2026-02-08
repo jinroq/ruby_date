@@ -32,9 +32,29 @@ class Time
     h = hour
     mi = min
     s = sec
-    of = Rational(utc_offset, 86400)
-    sf = Rational(nsec, 1_000_000_000)
+    of_sec = utc_offset
+    sf = nsec
 
-    RubyDateTime.new(y, m, d, h, mi, s + sf, of, RubyDate::ITALY)
+    nth, ry = RubyDate.send(:decode_year, y, -1)
+    rjd, _ = RubyDate.send(:c_civil_to_jd, ry, m, d, RubyDate::GREGORIAN)
+
+    df = h * 3600 + mi * 60 + s
+
+    # Convert local to UTC
+    df_utc = df - of_sec
+    jd_utc = rjd
+    if df_utc < 0
+      jd_utc -= 1
+      df_utc += 86400
+    elsif df_utc >= 86400
+      jd_utc += 1
+      df_utc -= 86400
+    end
+
+    obj = RubyDateTime.send(:new_with_jd_and_time,
+                            nth, jd_utc, df_utc, sf, of_sec,
+                            RubyDate::GREGORIAN)
+    obj.send(:set_sg, RubyDate::ITALY)
+    obj
   end unless method_defined?(:to_datetime)
 end

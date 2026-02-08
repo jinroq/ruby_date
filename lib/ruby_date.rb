@@ -6,6 +6,7 @@ require_relative "ruby_date/core"
 require_relative "ruby_date/strftime"
 require_relative "ruby_date/parse"
 require_relative "ruby_date/strptime"
+require_relative "ruby_date/time"
 require_relative "ruby_date/datetime"
 
 # Register Date as an alias for RubyDate for Marshal compatibility.

@@ -92,7 +92,7 @@ class RubyDateTime < RubyDate
       @hour = h
       @min = min
       @sec = s
-      @df = time_to_df(h, min, s)
+      @df = df_local_to_utc(time_to_df(h, min, s), rof)
       @sf = 0
       @of = rof
     else
@@ -119,7 +119,7 @@ class RubyDateTime < RubyDate
       @hour = h
       @min = min
       @sec = s
-      @df = time_to_df(h, min, s)
+      @df = df_local_to_utc(time_to_df(h, min, s), rof)
       @sf = 0
       @of = rof
     end
@@ -236,6 +236,25 @@ class RubyDateTime < RubyDate
       "%c%02d:%02d" % [s, h, m]
     end
   end
+
+  # DateTime instance method - overrides Date#iso8601
+  def iso8601(n = 0)
+    if n == 0
+      strftime('%FT%T%:z')
+    else
+      s = strftime('%FT%T')
+      frac = sec_fraction
+      if frac != 0
+        f = format("%.#{n}f", frac.to_f)[1..] # ".123456..."
+        s += f
+      else
+        s += '.' + '0' * n
+      end
+      s + strftime('%:z')
+    end
+  end
+  alias_method :xmlschema, :iso8601
+  alias_method :rfc3339, :iso8601
 
   # call-seq:
   #   deconstruct_keys(array_of_names_or_nil) -> hash

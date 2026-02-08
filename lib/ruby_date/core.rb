@@ -2467,7 +2467,12 @@ class RubyDate
   #
   # Returns a RubyDateTime whose value is the same as +self+.
   def to_datetime
-    RubyDateTime.new(year, month, day, 0, 0, 0, 0, start)
+    # Use internal constructor to bypass validation (reform-gap safety)
+    nth, ry = self.class.send(:decode_year, year, -1)
+    rjd, _ = self.class.send(:c_civil_to_jd, ry, month, day, RubyDate::GREGORIAN)
+    obj = RubyDateTime.send(:new_with_jd_and_time, nth, rjd, 0, 0, 0, RubyDate::GREGORIAN)
+    obj.send(:set_sg, start)
+    obj
   end
 
   # call-seq:
