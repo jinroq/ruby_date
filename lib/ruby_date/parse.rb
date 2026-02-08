@@ -1946,38 +1946,31 @@ class RubyDate
     def new_by_frags(hash, sg)
       raise Error, "invalid date" if hash.nil? || hash.empty?
 
-      # When time or offset fields are present, create a RubyDateTime
-      # to preserve time/zone information (e.g. Date.parse with TZ).
-      has_time = hash.key?(:hour) || hash.key?(:min) || hash.key?(:sec) || hash.key?(:offset)
-      if has_time
-        return RubyDateTime.send(:dt_new_by_frags, hash, sg)
-      end
-
       y = hash[:year]
       m = hash[:mon]
       d = hash[:mday]
 
       # Fast path: year+mon+mday present, no jd/yday
-      # C: if (NIL_P(ref_hash("jd")) && NIL_P(ref_hash("yday")) &&
-      #        !NIL_P(ref_hash("year")) && !NIL_P(ref_hash("mon")) && !NIL_P(ref_hash("mday")))
-      #      jd = rt__valid_civil_p(year, mon, mday, sg);
       if !hash.key?(:jd) && !hash.key?(:yday) && y && m && d
         raise Error, "invalid date" unless valid_civil?(y, m, d, sg)
+        # When time or offset fields are present, create a RubyDateTime
+        # to preserve time/zone information (e.g. Date.parse with TZ).
+        has_time = hash.key?(:hour) || hash.key?(:min) || hash.key?(:sec) || hash.key?(:offset)
+        if has_time
+          return RubyDateTime.send(:dt_new_by_frags, hash, sg)
+        end
         return new(y, m, d, sg)
       end
 
-      # Slow path
-      # C: hash = rt_rewrite_frags(hash);
-      #    hash = rt_complete_frags(klass, hash);
-      #    jd = rt__valid_date_frags_p(hash, sg);
+      # Slow path — uses self (RubyDate), so time-only patterns
+      # (e.g. '23:55') correctly fail: rt_complete_frags with Date class
+      # does not set :jd for :time pattern → rt__valid_date_frags_p returns nil.
       hash = rt_rewrite_frags(hash)
       hash = rt_complete_frags(self, hash)
       jd = rt__valid_date_frags_p(hash, sg)
 
       raise Error, "invalid date" unless jd
 
-      # C: decode_jd(jd, &nth, &rjd);
-      #    return d_simple_new_internal(klass, nth, rjd, sg, 0, 0, 0, HAVE_JD);
       self.jd(jd, sg)
     end
 
