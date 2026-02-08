@@ -10,15 +10,15 @@ class RubyDate
   #
   # For other formats, see
   # {Formats for Dates and Times}[rdoc-ref:language/strftime_formatting.rdoc].
-  def strftime(format = '%F')
+  def strftime(format = STRFTIME_DEFAULT_FMT)
     # If format is not a string, convert it to a string.
     format = format.to_str unless format.is_a?(String)
 
     # Check for ASCII compatible encoding.
     raise ArgumentError, "format should have ASCII compatible encoding" unless format.encoding.ascii_compatible?
 
-    # Default format
-    format = '%Y-%m-%d' if format.empty?
+    # Default format for empty string
+    format = STRFTIME_DEFAULT_FMT if format.empty?
 
     # What to do if format string contains a "\0".
     if format.include?("\0")

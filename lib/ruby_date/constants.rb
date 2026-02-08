@@ -147,4 +147,8 @@ class RubyDate
   HAVE_DOT   = 1 << 3
   HAVE_SLASH = 1 << 4
   private_constant :HAVE_ALPHA, :HAVE_DIGIT, :HAVE_DASH, :HAVE_DOT, :HAVE_SLASH
+
+  # C: default strftime format is US-ASCII
+  STRFTIME_DEFAULT_FMT = '%F'.encode(Encoding::US_ASCII)
+  private_constant :STRFTIME_DEFAULT_FMT
 end
