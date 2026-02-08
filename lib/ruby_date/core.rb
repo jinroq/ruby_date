@@ -2275,6 +2275,7 @@ class RubyDate
       when :day   then h[:day]   = day
       when :yday  then h[:yday]  = yday
       when :wday  then h[:wday]  = wday
+      when :zone  then h[:zone]  = zone
       end
     end
     h
@@ -3631,5 +3632,14 @@ class RubyDate
   def format_era(era_char, year, era_start)
     era_year = year - era_start
     "#{era_char}%02d.%%m.%%d" % era_year
+  end
+
+  def zone
+    of = @parsed_offset || 0
+    s = of < 0 ? '-' : '+'
+    a = of.abs
+    h = a / HOUR_IN_SECONDS
+    m = a % HOUR_IN_SECONDS / MINUTE_IN_SECONDS
+    "%c%02d:%02d" % [s, h, m]
   end
 end

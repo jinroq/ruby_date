@@ -1953,13 +1953,12 @@ class RubyDate
       # Fast path: year+mon+mday present, no jd/yday
       if !hash.key?(:jd) && !hash.key?(:yday) && y && m && d
         raise Error, "invalid date" unless valid_civil?(y, m, d, sg)
-        # When time or offset fields are present, create a RubyDateTime
-        # to preserve time/zone information (e.g. Date.parse with TZ).
-        has_time = hash.key?(:hour) || hash.key?(:min) || hash.key?(:sec) || hash.key?(:offset)
-        if has_time
-          return RubyDateTime.send(:dt_new_by_frags, hash, sg)
-        end
-        return new(y, m, d, sg)
+        obj = new(y, m, d, sg)
+        # Store parsed offset for deconstruct_keys([:zone]) without
+        # affecting JD calculations (don't use @of which triggers UTC conversion)
+        of = hash[:offset]
+        obj.instance_variable_set(:@parsed_offset, of) if of && of != 0
+        return obj
       end
 
       # Slow path — uses self (RubyDate), so time-only patterns
