@@ -110,13 +110,25 @@ class RubyDate
   end
 
   def tmx_secs
-    # Seconds since Unix epoch (1970-01-01)
-    jd_to_unix_time(m_real_jd)
+    # C: tmx_m_secs (date_core.c:7306)
+    # s = day_to_sec(m_real_jd - UNIX_EPOCH_IN_CJD)
+    # if complex: s += m_df
+    s = jd_to_unix_time(m_real_jd)
+    return s if simple_dat_p?
+    df = m_df
+    s += df if df != 0
+    s
   end
 
   def tmx_msecs
-    # Milliseconds since the Unix epoch
-    tmx_secs * 1000 + (tmx_sec_fraction * 1000).floor
+    # C: tmx_m_msecs (date_core.c:7322)
+    # s = tmx_m_secs * 1000
+    # if complex: s += m_sf / MILLISECOND_IN_NANOSECONDS
+    s = tmx_secs * SECOND_IN_MILLISECONDS
+    return s if simple_dat_p?
+    sf = m_sf
+    s += Rational(sf, SECOND_IN_NANOSECONDS / SECOND_IN_MILLISECONDS) if sf != 0
+    s
   end
 
   def tmx_offset
@@ -272,7 +284,17 @@ class RubyDate
     # Apply width specifier.
     if !width.empty?
       width_num = width.to_i
-      apply_width(base_result, width_num, flags)
+      if spec == 'N'
+        # C: %N width is precision (number of fractional digits).
+        # Truncate to width_num digits, or zero-pad on right if width_num > 9.
+        if width_num <= base_result.length
+          base_result[0, width_num]
+        else
+          base_result.ljust(width_num, '0')
+        end
+      else
+        apply_width(base_result, width_num, flags)
+      end
     else
       base_result
     end
@@ -352,7 +374,11 @@ class RubyDate
       end
     when 'L' # Milliseconds (000-999)
       sprintf('%03d', (tmx_sec_fraction * 1000).floor)
-    when 'N' # Nanoseconds (000000000-999999999)
+    when 'N' # Fractional seconds digits
+      # C: width controls precision (number of digits), default 9.
+      # %3N → 3 digits (milliseconds), %6N → 6 digits (microseconds),
+      # %9N → 9 digits (nanoseconds), %12N → 12 digits (picoseconds, zero-padded).
+      # The 'width' variable is handled specially in format_spec for 'N'.
       sprintf('%09d', (tmx_sec_fraction * 1_000_000_000).floor)
     when 'P' # am/pm
       tmx_hour < 12 ? 'am' : 'pm'
