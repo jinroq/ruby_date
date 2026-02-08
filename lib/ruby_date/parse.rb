@@ -2175,48 +2175,147 @@ class RubyDate
       hash
     end
 
-    # C: rt__valid_date_frags_p
-    # Tries jd → ordinal → civil → commercial → wnum0 → wnum1 to produce a valid JD.
-    # TODO: full implementation with wnum0/wnum1 (P0-4)
+    # C: rt__valid_date_frags_p (date_core.c:4379)
+    # Tries 6 strategies to produce a valid JD from hash fragments:
+    #   jd → ordinal → civil → commercial → wnum0 → wnum1
     def rt__valid_date_frags_p(hash, sg)
-      # Try jd
+      # 1. Try jd (C: rt__valid_jd_p just returns jd)
       if hash[:jd]
         return hash[:jd]
       end
 
-      # Try ordinal: year + yday
-      if hash[:year] && hash[:yday]
-        y = hash[:year]
+      # 2. Try ordinal: year + yday
+      if hash[:yday] && hash[:year]
+        y  = hash[:year]
         yd = hash[:yday]
         if valid_ordinal?(y, yd, sg)
-          obj = ordinal(y, yd, sg)
-          return obj.jd
+          return ordinal(y, yd, sg).jd
         end
       end
 
-      # Try civil: year + mon + mday
-      if hash[:year] && hash[:mon] && hash[:mday]
+      # 3. Try civil: year + mon + mday
+      if hash[:mday] && hash[:mon] && hash[:year]
         y = hash[:year]
         m = hash[:mon]
         d = hash[:mday]
         if valid_civil?(y, m, d, sg)
-          obj = new(y, m, d, sg)
-          return obj.jd
+          return new(y, m, d, sg).jd
         end
       end
 
-      # Try commercial: cwyear + cweek + cwday
-      if hash[:cwyear] && hash[:cweek] && hash[:cwday]
-        cy = hash[:cwyear]
-        cw = hash[:cweek]
-        cd = hash[:cwday]
-        if valid_commercial?(cy, cw, cd, sg)
-          obj = commercial(cy, cw, cd, sg)
-          return obj.jd
+      # 4. Try commercial: cwyear + cweek + cwday/wday
+      # C: wday = ref_hash("cwday");
+      #    if (NIL_P(wday)) { wday = ref_hash("wday"); if wday==0 → wday=7; }
+      begin
+        wday = hash[:cwday]
+        if wday.nil?
+          wday = hash[:wday]
+          wday = 7 if wday && wday == 0  # Sunday: wday 0 → cwday 7
+        end
+
+        if wday && hash[:cweek] && hash[:cwyear]
+          jd = rt__valid_commercial_p(hash[:cwyear], hash[:cweek], wday, sg)
+          return jd if jd
+        end
+      end
+
+      # 5. Try wnum0: year + wnum0 + wday (Sunday-first week, %U)
+      # C: wday = ref_hash("wday");
+      #    if (NIL_P(wday)) { wday = ref_hash("cwday"); if cwday==7 → wday=0; }
+      begin
+        wday = hash[:wday]
+        if wday.nil?
+          wday = hash[:cwday]
+          wday = 0 if wday && wday == 7  # Sunday: cwday 7 → wday 0
+        end
+
+        if wday && hash[:wnum0] && hash[:year]
+          jd = rt__valid_weeknum_p(hash[:year], hash[:wnum0], wday, 0, sg)
+          return jd if jd
+        end
+      end
+
+      # 6. Try wnum1: year + wnum1 + wday (Monday-first week, %W)
+      # C: wday = ref_hash("wday"); if NIL → wday = ref_hash("cwday");
+      #    if wday → wday = (wday - 1) % 7
+      begin
+        wday = hash[:wday]
+        wday = hash[:cwday] if wday.nil?
+        if wday
+          wday = (wday - 1) % 7  # Convert: 0(Sun)→6, 1(Mon)→0, ..., 7(Sun)→6
+        end
+
+        if wday && hash[:wnum1] && hash[:year]
+          jd = rt__valid_weeknum_p(hash[:year], hash[:wnum1], wday, 1, sg)
+          return jd if jd
         end
       end
 
       nil
+    end
+
+    # C: rt__valid_commercial_p (date_core.c:4347)
+    # Validates commercial date and returns JD, or nil.
+    def rt__valid_commercial_p(y, w, d, sg)
+      if valid_commercial?(y, w, d, sg)
+        return commercial(y, w, d, sg).jd
+      end
+      nil
+    end
+
+    # C: rt__valid_weeknum_p → valid_weeknum_p → c_valid_weeknum_p (date_core.c:1009)
+    # Validates weeknum-based date and returns JD, or nil.
+    # f=0 for Sunday-first (%U), f=1 for Monday-first (%W).
+    def rt__valid_weeknum_p(y, w, d, f, sg)
+      # C: if (d < 0) d += 7;
+      d += 7 if d < 0
+      # C: if (w < 0) { ... normalize via next year ... }
+      if w < 0
+        rjd2 = c_weeknum_to_jd(y + 1, 1, f, f, sg)
+        ry2, rw2, _ = c_jd_to_weeknum(rjd2 + w * 7, f, sg)
+        return nil if ry2 != y
+        w = rw2
+      end
+      jd = c_weeknum_to_jd(y, w, d, f, sg)
+      ry, rw, rd = c_jd_to_weeknum(jd, f, sg)
+      return nil if y != ry || w != rw || d != rd
+      jd
+    end
+
+    # C: c_weeknum_to_jd (date_core.c:663)
+    # Converts (year, week_number, day_in_week, first_day_flag, sg) → JD.
+    #
+    # C formula:
+    #   c_find_fdoy(y, sg, &rjd2, &ns2);
+    #   rjd2 += 6;
+    #   *rjd = (rjd2 - MOD(((rjd2 - f) + 1), 7) - 7) + 7 * w + d;
+    def c_weeknum_to_jd(y, w, d, f, sg)
+      fdoy_jd, _ = c_find_fdoy(y, sg)
+      fdoy_jd += 6
+      (fdoy_jd - ((fdoy_jd - f + 1) % 7) - 7) + 7 * w + d
+    end
+
+    # C: c_jd_to_weeknum (date_core.c:674)
+    # Converts JD → [year, week_number, day_in_week].
+    # Class-method version (the instance method in core.rb calls self.class.send).
+    #
+    # C formula:
+    #   c_jd_to_civil(jd, sg, &ry, ...);
+    #   c_find_fdoy(ry, sg, &rjd, ...);
+    #   rjd += 6;
+    #   j = jd - (rjd - MOD((rjd - f) + 1, 7)) + 7;
+    #   rw = DIV(j, 7);
+    #   rd = MOD(j, 7);
+    def c_jd_to_weeknum(jd, f, sg)
+      ry, _, _ = c_jd_to_civil(jd, sg)
+      fdoy_jd, _ = c_find_fdoy(ry, sg)
+      fdoy_jd += 6
+
+      j = jd - (fdoy_jd - ((fdoy_jd - f + 1) % 7)) + 7
+      rw = j.div(7)
+      rd = j % 7
+
+      [ry, rw, rd]
     end
 
     # --- comp_year helpers (C's comp_year69, comp_year50) ---
