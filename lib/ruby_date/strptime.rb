@@ -485,7 +485,7 @@ class RubyDate
         result = _strptime_zone(str, pos)
         return nil unless result
         h[:zone] = result[:zone]
-        h[:offset] = result[:offset]
+        h[:offset] = result[:offset] unless result[:offset].nil?
         { pos: result[:pos], hash: h }
 
       when 's' # Seconds since epoch
@@ -632,25 +632,31 @@ class RubyDate
       m = remaining.match(/\A([A-Za-z][A-Za-z.]*(?:\s+[A-Za-z][A-Za-z.]*)*)/i)
       if m
         zone_candidate = m[1]
-        # Try progressively shorter matches
+        # Try progressively shorter matches (longest first)
         words = zone_candidate.split(/\s+/)
         (words.length).downto(1) do |n|
           try_zone = words[0, n].join(' ')
           offset = _zone_name_to_offset(try_zone)
           if offset
-            return { pos: pos + try_zone.length, zone: try_zone, offset: offset }
+            # Compute actual consumed length preserving original spacing
+            if n == words.length
+              actual_zone = zone_candidate
+            else
+              # Find end of nth word in original string
+              end_pos = 0
+              n.times do |wi|
+                end_pos = zone_candidate.index(words[wi], end_pos)
+                end_pos += words[wi].length
+              end
+              actual_zone = zone_candidate[0, end_pos]
+            end
+            return { pos: pos + actual_zone.length, zone: actual_zone, offset: offset }
           end
         end
-        # Single letter timezone (military)
-        if zone_candidate.length >= 1
-          first = zone_candidate[0]
-          offset = _zone_name_to_offset(first)
-          if offset
-            return { pos: pos + 1, zone: first, offset: offset }
-          end
-          # Unknown timezone - return zone without offset
-          return { pos: pos + zone_candidate.length, zone: zone_candidate, offset: nil }
-        end
+        # Unknown timezone - return full match with nil offset
+        # (Military single-letter zones like 'z' are already in ZONE_TABLE
+        #  and handled by the loop above)
+        return { pos: pos + zone_candidate.length, zone: zone_candidate, offset: nil }
       end
 
       nil
@@ -741,7 +747,7 @@ class RubyDate
     end
 
     def _zone_name_to_offset(name)
-      ZONE_TABLE[name.downcase]
+      ZONE_TABLE[name.downcase.gsub(/\s+/, ' ')]
     end
   end
 end
