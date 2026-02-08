@@ -1940,15 +1940,9 @@ class RubyDate
       end
     end
 
-    # Create a Date/DateTime from a parsed hash (C's d_new_by_frags)
-    #
-    # Logic:
-    #   1. If hash is nil or empty, raise Error.
-    #   2. Fast path: if year, mon, mday are present (and no jd/yday),
-    #      validate with valid_civil?. Raise Error if invalid.
-    #   3. Slow path: try ordinal (year+yday), commercial (cwyear+cweek+cwday).
-    #   4. If no valid date can be constructed, raise Error.
-    #   5. If time fields are present, create DateTime-style object.
+    # C: d_new_by_frags
+    # Date-only fragment-based constructor.
+    # Time fields in hash are ignored — use dt_new_by_frags (in datetime.rb) for DateTime.
     def new_by_frags(hash, sg)
       raise Error, "invalid date" if hash.nil? || hash.empty?
 
@@ -1956,73 +1950,86 @@ class RubyDate
       m = hash[:mon]
       d = hash[:mday]
 
-      # Check for time fields → DateTime-style
-      has_time = hash.key?(:hour) || hash.key?(:min) || hash.key?(:sec) || hash.key?(:offset)
-
-      # --- Determine date fields ---
-
-      # Fast path: year+mon+mday without jd/yday
+      # Fast path: year+mon+mday present, no jd/yday
+      # C: if (NIL_P(ref_hash("jd")) && NIL_P(ref_hash("yday")) &&
+      #        !NIL_P(ref_hash("year")) && !NIL_P(ref_hash("mon")) && !NIL_P(ref_hash("mday")))
+      #      jd = rt__valid_civil_p(year, mon, mday, sg);
       if !hash.key?(:jd) && !hash.key?(:yday) && y && m && d
         raise Error, "invalid date" unless valid_civil?(y, m, d, sg)
-        if has_time
-          return new_datetime_from_frags(y, m, d, hash, sg)
-        end
         return new(y, m, d, sg)
       end
 
-      # Try jd
-      if hash.key?(:jd)
-        obj = jd(hash[:jd], sg)
-        # TODO: apply time fields to jd-based object
-        return obj
-      end
+      # Slow path
+      # C: hash = rt_rewrite_frags(hash);
+      #    hash = rt_complete_frags(klass, hash);
+      #    jd = rt__valid_date_frags_p(hash, sg);
+      hash = rt_rewrite_frags(hash)
+      hash = rt_complete_frags(hash)
+      jd = rt__valid_date_frags_p(hash, sg)
 
-      # Try ordinal: year+yday
-      if y && hash.key?(:yday)
-        return ordinal(y, hash[:yday], sg)
-      end
+      raise Error, "invalid date" unless jd
 
-      # Try commercial: cwyear+cweek+cwday
-      if hash.key?(:cwyear) && hash.key?(:cweek) && hash.key?(:cwday)
-        return commercial(hash[:cwyear], hash[:cweek], hash[:cwday], sg)
-      end
-
-      # Try year+mon (mday defaults to 1), or year alone
-      if y && m
-        raise Error, "invalid date" unless valid_civil?(y, m, 1, sg)
-        if has_time
-          return new_datetime_from_frags(y, m, 1, hash, sg)
-        end
-        return new(y, m, 1, sg)
-      end
-
-      if y
-        raise Error, "invalid date" unless valid_civil?(y, 1, 1, sg)
-        if has_time
-          return new_datetime_from_frags(y, 1, 1, hash, sg)
-        end
-        return new(y, 1, 1, sg)
-      end
-
-      # No date fields available (e.g. time-only input like "23:55")
-      raise Error, "invalid date"
+      # C: decode_jd(jd, &nth, &rjd);
+      #    return d_simple_new_internal(klass, nth, rjd, sg, 0, 0, 0, HAVE_JD);
+      self.jd(jd, sg)
     end
 
-    # Build a DateTime-style object from date fields + parsed hash with time
-    def new_datetime_from_frags(y, m, d, hash, sg)
-      h   = hash[:hour] || 0
-      min = hash[:min]  || 0
-      s   = hash[:sec]  || 0
+    # C: rt_rewrite_frags
+    # Converts :seconds (from %s/%Q) into jd/hour/min/sec/sec_fraction fields.
+    # TODO: full implementation (P0-2)
+    def rt_rewrite_frags(hash)
+      hash
+    end
 
-      # Add sec_fraction if present
-      if hash[:sec_fraction]
-        s = s + hash[:sec_fraction]
+    # C: rt_complete_frags
+    # Selects the best field set from 11 patterns and fills missing fields from Date.today.
+    # TODO: full implementation (P0-3)
+    def rt_complete_frags(hash)
+      hash
+    end
+
+    # C: rt__valid_date_frags_p
+    # Tries jd → ordinal → civil → commercial → wnum0 → wnum1 to produce a valid JD.
+    # TODO: full implementation with wnum0/wnum1 (P0-4)
+    def rt__valid_date_frags_p(hash, sg)
+      # Try jd
+      if hash[:jd]
+        return hash[:jd]
       end
 
-      # Convert offset (integer seconds) to Rational fraction of day
-      of = hash[:offset] ? Rational(hash[:offset], DAY_IN_SECONDS) : 0
+      # Try ordinal: year + yday
+      if hash[:year] && hash[:yday]
+        y = hash[:year]
+        yd = hash[:yday]
+        if valid_ordinal?(y, yd, sg)
+          obj = ordinal(y, yd, sg)
+          return obj.jd
+        end
+      end
 
-      new(y, m, d, h, min, s, of, sg)
+      # Try civil: year + mon + mday
+      if hash[:year] && hash[:mon] && hash[:mday]
+        y = hash[:year]
+        m = hash[:mon]
+        d = hash[:mday]
+        if valid_civil?(y, m, d, sg)
+          obj = new(y, m, d, sg)
+          return obj.jd
+        end
+      end
+
+      # Try commercial: cwyear + cweek + cwday
+      if hash[:cwyear] && hash[:cweek] && hash[:cwday]
+        cy = hash[:cwyear]
+        cw = hash[:cweek]
+        cd = hash[:cwday]
+        if valid_commercial?(cy, cw, cd, sg)
+          obj = commercial(cy, cw, cd, sg)
+          return obj.jd
+        end
+      end
+
+      nil
     end
 
     # --- comp_year helpers (C's comp_year69, comp_year50) ---
