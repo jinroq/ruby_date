@@ -366,45 +366,72 @@ class RubyDateTime < RubyDate
     JULIAN_EPOCH_DATETIME_RFC2822 = 'Mon, 1 Jan -4712 00:00:00 +0000'
     JULIAN_EPOCH_DATETIME_HTTPDATE = 'Mon, 01 Jan -4712 00:00:00 GMT'
 
-    # C: dt_new_by_frags
-    # Similar to d_new_by_frags but completes time fields and creates DateTime.
+    # C: dt_new_by_frags (date_core.c:8434)
+    #
+    # Structure matches C exactly:
+    # 1. Fast path: year+mon+mday present, no jd/yday
+    #    - Validate civil, default time to 0, clamp sec==60 → 59
+    # 2. Slow path: rt_rewrite_frags → rt_complete_frags → rt__valid_date_frags_p
+    # 3. Validate time (c_valid_time_p), handle sec_fraction, offset
+    # 4. Construct DateTime
     def dt_new_by_frags(hash, sg)
       raise Error, "invalid date" if hash.nil? || hash.empty?
 
-      y = hash[:year]
-      m = hash[:mon]
-      d = hash[:mday]
+      # --- Fast path (C: lines 8447-8466) ---
+      if !hash.key?(:jd) && !hash.key?(:yday) &&
+         hash[:year] && hash[:mon] && hash[:mday]
 
+        y = hash[:year]; m = hash[:mon]; d = hash[:mday]
+        raise Error, "invalid date" unless valid_civil?(y, m, d, sg)
+        use_civil = true
+
+        # C: default time fields, clamp sec==60
+        hash[:hour] = 0 unless hash.key?(:hour)
+        hash[:min]  = 0 unless hash.key?(:min)
+        if !hash.key?(:sec)
+          hash[:sec] = 0
+        elsif hash[:sec] == 60
+          hash[:sec] = 59
+        end
+
+      # --- Slow path (C: lines 8467-8470) ---
+      else
+        hash = rt_rewrite_frags(hash)
+        hash = rt_complete_frags(self, hash)
+        jd_val = rt__valid_date_frags_p(hash, sg)
+        raise Error, "invalid date" unless jd_val
+
+        # Convert JD to civil for constructor
+        y, m, d = c_jd_to_civil(jd_val, sg)
+      end
+
+      # --- Time validation (C: c_valid_time_p, lines 8473-8480) ---
       h   = hash[:hour] || 0
       min = hash[:min]  || 0
       s   = hash[:sec]  || 0
 
-      # Add sec_fraction if present
-      if hash[:sec_fraction]
-        s = s + hash[:sec_fraction]
+      # C: c_valid_time_p normalizes negative values and validates range.
+      rh   = h   < 0 ? h + 24 : h
+      rmin = min < 0 ? min + 60 : min
+      rs   = s   < 0 ? s + 60 : s
+      unless (0..24).cover?(rh) && (0..59).cover?(rmin) && (0..59).cover?(rs) &&
+             !(rh == 24 && (rmin > 0 || rs > 0))
+        raise Error, "invalid date"
       end
 
-      # Convert offset (integer seconds) to Rational fraction of day
-      of = hash[:offset] ? Rational(hash[:offset], 86400) : 0
+      # --- sec_fraction (C: lines 8482-8486) ---
+      sf = hash[:sec_fraction]
+      s_with_frac = sf ? rs + sf : rs
 
-      # Fast path: year+mon+mday without jd/yday
-      if !hash.key?(:jd) && !hash.key?(:yday) && y && m && d
-        raise Error, "invalid date" unless valid_civil?(y, m, d, sg)
-        return new(y, m, d, h, min, s, of, sg)
+      # --- offset (C: lines 8488-8495) ---
+      of_sec = hash[:offset] || 0
+      if of_sec.abs > DAY_IN_SECONDS
+        of_sec = 0  # C: rb_warning("invalid offset is ignored")
       end
+      of = Rational(of_sec, DAY_IN_SECONDS)
 
-      # Try to complete date fields
-      if y && m
-        raise Error, "invalid date" unless valid_civil?(y, m, 1, sg)
-        return new(y, m, 1, h, min, s, of, sg)
-      end
-
-      if y
-        raise Error, "invalid date" unless valid_civil?(y, 1, 1, sg)
-        return new(y, 1, 1, h, min, s, of, sg)
-      end
-
-      raise Error, "invalid date"
+      # --- Construct DateTime ---
+      new(y, m, d, rh, rmin, s_with_frac, of, sg)
     end
   end
 
