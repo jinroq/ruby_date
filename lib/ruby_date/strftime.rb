@@ -210,6 +210,8 @@ class RubyDate
         end
 
         # Width specifier overflow check
+        # C: date_strftime.c uses TBUFSIZE (1024) as buffer limit.
+        # Width >= 1024 raises ERANGE.
         unless width.empty?
           # If the width is too long (check number of digits)
           if width.length > 10 || (width.length == 10 && width > '2147483647')
@@ -218,8 +220,8 @@ class RubyDate
 
           width_num = width.to_i
 
-          # Practical upper limit check (a width of 1MB or more is unreasonable)
-          if width_num > 1_000_000
+          # C: TBUFSIZE is 1024; padding beyond that overflows the buffer.
+          if width_num >= 1024
             raise Errno::ERANGE, "Result too large"
           end
         end
