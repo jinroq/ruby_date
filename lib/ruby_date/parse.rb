@@ -1946,6 +1946,13 @@ class RubyDate
     def new_by_frags(hash, sg)
       raise Error, "invalid date" if hash.nil? || hash.empty?
 
+      # When time or offset fields are present, create a RubyDateTime
+      # to preserve time/zone information (e.g. Date.parse with TZ).
+      has_time = hash.key?(:hour) || hash.key?(:min) || hash.key?(:sec) || hash.key?(:offset)
+      if has_time
+        return RubyDateTime.send(:dt_new_by_frags, hash, sg)
+      end
+
       y = hash[:year]
       m = hash[:mon]
       d = hash[:mday]
