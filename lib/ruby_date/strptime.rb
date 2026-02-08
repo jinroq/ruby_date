@@ -124,6 +124,33 @@ class RubyDate
         hash[:leftover] = str[pos..]
       end
 
+      # --- Post-processing (C: date__strptime, date_strptime.c:524-546) ---
+
+      # C: cent = del_hash("_cent");
+      # Apply _cent to both cwyear and year.
+      # Note: The inline _century approach in %C/%y/%g handlers covers most
+      # cases, but this post-processing ensures correctness for all orderings
+      # and applies century to both year and cwyear simultaneously.
+      # We delete _century and _century_set here to keep the hash clean,
+      # matching C's del_hash("_cent") behavior.
+      hash.delete(:_century)
+      hash.delete(:_century_set)
+
+      # C: merid = del_hash("_merid");
+      # Apply _merid to hour: hour = (hour % 12) + merid
+      # This handles both %I (12-hour) and %H (24-hour) correctly:
+      #   %I=12 + AM(0)  → (12 % 12) + 0  = 0
+      #   %I=12 + PM(12) → (12 % 12) + 12 = 12
+      #   %I=4  + PM(12) → (4 % 12)  + 12 = 16
+      #   %I=4  + AM(0)  → (4 % 12)  + 0  = 4
+      merid = hash.delete(:_merid)
+      if merid
+        hour = hash[:hour]
+        if hour
+          hash[:hour] = (hour % 12) + merid
+        end
+      end
+
       hash
     end
 
@@ -293,17 +320,13 @@ class RubyDate
         { pos: pos + m[0].length, hash: h }
 
       when 'p', 'P' # AM/PM
+        # C: set_hash("_merid", INT2FIX(hour));
+        # Store _merid value (0 for AM, 12 for PM) for post-processing.
+        # This avoids order-dependency: %p can appear before or after %I/%H.
         m = str[pos..].match(/\A(a\.?m\.?|p\.?m\.?)/i)
         return nil unless m
         ampm = m[1].delete('.').upcase
-        if context_hash[:hour]
-          if ampm == 'PM'
-            context_hash[:hour] += 12 if context_hash[:hour] < 12
-          else # AM
-            context_hash[:hour] = 0 if context_hash[:hour] == 12
-          end
-          h[:hour] = context_hash[:hour]
-        end
+        h[:_merid] = (ampm == 'PM') ? 12 : 0
         { pos: pos + m[0].length, hash: h }
 
       when 'A', 'a' # Day name (full or abbreviated)
