@@ -549,14 +549,15 @@ class RubyDate
       remaining = str[pos..]
       return nil if remaining.nil? || remaining.empty?
 
-      # Try numeric timezone: +HHMM, -HHMM, +HH:MM, -HH:MM, +HH:MM:SS, -HH:MM:SS, +HH, -HH
+      # Try numeric timezone: +HH:MM, -HH:MM, +HH:MM:SS, -HH:MM:SS, +HHMM, -HHMM, +HH, -HH
       # Also: GMT+HH, GMT-HH:MM, etc. and decimal offsets
+      # Colon-separated pattern (requires colon) tried first, then plain digits.
       m = remaining.match(/\A(
         (?:GMT|UTC)?
         [+-]
-        (?:\d+(?:[.,]\d+)?
+        (?:\d{1,2}:\d{2}(?::\d{2})?
           |
-         \d{1,2}(?::\d{2}(?::\d{2})?)?)
+         \d+(?:[.,]\d+)?)
       )/xi)
 
       if m
