@@ -2917,6 +2917,22 @@ class RubyDate
     @has_civil = true
   end
 
+  def freeze
+    # Force lazy computation before freezing so Ractor-shared objects work.
+    if simple_dat_p?
+      get_s_jd
+      get_s_civil
+      canonicalize_s_jd
+    else
+      get_c_jd
+      get_c_civil
+      get_c_df
+      get_c_time
+      canonicalize_c_jd
+    end
+    super
+  end
+
   def get_c_jd
     # For complex data, if JD has not yet been calculated.
     return if @has_jd
@@ -3214,6 +3230,8 @@ class RubyDate
 
   # Simple
   def canonicalize_s_jd
+    return if frozen?
+
     j = @jd
     nth = @nth
 
@@ -3225,6 +3243,8 @@ class RubyDate
 
   # Complex
   def canonicalize_c_jd
+    return if frozen?
+
     j = @jd
     nth = @nth
 

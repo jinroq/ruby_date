@@ -2046,18 +2046,18 @@ class RubyDate
     #   [nil,         [:year, :wnum1, :cwday, :hour, :min, :sec]]
     #
     COMPLETE_FRAGS_TABLE = [
-      [:time,       [:hour, :min, :sec]],
-      [nil,         [:jd]],
-      [:ordinal,    [:year, :yday, :hour, :min, :sec]],
-      [:civil,      [:year, :mon, :mday, :hour, :min, :sec]],
-      [:commercial, [:cwyear, :cweek, :cwday, :hour, :min, :sec]],
-      [:wday,       [:wday, :hour, :min, :sec]],
-      [:wnum0,      [:year, :wnum0, :wday, :hour, :min, :sec]],
-      [:wnum1,      [:year, :wnum1, :wday, :hour, :min, :sec]],
-      [nil,         [:cwyear, :cweek, :wday, :hour, :min, :sec]],
-      [nil,         [:year, :wnum0, :cwday, :hour, :min, :sec]],
-      [nil,         [:year, :wnum1, :cwday, :hour, :min, :sec]],
-    ].freeze
+      [:time,       [:hour, :min, :sec].freeze],
+      [nil,         [:jd].freeze],
+      [:ordinal,    [:year, :yday, :hour, :min, :sec].freeze],
+      [:civil,      [:year, :mon, :mday, :hour, :min, :sec].freeze],
+      [:commercial, [:cwyear, :cweek, :cwday, :hour, :min, :sec].freeze],
+      [:wday,       [:wday, :hour, :min, :sec].freeze],
+      [:wnum0,      [:year, :wnum0, :wday, :hour, :min, :sec].freeze],
+      [:wnum1,      [:year, :wnum1, :wday, :hour, :min, :sec].freeze],
+      [nil,         [:cwyear, :cweek, :wday, :hour, :min, :sec].freeze],
+      [nil,         [:year, :wnum0, :cwday, :hour, :min, :sec].freeze],
+      [nil,         [:year, :wnum1, :cwday, :hour, :min, :sec].freeze],
+    ].each { |a| a.freeze }.freeze
 
     def rt_complete_frags(klass, hash)
       # Step 1: Find best matching pattern
