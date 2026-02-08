@@ -277,18 +277,23 @@ class RubyDate
         { pos: pos + m[0].length, hash: h }
 
       when 'd', 'e' # Day of month
-        if spec == 'e'
-          # Space-padded
-          m = str[pos..].match(/\A\s*(\d{1,2})/)
+        # C: if (str[si] == ' ') { si++; READ_DIGITS(n, 1); } else { READ_DIGITS(n, 2); }
+        if str[pos] == ' '
+          m = str[pos + 1..].match(/\A(\d)/)
+          return nil unless m
+          day = m[1].to_i
+          return nil if day < 1 || day > 31
+          h[:mday] = day
+          { pos: pos + 1 + m[0].length, hash: h }
         else
           w = width || 2
           m = str[pos..].match(/\A(\d{1,#{w}})/)
+          return nil unless m
+          day = m[1].to_i
+          return nil if day < 1 || day > 31
+          h[:mday] = day
+          { pos: pos + m[0].length, hash: h }
         end
-        return nil unless m
-        day = m[1].to_i
-        return nil if day < 1 || day > 31
-        h[:mday] = day
-        { pos: pos + m[0].length, hash: h }
 
       when 'j' # Day of year (001-366)
         w = width || 3
@@ -300,30 +305,42 @@ class RubyDate
         { pos: pos + m[0].length, hash: h }
 
       when 'H', 'k' # Hour (00-24)
-        if spec == 'k'
-          m = str[pos..].match(/\A\s*(\d{1,2})/)
+        # C: if (str[si] == ' ') { si++; READ_DIGITS(n, 1); } else { READ_DIGITS(n, 2); }
+        if str[pos] == ' '
+          m = str[pos + 1..].match(/\A(\d)/)
+          return nil unless m
+          hour = m[1].to_i
+          return nil if hour > 24
+          h[:hour] = hour
+          { pos: pos + 1 + m[0].length, hash: h }
         else
           w = width || 2
           m = str[pos..].match(/\A(\d{1,#{w}})/)
+          return nil unless m
+          hour = m[1].to_i
+          return nil if hour > 24
+          h[:hour] = hour
+          { pos: pos + m[0].length, hash: h }
         end
-        return nil unless m
-        hour = m[1].to_i
-        return nil if hour > 24
-        h[:hour] = hour
-        { pos: pos + m[0].length, hash: h }
 
       when 'I', 'l' # Hour (01-12)
-        if spec == 'l'
-          m = str[pos..].match(/\A\s*(\d{1,2})/)
+        # C: if (str[si] == ' ') { si++; READ_DIGITS(n, 1); } else { READ_DIGITS(n, 2); }
+        if str[pos] == ' '
+          m = str[pos + 1..].match(/\A(\d)/)
+          return nil unless m
+          hour = m[1].to_i
+          return nil if hour < 1 || hour > 12
+          h[:hour] = hour
+          { pos: pos + 1 + m[0].length, hash: h }
         else
           w = width || 2
           m = str[pos..].match(/\A(\d{1,#{w}})/)
+          return nil unless m
+          hour = m[1].to_i
+          return nil if hour < 1 || hour > 12
+          h[:hour] = hour  # C stores raw value; _merid post-processing applies % 12
+          { pos: pos + m[0].length, hash: h }
         end
-        return nil unless m
-        hour = m[1].to_i
-        return nil if hour < 1 || hour > 12
-        h[:hour] = hour  # C stores raw value; _merid post-processing applies % 12
-        { pos: pos + m[0].length, hash: h }
 
       when 'M' # Minute (00-59)
         w = width || 2
