@@ -867,13 +867,13 @@ class RubyDate
           _, ry = decode_year(year, ns.nonzero? ? -1 : 1)
         end
 
-       { nth:, ry:, rw: result[:rw], rd: result[:rd], rjd:, ns: result[:ns] }
+       { nth: nth, ry: ry, rw: result[:rw], rd: result[:rd], rjd: rjd, ns: result[:ns] }
       else
         nth, ry = decode_year(year, style)
         result = c_valid_commercial_p(ry, week, day, style)
         return nil unless result
 
-        { nth:, ry:, rw: result[:rw], rd: result[:rd], rjd: result[:jd], ns: result[:ns] }
+        { nth: nth, ry: ry, rw: result[:rw], rd: result[:rd], rjd: result[:jd], ns: result[:ns] }
       end
     end
 
@@ -907,7 +907,7 @@ class RubyDate
 
       return nil if year != ry2 || week != rw || day != rd
 
-      { jd: rjd, ns:, rw:, rd: }
+      { jd: rjd, ns: ns, rw: rw, rd: rd }
     end
 
     def c_commercial_to_jd(year, week, day, sg)
@@ -1083,7 +1083,7 @@ class RubyDate
           _, ry = decode_year(y, ns.nonzero? ? -1 : 1)
         end
 
-        return { nth:, ry:, rm: result[:rm], rd: result[:rd], rjd:, ns: result[:ns] }
+        return { nth: nth, ry: ry, rm: result[:rm], rd: result[:rd], rjd: rjd, ns: result[:ns] }
       else
         # If year is a large number
         nth, ry = decode_year(y, style)
@@ -1094,7 +1094,7 @@ class RubyDate
         # Calculate JD from civil
         rjd, ns = c_civil_to_jd(ry, result[:rm], result[:rd], style)
 
-        return { nth:, ry:, rm: result[:rm], rd: result[:rd], rjd:, ns: }
+        return { nth: nth, ry: ry, rm: result[:rm], rd: result[:rd], rjd: rjd, ns: ns }
       end
     end
 
@@ -1119,7 +1119,7 @@ class RubyDate
 
       return nil if ry2 != year || rm2 != month || rd2 != rd
 
-      { jd: rjd, ns:, rm: rm2, rd: }
+      { jd: rjd, ns: ns, rm: rm2, rd: rd }
     end
 
     def c_gregorian_ldom_jd(year, month)
@@ -1233,13 +1233,13 @@ class RubyDate
           _, ry = decode_year(year, ns.nonzero? ? -1 : 1)
         end
 
-        return { nth:, ry:, rd: result[:rd], rjd:, ns: result[:ns] }
+        return { nth: nth, ry: ry, rd: result[:rd], rjd: rjd, ns: result[:ns] }
       else
         nth, ry = decode_year(year, style)
         result = c_valid_ordinal_p(ry, day, style)
         return nil unless result
 
-        return { nth:, ry:, rd: result[:rd], rjd: result[:jd], ns: result[:ns] }
+        return { nth: nth, ry: ry, rd: result[:rd], rjd: result[:jd], ns: result[:ns] }
       end
     end
 
@@ -1261,7 +1261,7 @@ class RubyDate
 
       return nil if ry2 != year || rd2 != rd
 
-      { jd: rjd, ns:, rd: }
+      { jd: rjd, ns: ns, rd: rd }
     end
 
     def c_find_ldoy(year, sg)
