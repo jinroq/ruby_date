@@ -473,6 +473,15 @@ class RubyDate
       obj
     end
 
+    # :nodoc:
+    # C: date_s__load — for Marshal format 1.4, 1.6, 1.8 (u: prefix)
+    def _load(s)
+      a = Marshal.load(s)
+      obj = allocate
+      obj.marshal_load(a)
+      obj
+    end
+
     private
 
     # Optimized: Gregorian date -> Julian Day Number
@@ -2512,43 +2521,47 @@ class RubyDate
   end
 
   # :nodoc:
-  def _load(s)
-    a = Marshal.load(s)
-    obj = allocate
-    # Ensure complex dat (HAVE_JD | HAVE_DF) like d_lite_s_alloc_complex
-    obj.instance_variable_set(:@nth, 0)
-    obj.instance_variable_set(:@jd, 0)
-    obj.instance_variable_set(:@df, 0)
-    obj.instance_variable_set(:@sf, 0)
-    obj.instance_variable_set(:@of, 0)
-    obj.instance_variable_set(:@sg, DEFAULT_SG)
-    obj.instance_variable_set(:@year, 0)
-    obj.instance_variable_set(:@month, 0)
-    obj.instance_variable_set(:@day, 0)
-    obj.instance_variable_set(:@hour, 0)
-    obj.instance_variable_set(:@min, 0)
-    obj.instance_variable_set(:@sec, 0)
-    obj.instance_variable_set(:@has_jd, true)
-    obj.instance_variable_set(:@has_civil, false)
-    obj.marshal_load(a)
-
-    obj
-  end
-
-  # :nodoc:
+  # C: d_lite_marshal_load
+  # Supports 3 historical formats:
+  #   2 elements (1.4/1.6): [jd_like, sg_or_bool]
+  #   3 elements (1.8/1.9.2): [ajd, of, sg]
+  #   6 elements (current): [nth, jd, df, sf, of, sg]
   def marshal_load(array)
-    nth, jd, df, sf, of, sg = array
+    raise TypeError, "expected an array" unless array.is_a?(Array)
+
+    case array.size
+    when 2 # Ruby 1.4/1.6
+      # C: ajd = f_sub(a[0], half_days_in_day); vof = 0; vsg = a[1]
+      ajd = array[0] - Rational(1, 2)
+      vof = 0
+      vsg = array[1]
+      unless vsg.is_a?(Numeric)
+        vsg = vsg ? -Float::INFINITY : Float::INFINITY
+      end
+      nth, jd, df, sf, of_sec, sg = old_to_new(ajd, vof, vsg)
+
+    when 3 # Ruby 1.8 / 1.9.2
+      ajd = array[0]
+      vof = array[1]
+      vsg = array[2]
+      nth, jd, df, sf, of_sec, sg = old_to_new(ajd, vof, vsg)
+
+    when 6 # Current format
+      nth, jd, df, sf, of_sec, sg = array
+
+    else
+      raise TypeError, "invalid size"
+    end
 
     @nth = nth
     @jd = jd
-    @df = df == 0 ? nil : df
-    @sf = sf == 0 ? nil : sf
-    @of = of == 0 ? nil : of
+    @df = (!df || df == 0) ? nil : df
+    @sf = (!sf || sf == 0) ? nil : sf
+    @of = (!of_sec || of_sec == 0) ? nil : of_sec
     @sg = sg
 
     @has_jd = true
     @has_civil = false
-
     @year = nil
     @month = nil
     @day = nil
@@ -2650,6 +2663,14 @@ class RubyDate
 
     def d
       @d
+    end
+
+    def marshal_dump
+      [@d]
+    end
+
+    def marshal_load(array)
+      @d = array[0]
     end
 
     protected :d
@@ -3691,5 +3712,48 @@ class RubyDate
     h = a / HOUR_IN_SECONDS
     m = a % HOUR_IN_SECONDS / MINUTE_IN_SECONDS
     "%c%02d:%02d" % [s, h, m]
+  end
+
+  # C: old_to_new — converts old ajd/of/sg format to new nth/jd/df/sf/of/sg
+  def old_to_new(ajd, of, sg)
+    # C: decode_day(ajd + half_days_in_day, &jd, &df, &sf)
+    d = ajd + Rational(1, 2)
+
+    # div_day: jd = floor(d), f = d mod 1
+    jd_full = d.floor
+    f = d - jd_full
+
+    # div_df: df = floor(f * DAY_IN_SECONDS), remainder
+    df_rational = f * 86400
+    df = df_rational.floor
+    sf_frac = df_rational - df
+
+    # sec_to_ns: sf = round(sf_frac * SECOND_IN_NANOSECONDS)
+    sf = (sf_frac * 1_000_000_000).round
+
+    # C: day_to_sec(of) then round
+    of_sec = (of * 86400).round.to_i
+
+    # C: decode_jd(jd, &nth, &rjd)
+    nth = jd_full.div(CM_PERIOD)
+    rjd = (jd_full % CM_PERIOD).to_i
+
+    # Validations (C: old_to_new)
+    raise Error, "invalid day fraction" if df < 0 || df >= 86400
+    if of_sec < -86400 || of_sec > 86400
+      of_sec = 0
+      warn "invalid offset is ignored"
+    end
+
+    # Convert Infinity to Float (C: NUM2DBL(sg))
+    if sg.is_a?(Infinity)
+      sg = case sg.d
+           when -1 then -Float::INFINITY
+           when  1 then  Float::INFINITY
+           else DEFAULT_SG
+           end
+    end
+
+    [nth, rjd, df, sf, of_sec, sg]
   end
 end
