@@ -2512,6 +2512,30 @@ class RubyDate
   end
 
   # :nodoc:
+  def _load(s)
+    a = Marshal.load(s)
+    obj = allocate
+    # Ensure complex dat (HAVE_JD | HAVE_DF) like d_lite_s_alloc_complex
+    obj.instance_variable_set(:@nth, 0)
+    obj.instance_variable_set(:@jd, 0)
+    obj.instance_variable_set(:@df, 0)
+    obj.instance_variable_set(:@sf, 0)
+    obj.instance_variable_set(:@of, 0)
+    obj.instance_variable_set(:@sg, DEFAULT_SG)
+    obj.instance_variable_set(:@year, 0)
+    obj.instance_variable_set(:@month, 0)
+    obj.instance_variable_set(:@day, 0)
+    obj.instance_variable_set(:@hour, 0)
+    obj.instance_variable_set(:@min, 0)
+    obj.instance_variable_set(:@sec, 0)
+    obj.instance_variable_set(:@has_jd, true)
+    obj.instance_variable_set(:@has_civil, false)
+    obj.marshal_load(a)
+
+    obj
+  end
+
+  # :nodoc:
   def marshal_load(array)
     nth, jd, df, sf, of, sg = array
 
